@@ -2,9 +2,12 @@
 
 import React from 'react';
 import { Star, Clock, MapPin, ArrowDown } from 'lucide-react';
-import { businessConfig } from '@/config/business';
+import { useApp } from '@/context/AppContext';
+import { demoBusiness } from '@/data/demoSeed';
 
 export const Hero: React.FC = () => {
+  const { products } = useApp();
+
   const scrollToMenu = () => {
     const el = document.getElementById('menu-section');
     if (el) {
@@ -12,12 +15,17 @@ export const Hero: React.FC = () => {
     }
   };
 
+  // Find taco birria for star dish showcase
+  const starProduct = products.find((p) => p.slug === 'taco-birria' || p.id === 'p_taco_birria');
+  const starImage = starProduct?.image || '/demo/products/taco-birria.webp';
+  const coverImage = demoBusiness.coverImage || '/demo/hero/hero-main.webp';
+
   return (
     <section className="relative bg-zinc-950 text-white overflow-hidden border-b border-zinc-800/80">
       {/* Background Graphic Blur Overlay */}
       <div className="absolute inset-0 z-0 opacity-40">
         <img
-          src={businessConfig.coverImage}
+          src={coverImage}
           alt="Gastronomía El Taca Nijo"
           className="w-full h-full object-cover filter blur-sm scale-105"
         />
@@ -30,7 +38,7 @@ export const Hero: React.FC = () => {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-950/70 border border-rose-500/40 text-rose-300 text-xs font-semibold backdrop-blur-md">
             <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-            <span>{businessConfig.rating} ★ ({businessConfig.reviewCount} opiniones) · Sabor Auténtico</span>
+            <span>{demoBusiness.rating} ★ ({demoBusiness.reviewCount} opiniones) · Sabor Auténtico</span>
           </div>
 
           {/* Main Hero Title */}
@@ -39,18 +47,18 @@ export const Hero: React.FC = () => {
           </h2>
 
           <p className="text-zinc-300 text-sm sm:text-base max-w-lg mx-auto md:mx-0 font-normal leading-relaxed">
-            Tacos de res birria doraditos, suadero confitado, jugosas hamburguesas y combos especiales listos para disfrutar en tu domicilio o retirar en el local.
+            {demoBusiness.description}
           </p>
 
           {/* Info Pills */}
           <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-xs text-zinc-300 pt-1">
             <div className="flex items-center gap-1.5 bg-zinc-900/80 border border-zinc-800 px-3 py-1.5 rounded-lg">
               <Clock className="w-4 h-4 text-rose-400" />
-              <span>{businessConfig.openingHours}</span>
+              <span>{demoBusiness.openingHours}</span>
             </div>
             <div className="flex items-center gap-1.5 bg-zinc-900/80 border border-zinc-800 px-3 py-1.5 rounded-lg">
               <MapPin className="w-4 h-4 text-amber-400" />
-              <span>Quito · Delivery activo</span>
+              <span>Cuenca · Delivery activo</span>
             </div>
           </div>
 
@@ -66,11 +74,11 @@ export const Hero: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Hero Image Showcase */}
+        {/* Right Column: Hero Image Showcase (Plato Estrella) */}
         <div className="w-full md:w-1/2 flex justify-center">
           <div className="relative w-full max-w-md aspect-[4/3] rounded-3xl overflow-hidden border-2 border-zinc-700/60 shadow-2xl shadow-rose-950/40 group">
             <img
-              src={businessConfig.coverImage}
+              src={starImage}
               alt="Plato estrella El Taca Nijo"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             />
@@ -78,10 +86,10 @@ export const Hero: React.FC = () => {
             <div className="absolute bottom-4 left-4 right-4 bg-zinc-900/90 backdrop-blur-md p-3.5 rounded-2xl border border-zinc-700/80 flex items-center justify-between">
               <div>
                 <p className="text-xs text-rose-400 font-bold uppercase tracking-wider">Especialidad de la Casa</p>
-                <p className="text-sm font-bold text-white">Taco Birria con Consomé</p>
+                <p className="text-sm font-bold text-white">{starProduct?.name || 'Taco Birria con Consomé'}</p>
               </div>
               <span className="text-base font-extrabold text-amber-400 bg-amber-950/60 px-3 py-1 rounded-xl border border-amber-500/40">
-                $3.50
+                ${starProduct?.price?.toFixed(2) || '3.50'}
               </span>
             </div>
           </div>

@@ -8,7 +8,7 @@ export const businessConfig: Business = {
   slug: 'el-taca-nijo',
   slogan: 'Sabor que provoca volver',
   logo: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=300&q=80',
-  coverImage: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1600&q=80',
+  coverImage: '/demo/hero/hero-main.webp',
   description: 'Auténticos tacos mexicanos, smash burgers artesanales y antojos preparados al momento.',
   phone: '0991234567',
   whatsapp: '0991234567',
