@@ -12,7 +12,7 @@ export const DEMO_KEYS = {
   ORDERS: 'nixgo_food_demo_orders',
 };
 
-export const CURRENT_DEMO_VERSION = 'v1.2_webp_commercial_cuenca_assets_v4';
+export const CURRENT_DEMO_VERSION = 'v1.2_webp_commercial_cuenca_assets_v5';
 
 export class DemoStorage {
   private static checkAndMigrateVersion(): void {

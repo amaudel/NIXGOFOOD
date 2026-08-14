@@ -75,5 +75,53 @@
     "model": "ai-gastronomic-flux",
     "sizeKb": 205,
     "generatedAt": "2026-08-14T17:02:17.824Z"
+  },
+  "nachos-especiales": {
+    "productSlug": "nachos-especiales",
+    "name": "Nachos Especiales",
+    "path": "/demo/products/nachos-especiales.webp",
+    "model": "local-gastronomic-webp",
+    "sizeKb": 16,
+    "generatedAt": "2026-08-14T17:57:31.873Z"
+  },
+  "quesadillas-harina": {
+    "productSlug": "quesadillas-harina",
+    "name": "Quesadillas en Harina",
+    "path": "/demo/products/quesadillas-harina.webp",
+    "model": "local-gastronomic-webp",
+    "sizeKb": 11,
+    "generatedAt": "2026-08-14T17:57:32.356Z"
+  },
+  "papas-rusticas-guacamole": {
+    "productSlug": "papas-rusticas-guacamole",
+    "name": "Papas Rústicas",
+    "path": "/demo/products/papas-rusticas-guacamole.webp",
+    "model": "local-gastronomic-webp",
+    "sizeKb": 12,
+    "generatedAt": "2026-08-14T17:57:32.707Z"
+  },
+  "limonada-menta": {
+    "productSlug": "limonada-menta",
+    "name": "Limonada con Menta",
+    "path": "/demo/products/limonada-menta.webp",
+    "model": "local-gastronomic-webp",
+    "sizeKb": 14,
+    "generatedAt": "2026-08-14T17:57:33.086Z"
+  },
+  "agua-horchata": {
+    "productSlug": "agua-horchata",
+    "name": "Agua de Horchata",
+    "path": "/demo/products/agua-horchata.webp",
+    "model": "local-gastronomic-webp",
+    "sizeKb": 14,
+    "generatedAt": "2026-08-14T17:57:33.857Z"
+  },
+  "coca-cola": {
+    "productSlug": "coca-cola",
+    "name": "Gaseosa Cola Helada",
+    "path": "/demo/products/coca-cola.webp",
+    "model": "local-gastronomic-webp",
+    "sizeKb": 15,
+    "generatedAt": "2026-08-14T17:57:34.369Z"
   }
 }
