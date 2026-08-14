@@ -1,13 +1,15 @@
 /**
  * Centralized Demo Mode Helper
- * Returns true when NEXT_PUBLIC_DEMO_MODE === 'true' (or when Supabase credentials are empty)
+ * Returns true when NEXT_PUBLIC_DEMO_MODE is 'true' or 'TRUE' (or when Supabase credentials are empty)
  */
 export const isDemoMode = (): boolean => {
-  if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DEMO_MODE === 'false') {
+  const envVal = process.env.NEXT_PUBLIC_DEMO_MODE?.toLowerCase()?.trim();
+
+  if (envVal === 'false' || envVal === '0') {
     return false;
   }
   
-  if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+  if (envVal === 'true' || envVal === '1') {
     return true;
   }
 
