@@ -373,18 +373,16 @@ function OrdersPageContent() {
 
   // Filter Orders logic based on Single Source of Truth
   const filteredOrders = orders.filter((o) => {
-    // Phase 2 Quick Filter: Attention Only
+    // 1. Status / Attention Tab Filtering
     if (selectedStatusFilter === 'attention') {
       const sup = getOrderSupervisionState(o, now, historyMap[o.id]);
       if (sup.severity === 'normal') return false;
+    } else if (selectedStatusFilter !== 'all' && selectedStatusFilter !== 'todos') {
+      const filterDef = ORDER_FILTERS.find((f) => f.id === selectedStatusFilter);
+      if (filterDef && filterDef.statuses && !filterDef.statuses.includes(o.status)) {
+        return false;
+      }
     }
-
-    // 1. Status Tab Filtering
-    if (selectedStatusFilter === 'new' && o.status !== 'new') return false;
-    if (selectedStatusFilter === 'in_progress' && !['preparing', 'ready', 'on_the_way'].includes(o.status))
-      return false;
-    if (selectedStatusFilter === 'delivered' && o.status !== 'delivered') return false;
-    if (selectedStatusFilter === 'cancelled' && o.status !== 'cancelled') return false;
 
     // 2. Text Search Query
     if (searchQuery.trim()) {
