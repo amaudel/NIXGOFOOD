@@ -51,6 +51,30 @@ const getStatusLabel = (s: OrderStatus): string => {
   }
 };
 
+// Groups delivered orders by calendar day using the actual delivery timestamp
+// (from status history), falling back to the order's creation date when no
+// 'delivered' history entry is found.
+const getOrderDayKey = (order: Order, historyMap: Record<string, OrderStatusHistoryItem[]>): string => {
+  const deliveredEntry = historyMap[order.id]?.find((h) => h.toStatus === 'delivered');
+  const d = new Date(deliveredEntry?.createdAt || order.createdAt);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const formatDayLabel = (dayKey: string): string => {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+  const longDate = date.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' });
+  if (sameDay(date, today)) return `Hoy · ${longDate}`;
+  if (sameDay(date, yesterday)) return `Ayer · ${longDate}`;
+  return date.toLocaleDateString('es-EC', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+};
+
 function OrdersPageContent() {
   const { executeOrderAction } = useApp();
   const now = useOperationalClock();
@@ -396,6 +420,180 @@ function OrdersPageContent() {
     return true;
   });
 
+  // Delivered orders are grouped by day (newest day first) for cashier end-of-day review
+  const deliveredGroupedByDay =
+    selectedStatusFilter === 'entregados'
+      ? (() => {
+          const groups = new Map<string, Order[]>();
+          filteredOrders.forEach((ord) => {
+            const key = getOrderDayKey(ord, historyMap);
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key)!.push(ord);
+          });
+          return Array.from(groups.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+        })()
+      : null;
+
+  const renderOrderCard = (ord: Order) => {
+    const supervision = getOrderSupervisionState(ord, now, historyMap[ord.id]);
+
+    return (
+      <div
+        key={ord.id}
+        id={`order-card-${ord.id}`}
+        className={`bg-zinc-900 border rounded-3xl p-5 space-y-4 shadow-xl hover:border-zinc-700 transition-all ${
+          supervision.severity === 'critical'
+            ? 'border-rose-800/80 bg-gradient-to-b from-zinc-900 via-zinc-900 to-rose-950/20'
+            : supervision.severity === 'warning'
+            ? 'border-amber-800/80 bg-gradient-to-b from-zinc-900 via-zinc-900 to-amber-950/20'
+            : 'border-zinc-800'
+        }`}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+          <div>
+            <span className="text-xl font-black text-white">{ord.orderNumber}</span>
+            <span className="text-xs text-zinc-400 block font-medium">
+              <Clock className="w-3 h-3 inline mr-1 text-zinc-500" />
+              {new Date(ord.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+
+          <span
+            className={`text-xs uppercase font-extrabold px-3 py-1 rounded-full border ${
+              ord.status === 'new'
+                ? 'bg-rose-950 text-rose-300 border-rose-700'
+                : ord.status === 'preparing'
+                ? 'bg-amber-950 text-amber-300 border-amber-700'
+                : ord.status === 'ready'
+                ? 'bg-blue-950 text-blue-300 border-blue-700'
+                : ord.status === 'on_the_way'
+                ? 'bg-purple-950 text-purple-300 border-purple-700'
+                : ord.status === 'delivered'
+                ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                : 'bg-zinc-950 text-zinc-400 border-zinc-700'
+            }`}
+          >
+            {getStatusLabel(ord.status)}
+          </span>
+        </div>
+
+        {/* Supervision Status Bar (Accessible Color + Icon + Text) */}
+        <div
+          className={`px-3 py-2 rounded-xl border text-xs font-extrabold flex items-center justify-between gap-2 transition-colors ${
+            supervision.severity === 'critical'
+              ? 'bg-rose-950/90 text-rose-200 border-rose-700/90'
+              : supervision.severity === 'warning'
+              ? 'bg-amber-950/80 text-amber-300 border-amber-700/80'
+              : 'bg-zinc-950 text-zinc-400 border-zinc-800'
+          }`}
+        >
+          <span className="truncate flex items-center gap-1.5">
+            {supervision.severity === 'critical' && (
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+            )}
+            {supervision.severity === 'warning' && (
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            )}
+            {supervision.label}
+          </span>
+          <span className="text-[11px] font-bold opacity-80 shrink-0">
+            {supervision.elapsedLabel}
+          </span>
+        </div>
+
+        {/* Customer Details */}
+        <div className="bg-zinc-950 p-3.5 rounded-2xl border border-zinc-850 space-y-1.5 text-xs">
+          <div className="flex items-center justify-between font-bold text-zinc-200">
+            <span>{ord.customer.name}</span>
+            <span className="text-amber-400 flex items-center gap-1">
+              <Phone className="w-3.5 h-3.5" />
+              {ord.customer.phone}
+            </span>
+          </div>
+          {ord.deliveryLocation?.address && (
+            <p className="text-zinc-400 text-[11px] leading-relaxed">
+              <span className="text-zinc-500 font-bold">Dirección: </span>
+              {ord.deliveryLocation.address}
+            </p>
+          )}
+          {ord.deliveryLocation?.reference && (
+            <p className="text-zinc-400 text-[11px] leading-relaxed">
+              <span className="text-zinc-500 font-bold">Ref: </span>
+              {ord.deliveryLocation.reference}
+            </p>
+          )}
+        </div>
+
+        {/* Items Summary */}
+        <div className="bg-zinc-950/60 p-3 rounded-2xl border border-zinc-850">
+          <OrderItemsList items={ord.items} notes={ord.notes} compact={false} />
+        </div>
+
+        {/* Payment & Totals */}
+        <div className="flex items-center justify-between pt-2 border-t border-zinc-800 text-xs">
+          <div>
+            <span className="text-zinc-400 block font-medium">
+              Pago:{' '}
+              <span className="font-extrabold text-white">
+                {(ord.paymentMethod || 'cash').toUpperCase()}
+              </span>
+            </span>
+            {ord.transferDetails?.proofUrl && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenProofModal(ord);
+                }}
+                className="mt-1 text-[11px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 underline"
+              >
+                <Camera className="w-3 h-3" />
+                Ver Comprobante
+              </button>
+            )}
+          </div>
+
+          <div className="text-right">
+            <span className="text-zinc-400 text-[10px] block font-bold">TOTAL</span>
+            <span className="text-lg font-black text-amber-400">${ord.total.toFixed(2)}</span>
+          </div>
+        </div>
+
+        {/* Commercial & Administrative Actions Bar */}
+        <div className="pt-2 flex items-center justify-between gap-2 border-t border-zinc-850">
+          {/* Administrative Correction Button (Strictly Owner/Admin) */}
+          {['owner', 'admin'].includes(userRole) && ord.status !== 'new' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setRollbackModalOrder(ord);
+              }}
+              className="px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs flex items-center gap-1.5 transition-all"
+              title="Corrección administrativa de estado"
+            >
+              <Undo2 className="w-3.5 h-3.5 text-amber-400" />
+              Corregir estado
+            </button>
+          )}
+
+          {/* Cancel Order Action Button */}
+          {ord.status !== 'delivered' && ord.status !== 'cancelled' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setCancelModalOrder(ord);
+              }}
+              className="ml-auto px-3.5 py-2 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-800/80 text-rose-300 font-extrabold text-xs flex items-center gap-1.5 transition-all"
+            >
+              <Ban className="w-3.5 h-3.5 text-rose-400" />
+              Cancelar Pedido
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -620,167 +818,29 @@ function OrdersPageContent() {
             <ShoppingBag className="w-10 h-10 text-zinc-600 mx-auto" />
             <p className="text-sm font-bold text-zinc-300">No hay pedidos que coincidan con la búsqueda</p>
           </div>
+        ) : deliveredGroupedByDay ? (
+          <div className="space-y-8">
+            {deliveredGroupedByDay.map(([dayKey, dayOrders]) => (
+              <div key={dayKey} className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-sm font-black text-zinc-200 uppercase tracking-wide whitespace-nowrap">
+                    {formatDayLabel(dayKey)}
+                  </h3>
+                  <span className="px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300 text-[11px] font-extrabold border border-zinc-700 whitespace-nowrap">
+                    {dayOrders.length} {dayOrders.length === 1 ? 'pedido' : 'pedidos'} · $
+                    {dayOrders.reduce((sum, o) => sum + o.total, 0).toFixed(2)}
+                  </span>
+                  <div className="flex-1 h-px bg-zinc-800" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {dayOrders.map(renderOrderCard)}
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredOrders.map((ord) => {
-              const supervision = getOrderSupervisionState(ord, now, historyMap[ord.id]);
-
-              return (
-                <div
-                  key={ord.id}
-                  id={`order-card-${ord.id}`}
-                  className={`bg-zinc-900 border rounded-3xl p-5 space-y-4 shadow-xl hover:border-zinc-700 transition-all ${
-                    supervision.severity === 'critical'
-                      ? 'border-rose-800/80 bg-gradient-to-b from-zinc-900 via-zinc-900 to-rose-950/20'
-                      : supervision.severity === 'warning'
-                      ? 'border-amber-800/80 bg-gradient-to-b from-zinc-900 via-zinc-900 to-amber-950/20'
-                      : 'border-zinc-800'
-                  }`}
-                >
-                  {/* Header */}
-                  <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-                    <div>
-                      <span className="text-xl font-black text-white">{ord.orderNumber}</span>
-                      <span className="text-xs text-zinc-400 block font-medium">
-                        <Clock className="w-3 h-3 inline mr-1 text-zinc-500" />
-                        {new Date(ord.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-
-                    <span
-                      className={`text-xs uppercase font-extrabold px-3 py-1 rounded-full border ${
-                        ord.status === 'new'
-                          ? 'bg-rose-950 text-rose-300 border-rose-700'
-                          : ord.status === 'preparing'
-                          ? 'bg-amber-950 text-amber-300 border-amber-700'
-                          : ord.status === 'ready'
-                          ? 'bg-blue-950 text-blue-300 border-blue-700'
-                          : ord.status === 'on_the_way'
-                          ? 'bg-purple-950 text-purple-300 border-purple-700'
-                          : ord.status === 'delivered'
-                          ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
-                          : 'bg-zinc-950 text-zinc-400 border-zinc-700'
-                      }`}
-                    >
-                      {getStatusLabel(ord.status)}
-                    </span>
-                  </div>
-
-                  {/* Supervision Status Bar (Accessible Color + Icon + Text) */}
-                  <div
-                    className={`px-3 py-2 rounded-xl border text-xs font-extrabold flex items-center justify-between gap-2 transition-colors ${
-                      supervision.severity === 'critical'
-                        ? 'bg-rose-950/90 text-rose-200 border-rose-700/90'
-                        : supervision.severity === 'warning'
-                        ? 'bg-amber-950/80 text-amber-300 border-amber-700/80'
-                        : 'bg-zinc-950 text-zinc-400 border-zinc-800'
-                    }`}
-                  >
-                    <span className="truncate flex items-center gap-1.5">
-                      {supervision.severity === 'critical' && (
-                        <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                      )}
-                      {supervision.severity === 'warning' && (
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      )}
-                      {supervision.label}
-                    </span>
-                    <span className="text-[11px] font-bold opacity-80 shrink-0">
-                      {supervision.elapsedLabel}
-                    </span>
-                  </div>
-
-                  {/* Customer Details */}
-                  <div className="bg-zinc-950 p-3.5 rounded-2xl border border-zinc-850 space-y-1.5 text-xs">
-                    <div className="flex items-center justify-between font-bold text-zinc-200">
-                      <span>{ord.customer.name}</span>
-                      <span className="text-amber-400 flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5" />
-                        {ord.customer.phone}
-                      </span>
-                    </div>
-                    {ord.deliveryLocation?.address && (
-                      <p className="text-zinc-400 text-[11px] leading-relaxed">
-                        <span className="text-zinc-500 font-bold">Dirección: </span>
-                        {ord.deliveryLocation.address}
-                      </p>
-                    )}
-                    {ord.deliveryLocation?.reference && (
-                      <p className="text-zinc-400 text-[11px] leading-relaxed">
-                        <span className="text-zinc-500 font-bold">Ref: </span>
-                        {ord.deliveryLocation.reference}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Items Summary */}
-                  <div className="bg-zinc-950/60 p-3 rounded-2xl border border-zinc-850">
-                    <OrderItemsList items={ord.items} notes={ord.notes} compact={false} />
-                  </div>
-
-                  {/* Payment & Totals */}
-                  <div className="flex items-center justify-between pt-2 border-t border-zinc-800 text-xs">
-                    <div>
-                      <span className="text-zinc-400 block font-medium">
-                        Pago:{' '}
-                        <span className="font-extrabold text-white">
-                          {(ord.paymentMethod || 'cash').toUpperCase()}
-                        </span>
-                      </span>
-                      {ord.transferDetails?.proofUrl && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenProofModal(ord);
-                          }}
-                          className="mt-1 text-[11px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 underline"
-                        >
-                          <Camera className="w-3 h-3" />
-                          Ver Comprobante
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="text-right">
-                      <span className="text-zinc-400 text-[10px] block font-bold">TOTAL</span>
-                      <span className="text-lg font-black text-amber-400">${ord.total.toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  {/* Commercial & Administrative Actions Bar */}
-                  <div className="pt-2 flex items-center justify-between gap-2 border-t border-zinc-850">
-                    {/* Administrative Correction Button (Strictly Owner/Admin) */}
-                    {['owner', 'admin'].includes(userRole) && ord.status !== 'new' && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRollbackModalOrder(ord);
-                        }}
-                        className="px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs flex items-center gap-1.5 transition-all"
-                        title="Corrección administrativa de estado"
-                      >
-                        <Undo2 className="w-3.5 h-3.5 text-amber-400" />
-                        Corregir estado
-                      </button>
-                    )}
-
-                    {/* Cancel Order Action Button */}
-                    {ord.status !== 'delivered' && ord.status !== 'cancelled' && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCancelModalOrder(ord);
-                        }}
-                        className="ml-auto px-3.5 py-2 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-800/80 text-rose-300 font-extrabold text-xs flex items-center gap-1.5 transition-all"
-                      >
-                        <Ban className="w-3.5 h-3.5 text-rose-400" />
-                        Cancelar Pedido
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {filteredOrders.map(renderOrderCard)}
           </div>
         )}
 
