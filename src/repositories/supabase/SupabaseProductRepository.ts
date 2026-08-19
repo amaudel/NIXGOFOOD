@@ -20,7 +20,11 @@ export class SupabaseProductRepository implements IProductRepository {
         return initialCategories;
       }
 
-      return (data || []).map((c) => ({
+      if (!data || data.length === 0) {
+        return initialCategories;
+      }
+
+      return data.map((c) => ({
         id: c.id,
         businessId: c.business_id,
         name: c.name,
@@ -60,6 +64,10 @@ export class SupabaseProductRepository implements IProductRepository {
         return initialProducts;
       }
 
+      if (!rawProducts || rawProducts.length === 0) {
+        return initialProducts;
+      }
+
       return (rawProducts || []).map((p: any) => {
         const modifierGroups: ModifierGroup[] = (p.product_modifier_groups || [])
           .map((pmg: any) => {
@@ -90,6 +98,23 @@ export class SupabaseProductRepository implements IProductRepository {
           })
           .filter(Boolean);
 
+        const fallbackImg =
+          p.name?.toLowerCase().includes('pastor')
+            ? 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?auto=format&fit=crop&w=800&q=80'
+            : p.name?.toLowerCase().includes('burger') || p.name?.toLowerCase().includes('hamburguesa')
+            ? 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80'
+            : p.name?.toLowerCase().includes('chicken') || p.name?.toLowerCase().includes('crispy')
+            ? 'https://images.unsplash.com/photo-1625813506062-0aeb1d7a094b?auto=format&fit=crop&w=800&q=80'
+            : p.name?.toLowerCase().includes('combo')
+            ? 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=800&q=80'
+            : p.name?.toLowerCase().includes('nacho') || p.name?.toLowerCase().includes('entrada')
+            ? 'https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?auto=format&fit=crop&w=800&q=80'
+            : p.name?.toLowerCase().includes('horchata') || p.name?.toLowerCase().includes('bebida') || p.name?.toLowerCase().includes('limonada')
+            ? 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=800&q=80'
+            : 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=800&q=80';
+
+        const finalImage = p.image_url && p.image_url.trim().length > 0 ? p.image_url : fallbackImg;
+
         return {
           id: p.id,
           businessId: p.business_id,
@@ -98,7 +123,7 @@ export class SupabaseProductRepository implements IProductRepository {
           description: p.description || '',
           price: parseFloat(p.price),
           compareAtPrice: p.compare_at_price ? parseFloat(p.compare_at_price) : undefined,
-          image: p.image_url || 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=800&q=80',
+          image: finalImage,
           isAvailable: p.available !== false,
           active: p.active,
           isPopular: p.featured,
