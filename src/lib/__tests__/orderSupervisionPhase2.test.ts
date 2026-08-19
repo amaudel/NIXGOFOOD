@@ -1,3 +1,4 @@
+import { it } from 'vitest';
 import { Order, OrderStatusHistoryItem } from '@/types';
 import { getOrderSupervisionState } from '../orderSupervision';
 
@@ -124,4 +125,6 @@ function runPhase2Tests() {
   console.log("\nALL PHASE 2 VISUAL SUPERVISION TESTS PASSED SATISFACTORILY!\n");
 }
 
-runPhase2Tests();
+it('bateria de supervision visual fase 2', () => {
+  runPhase2Tests();
+});

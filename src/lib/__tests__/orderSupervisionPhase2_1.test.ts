@@ -1,3 +1,4 @@
+import { it } from 'vitest';
 import { Order } from '@/types';
 
 function assertEqual(actual: any, expected: any, testName: string) {
@@ -111,4 +112,6 @@ function runPhase2_1Tests() {
   console.log("\nALL PHASE 2.1 AUTOMATED SOUND & NAVIGATION TESTS PASSED PERFECTLY!\n");
 }
 
-runPhase2_1Tests();
+it('bateria de navegacion y sonido automatico fase 2.1', () => {
+  runPhase2_1Tests();
+});
