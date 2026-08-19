@@ -1,0 +1,111 @@
+[
+  {
+    "id": "TC01",
+    "title": "TC01 — TRANSFERENCIA END-TO-END",
+    "description": "1. Crear un pedido usando Transferencia bancaria. 2. Adjuntar imagen JPG válida. 3. Confirmar pedido. 4. Verificar pedido creado. 5. Verificar verificationStatus=pending. 6. Desde Admin abrir comprobante por Signed URL. 7. Marcar pago como verified. 8. Abrir tracking y confirmar Pago Verificado.",
+    "category": "Comprobantes de Pago",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to https://nixgofood.vercel.app/checkout"
+      },
+      {
+        "type": "action",
+        "description": "Select Transferencia Bancaria and attach valid JPG proof image"
+      },
+      {
+        "type": "action",
+        "description": "Confirm order and verify redirection to tracking"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify order created with status pending verification"
+      },
+      {
+        "type": "action",
+        "description": "Open Admin console at https://nixgofood.vercel.app/admin, view proof via Signed URL and mark as verified"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm tracking displays Pago Verificado"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC02",
+    "title": "TC02 — ARCHIVO INVÁLIDO",
+    "description": "Comprobar que el endpoint /api/payment-proof/upload rechaza: imagen >5 MB y archivo con extensión .jpg pero contenido binario inválido. Esperado: HTTP/error controlado y ningún pedido falsamente confirmado.",
+    "category": "Comprobantes de Pago",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Post file > 5MB to /api/payment-proof/upload"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify error 400 rejection for file size limit"
+      },
+      {
+        "type": "action",
+        "description": "Post file with .jpg extension but invalid magic bytes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify error 400 rejection for invalid header"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC03",
+    "title": "TC03 — ACCESO NO AUTORIZADO",
+    "description": "Intentar acceder al comprobante/Signed URL sin sesión administrativa autorizada. Esperado: 401/403/404 según contrato. Nunca debe exponerse la imagen.",
+    "category": "Comprobantes de Pago",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Attempt to fetch /api/admin/proof-url without authenticated session"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify request returns HTTP 401/403/404 unauthorized"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC04",
+    "title": "TC04 — RATE LIMIT",
+    "description": "Probar POST /api/payment-proof/upload superando el límite configurado de 5 solicitudes / 60 segundos por IP. Esperado: HTTP 429 Too Many Requests.",
+    "category": "Comprobantes de Pago",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Send consecutive POST requests to /api/payment-proof/upload exceeding 5 req/min"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify server responds with HTTP 429 Too Many Requests and Retry-After header"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC05",
+    "title": "TC05 — ROLLBACK",
+    "description": "Simular fallo de creación del pedido después de que el comprobante haya sido cargado. Esperado: se ejecuta cleanup, el archivo huérfano no permanece almacenado y el usuario no recibe falsa confirmación del pedido.",
+    "category": "Comprobantes de Pago",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Upload proof and trigger failure during RPC order creation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify POST /api/payment-proof/cleanup is called with valid cleanupToken and orphan file is deleted"
+      }
+    ],
+    "priority": "High"
+  }
+]

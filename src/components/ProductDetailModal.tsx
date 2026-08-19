@@ -101,7 +101,16 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
         <div className="overflow-y-auto flex-1 p-0 pb-6 no-scrollbar">
           {/* Hero Modal Image */}
           <div className="relative aspect-[16/9] w-full bg-zinc-950">
-            <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+            <img
+              src={product.image || 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=800&q=80'}
+              alt={product.name}
+              onError={(e) => {
+                const target = e.currentTarget;
+                target.onerror = null;
+                target.src = 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=800&q=80';
+              }}
+              className="w-full h-full object-cover"
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent opacity-90" />
             <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
               <div>

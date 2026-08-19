@@ -1,46 +1,48 @@
-import { demoCategories, demoProducts, demoModifierGroups, demoDeliveryZones, demoBusinessHours, demoBusiness, demoBranch, demoInitialOrders } from '@/data/demoSeed';
-
 export const DEMO_KEYS = {
-  VERSION: 'nixgo_food_demo_version',
-  PRODUCTS: 'nixgo_food_demo_products',
   CATEGORIES: 'nixgo_food_demo_categories',
-  MODIFIER_GROUPS: 'nixgo_food_demo_modifier_groups',
-  DELIVERY_ZONES: 'nixgo_food_demo_delivery_zones',
-  BUSINESS_HOURS: 'nixgo_food_demo_business_hours',
+  PRODUCTS: 'nixgo_food_demo_products',
+  MODIFIER_GROUPS: 'nixgo_food_demo_modifiers',
+  ORDERS: 'nixgo_food_demo_orders',
   BUSINESS: 'nixgo_food_demo_business',
   BRANCH: 'nixgo_food_demo_branch',
-  ORDERS: 'nixgo_food_demo_orders',
+  DELIVERY_ZONES: 'nixgo_food_demo_delivery_zones',
+  BUSINESS_HOURS: 'nixgo_food_demo_hours',
 };
 
-export const CURRENT_DEMO_VERSION = 'v1.2_webp_commercial_cuenca_assets_v5';
+// IndexedDB Helper for Proof Blobs
+const DB_NAME = 'nixgofood_demo_db';
+const STORE_NAME = 'proof_blobs';
+const DB_VERSION = 1;
+
+function openDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+      return reject(new Error('IndexedDB unavailable'));
+    }
+
+    const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = (e) => {
+      const db = (e.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
 
 export class DemoStorage {
-  private static checkAndMigrateVersion(): void {
-    if (typeof window === 'undefined') return;
+  static getItem<T>(key: string, defaultValue: T): T {
+    if (typeof window === 'undefined') return defaultValue;
     try {
-      const storedVersion = localStorage.getItem(DEMO_KEYS.VERSION);
-      if (storedVersion !== CURRENT_DEMO_VERSION) {
-        console.log(`[DemoStorage] Migrating localStorage to version ${CURRENT_DEMO_VERSION}`);
-        DemoStorage.resetDemoData();
-      }
-    } catch (e) {
-      console.error('Error migrating DemoStorage version:', e);
-    }
-  }
-
-  static getItem<T>(key: string, defaultData: T): T {
-    if (typeof window === 'undefined') return defaultData;
-    try {
-      this.checkAndMigrateVersion();
-      const stored = localStorage.getItem(key);
-      if (!stored) {
-        localStorage.setItem(key, JSON.stringify(defaultData));
-        return defaultData;
-      }
-      return JSON.parse(stored) as T;
+      const item = localStorage.getItem(key);
+      return item ? JSON.parse(item) : defaultValue;
     } catch (e) {
       console.error(`Error reading ${key} from localStorage:`, e);
-      return defaultData;
+      return defaultValue;
     }
   }
 
@@ -53,34 +55,69 @@ export class DemoStorage {
     }
   }
 
-  /**
-   * Resets demo data safely without calling localStorage.clear().
-   * Deletes ONLY keys starting with 'nixgo_food_demo_' and re-seeds from demoSeed.
-   */
-  static resetDemoData(): void {
+  static removeItem(key: string): void {
     if (typeof window === 'undefined') return;
     try {
-      const keysToRemove: string[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('nixgo_food_demo_')) {
-          keysToRemove.push(key);
-        }
-      }
-      keysToRemove.forEach((k) => localStorage.removeItem(k));
-
-      // Re-seed
-      localStorage.setItem(DEMO_KEYS.VERSION, CURRENT_DEMO_VERSION);
-      localStorage.setItem(DEMO_KEYS.PRODUCTS, JSON.stringify(demoProducts));
-      localStorage.setItem(DEMO_KEYS.CATEGORIES, JSON.stringify(demoCategories));
-      localStorage.setItem(DEMO_KEYS.MODIFIER_GROUPS, JSON.stringify(demoModifierGroups));
-      localStorage.setItem(DEMO_KEYS.DELIVERY_ZONES, JSON.stringify(demoDeliveryZones));
-      localStorage.setItem(DEMO_KEYS.BUSINESS_HOURS, JSON.stringify(demoBusinessHours));
-      localStorage.setItem(DEMO_KEYS.BUSINESS, JSON.stringify(demoBusiness));
-      localStorage.setItem(DEMO_KEYS.BRANCH, JSON.stringify(demoBranch));
-      localStorage.setItem(DEMO_KEYS.ORDERS, JSON.stringify(demoInitialOrders));
+      localStorage.removeItem(key);
     } catch (e) {
-      console.error('Error resetting demo data:', e);
+      console.error(`Error removing ${key} from localStorage:`, e);
+    }
+  }
+
+  static resetDemoData(): void {
+    if (typeof window === 'undefined') return;
+    Object.values(DEMO_KEYS).forEach((key) => {
+      localStorage.removeItem(key);
+    });
+  }
+
+  static async saveProofBlob(orderId: string, blob: Blob): Promise<void> {
+    try {
+      const db = await openDB();
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.put(blob, orderId);
+      return new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch (e) {
+      console.warn('DemoStorage saveProofBlob failed:', e);
+    }
+  }
+
+  static async getProofBlobUrl(orderId: string): Promise<string | null> {
+    try {
+      const db = await openDB();
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.get(orderId);
+
+      return new Promise((resolve) => {
+        req.onsuccess = () => {
+          const blob = req.result as Blob;
+          if (blob) {
+            resolve(URL.createObjectURL(blob));
+          } else {
+            resolve(null);
+          }
+        };
+        req.onerror = () => resolve(null);
+      });
+    } catch (e) {
+      console.warn('DemoStorage getProofBlobUrl failed:', e);
+      return null;
+    }
+  }
+
+  static async deleteProofBlob(orderId: string): Promise<void> {
+    try {
+      const db = await openDB();
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.delete(orderId);
+    } catch (e) {
+      console.warn('DemoStorage deleteProofBlob failed:', e);
     }
   }
 }

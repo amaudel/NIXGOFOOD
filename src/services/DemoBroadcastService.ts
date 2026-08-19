@@ -3,6 +3,7 @@ type SyncEventType =
   | 'NEW_ORDER_CREATED'
   | 'PRODUCT_UPDATED'
   | 'BUSINESS_SETTINGS_UPDATED'
+  | 'DISPATCH_CHECK_UPDATED'
   | 'DEMO_RESET';
 
 export interface SyncMessage {

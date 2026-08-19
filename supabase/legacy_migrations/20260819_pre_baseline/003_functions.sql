@@ -176,22 +176,34 @@ BEGIN
 
   v_subtotal := 0.00;
 
-  -- Create Main Order Record First
-  v_tracking_token := encode(gen_random_bytes(16), 'hex');
+  -- 4.5 Extract Payment Method & Transfer Details
+  DECLARE
+    v_payment_method TEXT := COALESCE(p_payload->>'paymentMethod', 'cash');
+    v_transfer_details JSONB := p_payload->'transferDetails';
+    v_verification_status TEXT := NULL;
+  BEGIN
+    IF v_payment_method = 'transfer' THEN
+      v_verification_status := 'pending';
+    END IF;
 
-  INSERT INTO orders (
-    business_id, branch_id, customer_id, tracking_token, status, delivery_method,
-    subtotal, delivery_fee, total, customer_name, customer_phone,
-    delivery_address, delivery_reference, delivery_location_type,
-    delivery_latitude, delivery_longitude, delivery_zone_id, delivery_zone_name_snapshot,
-    estimated_minutes, notes
-  ) VALUES (
-    v_business_id, v_branch_id, v_customer_id, v_tracking_token, 'new', v_delivery_method,
-    0.00, v_delivery_fee, 0.00, v_customer_name, v_customer_phone,
-    v_address, v_reference, v_location_type,
-    v_cust_lat, v_cust_lng, v_matched_zone_id, v_matched_zone_name,
-    v_estimated_minutes, p_payload->>'notes'
-  ) RETURNING id, order_number, created_at INTO v_order_id, v_order_number, v_created_at;
+    v_tracking_token := encode(gen_random_bytes(16), 'hex');
+
+    INSERT INTO orders (
+      business_id, branch_id, customer_id, tracking_token, status, delivery_method,
+      payment_method, transfer_details, verification_status,
+      subtotal, delivery_fee, total, customer_name, customer_phone,
+      delivery_address, delivery_reference, delivery_location_type,
+      delivery_latitude, delivery_longitude, delivery_zone_id, delivery_zone_name_snapshot,
+      estimated_minutes, notes
+    ) VALUES (
+      v_business_id, v_branch_id, v_customer_id, v_tracking_token, 'new', v_delivery_method,
+      v_payment_method, v_transfer_details, v_verification_status,
+      0.00, v_delivery_fee, 0.00, v_customer_name, v_customer_phone,
+      v_address, v_reference, v_location_type,
+      v_cust_lat, v_cust_lng, v_matched_zone_id, v_matched_zone_name,
+      v_estimated_minutes, p_payload->>'notes'
+    ) RETURNING id, order_number, created_at INTO v_order_id, v_order_number, v_created_at;
+  END;
 
   -- Iterate through items
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_payload->'items')

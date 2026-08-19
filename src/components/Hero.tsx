@@ -32,44 +32,44 @@ export const Hero: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-transparent" />
       </div>
 
-      <div className="relative z-10 max-w-6xl mx-auto px-4 py-12 sm:py-16 md:py-20 flex flex-col md:flex-row items-center justify-between gap-8">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 py-7 sm:py-16 md:py-20 flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8">
         {/* Left Column: Text & CTA */}
-        <div className="w-full md:w-1/2 space-y-5 text-center md:text-left">
+        <div className="w-full md:w-1/2 space-y-3.5 sm:space-y-5 text-center md:text-left">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-950/70 border border-rose-500/40 text-rose-300 text-xs font-semibold backdrop-blur-md">
-            <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-950/70 border border-rose-500/40 text-rose-300 text-[11px] sm:text-xs font-semibold backdrop-blur-md">
+            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
             <span>{demoBusiness.rating} ★ ({demoBusiness.reviewCount} opiniones) · Sabor Auténtico</span>
           </div>
 
           {/* Main Hero Title */}
-          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight text-white drop-shadow-md">
+          <h2 className="text-2.5xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight text-white drop-shadow-md">
             Sabor que provoca <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-amber-400">volver</span>
           </h2>
 
-          <p className="text-zinc-300 text-sm sm:text-base max-w-lg mx-auto md:mx-0 font-normal leading-relaxed">
+          <p className="text-zinc-300 text-xs sm:text-base max-w-lg mx-auto md:mx-0 font-normal leading-relaxed">
             {demoBusiness.description}
           </p>
 
           {/* Info Pills */}
-          <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-xs text-zinc-300 pt-1">
-            <div className="flex items-center gap-1.5 bg-zinc-900/80 border border-zinc-800 px-3 py-1.5 rounded-lg">
-              <Clock className="w-4 h-4 text-rose-400" />
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-4 text-[11px] sm:text-xs text-zinc-300 pt-0.5">
+            <div className="flex items-center gap-1.5 bg-zinc-900/80 border border-zinc-800 px-2.5 py-1 rounded-lg">
+              <Clock className="w-3.5 h-3.5 text-rose-400" />
               <span>{demoBusiness.openingHours}</span>
             </div>
-            <div className="flex items-center gap-1.5 bg-zinc-900/80 border border-zinc-800 px-3 py-1.5 rounded-lg">
-              <MapPin className="w-4 h-4 text-amber-400" />
+            <div className="flex items-center gap-1.5 bg-zinc-900/80 border border-zinc-800 px-2.5 py-1 rounded-lg">
+              <MapPin className="w-3.5 h-3.5 text-amber-400" />
               <span>Cuenca · Delivery activo</span>
             </div>
           </div>
 
           {/* CTA Button */}
-          <div className="pt-2">
+          <div className="pt-1 sm:pt-2">
             <button
               onClick={scrollToMenu}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-bold text-base px-8 py-3.5 rounded-2xl shadow-xl shadow-rose-950/50 hover:shadow-rose-900/60 active:scale-95 transition-all"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-bold text-sm sm:text-base px-7 py-3 rounded-2xl shadow-xl shadow-rose-950/50 hover:shadow-rose-900/60 active:scale-95 transition-all"
             >
               <span>Pedir ahora</span>
-              <ArrowDown className="w-5 h-5 animate-bounce" />
+              <ArrowDown className="w-4 h-4 sm:w-5 sm:h-5 animate-bounce" />
             </button>
           </div>
         </div>

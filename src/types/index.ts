@@ -9,6 +9,42 @@ export type LocationType = 'Casa' | 'Departamento' | 'Oficina' | 'Local comercia
 
 export type AdminRole = 'owner' | 'admin' | 'operator';
 
+export type PaymentMethod = 'cash' | 'transfer' | 'online';
+
+export interface CashChangeDetails {
+  needsChange: boolean;
+  payWith?: number;
+}
+
+export interface BankConfig {
+  bankName: string;
+  accountType: string;
+  accountNumber: string;
+  accountHolder: string;
+  identification?: string;
+  requireProof?: boolean;
+}
+
+export interface TransferDetails {
+  proofUrl?: string;
+  proofFileName?: string;
+  proofMimeType?: string;
+  proofFileSize?: number;
+  proofUploadedAt?: string;
+  verificationStatus?: 'pending' | 'verified' | 'rejected';
+  proofPath?: string;
+  bankName?: string;
+  accountNumber?: string;
+  accountHolder?: string;
+}
+
+export interface PaymentConfig {
+  cashEnabled: boolean;
+  transferEnabled: boolean;
+  onlineEnabled: boolean;
+  bankInfo: BankConfig;
+}
+
 export interface Business {
   id: string;
   name: string;
@@ -28,6 +64,7 @@ export interface Business {
   openingHours?: string;
   rating?: number;
   reviewCount?: number;
+  paymentConfig?: PaymentConfig;
 }
 
 export interface Branch {
@@ -118,10 +155,12 @@ export interface DeliveryLocation {
   zoneId?: string;
   deliveryFee?: number;
   estimatedMinutes?: string;
+  hasSelectedLocation?: boolean;
 }
 
 export interface DeliveryQuote {
   available: boolean;
+  isUnselected?: boolean;
   zoneId?: string;
   zoneName?: string;
   fee: number;
@@ -165,6 +204,9 @@ export interface Order {
   customer: Customer;
   deliveryMethod: DeliveryMethod;
   deliveryLocation?: DeliveryLocation;
+  paymentMethod?: PaymentMethod;
+  cashChange?: CashChangeDetails;
+  transferDetails?: TransferDetails;
   items: OrderItem[];
   subtotal: number;
   deliveryFee: number;
@@ -202,4 +244,17 @@ export interface Profile {
   role: AdminRole;
   name: string;
   active: boolean;
+}
+
+export interface OrderStatusHistoryItem {
+  id: string;
+  orderId: string;
+  businessId: string;
+  fromStatus: OrderStatus;
+  toStatus: OrderStatus;
+  changedBy?: string;
+  changedByName?: string;
+  reason?: string;
+  isRollback: boolean;
+  createdAt: string;
 }

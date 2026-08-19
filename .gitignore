@@ -5,6 +5,7 @@
 
 # testing
 /coverage
+/.testsprite_tests
 
 # next.js
 /.next/
@@ -27,3 +28,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# mcp configs with local keys
+/.cursor
+/.agents/mcp_config.json
+testsprite_tests/tmp/
+testsprite_tests/tmp/config.json
+
+# supabase CLI local state
+/supabase/.temp

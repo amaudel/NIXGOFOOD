@@ -15,6 +15,7 @@ import {
 import { initialCategories, initialProducts } from '@/data/mockData';
 import { ProductRepository } from '@/repositories/ProductRepository';
 import { OrderRepository } from '@/repositories/OrderRepository';
+import { ExecuteActionParams } from '@/repositories/interfaces/IOrderRepository';
 import { DeliveryService } from '@/services/DeliveryService';
 import { activeBranch } from '@/config/business';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
@@ -41,6 +42,7 @@ interface AppContextType {
   setIsCartOpen: (open: boolean) => void;
   addToCart: (item: Omit<CartItem, 'id'>) => void;
   updateCartItemQuantity: (id: string, delta: number) => void;
+  updateItemNotes: (id: string, notes: string) => void;
   removeFromCart: (id: string) => void;
   clearCart: () => void;
   cartSubtotal: number;
@@ -61,16 +63,18 @@ interface AppContextType {
   // Orders
   orders: Order[];
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
+  executeOrderAction: (params: ExecuteActionParams) => Promise<void>;
   refreshOrders: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const DEFAULT_LOCATION: DeliveryLocation = {
-  latitude: -0.180653,
-  longitude: -78.467838,
-  address: 'Av. Los Shyris y Naciones Unidas, Quito',
+  latitude: activeBranch.latitude,
+  longitude: activeBranch.longitude,
+  address: activeBranch.address,
   locationType: 'Casa',
+  hasSelectedLocation: false,
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -84,125 +88,102 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [deliveryMethod, setDeliveryMethodState] = useState<DeliveryMethod>('delivery');
   const [deliveryLocation, setDeliveryLocationState] = useState<DeliveryLocation>(DEFAULT_LOCATION);
-  const [deliveryFeeResult, setDeliveryFeeResult] = useState<DeliveryQuote>(() =>
-    DeliveryService.calculateDeliveryFee({
-      branchLatitude: activeBranch.latitude,
-      branchLongitude: activeBranch.longitude,
-      customerLatitude: DEFAULT_LOCATION.latitude,
-      customerLongitude: DEFAULT_LOCATION.longitude,
-    })
-  );
+  const [deliveryFeeResult, setDeliveryFeeResult] = useState<DeliveryQuote>(() => ({
+    available: false,
+    isUnselected: true,
+    fee: 0,
+    reason: 'Selecciona tu ubicación en el mapa para calcular el delivery.',
+  }));
 
   const [customerInfo, setCustomerInfoState] = useState<Customer>({ name: '', phone: '' });
   const [orders, setOrders] = useState<Order[]>([]);
 
   // Initialize from Repositories & LocalStorage on Client Hydration
   useEffect(() => {
-    async function initCatalogAndOrders() {
+    const loadCatalogAndOrders = async () => {
       try {
-        const [fetchedCats, fetchedProds, fetchedOrders] = await Promise.all([
+        const [catData, prodData, orderData] = await Promise.all([
           ProductRepository.getCategories(),
           ProductRepository.getAllProducts(),
           OrderRepository.getOrders(),
         ]);
-        if (fetchedCats && fetchedCats.length > 0) setCategories(fetchedCats);
-        if (fetchedProds && fetchedProds.length > 0) setProducts(fetchedProds);
-        if (fetchedOrders) setOrders(fetchedOrders);
-      } catch (e) {
-        console.error('Failed to initialize data from repository:', e);
-      }
-    }
 
-    initCatalogAndOrders();
-
-    // Subscribe to DemoBroadcastService events across tabs
-    const unsubscribeBroadcast = DemoBroadcastService.subscribe((msg) => {
-      if (
-        msg.type === 'PRODUCT_UPDATED' ||
-        msg.type === 'BUSINESS_SETTINGS_UPDATED' ||
-        msg.type === 'NEW_ORDER_CREATED' ||
-        msg.type === 'DEMO_RESET'
-      ) {
-        initCatalogAndOrders();
+        setCategories(catData);
+        setProducts(prodData);
+        setOrders(orderData);
+      } catch (err) {
+        console.error('Failed to load initial data:', err);
       }
+    };
+
+    loadCatalogAndOrders();
+
+    // Subscribe to DemoBroadcastService so state syncs across browser tabs without F5
+    const unsubscribe = DemoBroadcastService.subscribe(() => {
+      loadCatalogAndOrders();
     });
 
-    // Cart
-    try {
-      const savedCart = localStorage.getItem(CART_STORAGE_KEY);
-      if (savedCart) setCart(JSON.parse(savedCart));
-    } catch (e) {
-      console.error('Failed to load cart', e);
-    }
-
-    // Delivery Method
-    try {
-      const savedMethod = localStorage.getItem(DELIVERY_METHOD_KEY) as DeliveryMethod;
-      if (savedMethod) setDeliveryMethodState(savedMethod);
-    } catch (e) {
-      console.error('Failed to load delivery method', e);
-    }
-
-    // Location
-    try {
-      const savedLoc = localStorage.getItem(LOCATION_STORAGE_KEY);
-      if (savedLoc) {
-        const parsedLoc = JSON.parse(savedLoc);
-        setDeliveryLocationState(parsedLoc);
-        const quote = DeliveryService.calculateDeliveryFee({
-          branchLatitude: activeBranch.latitude,
-          branchLongitude: activeBranch.longitude,
-          customerLatitude: parsedLoc.latitude,
-          customerLongitude: parsedLoc.longitude,
-        });
-        setDeliveryFeeResult(quote);
-      }
-    } catch (e) {
-      console.error('Failed to load location', e);
-    }
-
-    // Customer Info
-    try {
-      const savedCust = localStorage.getItem(CUSTOMER_STORAGE_KEY);
-      if (savedCust) setCustomerInfoState(JSON.parse(savedCust));
-    } catch (e) {
-      console.error('Failed to load customer info', e);
-    }
-
-    return () => {
-      unsubscribeBroadcast();
-    };
+    return () => unsubscribe();
   }, []);
 
-  // Save Cart to LocalStorage
+  useEffect(() => {
+    try {
+      const storedCart = localStorage.getItem(CART_STORAGE_KEY);
+      if (storedCart) setCart(JSON.parse(storedCart));
+
+      const storedMethod = localStorage.getItem(DELIVERY_METHOD_KEY);
+      if (storedMethod) setDeliveryMethodState(storedMethod as DeliveryMethod);
+
+      const storedLoc = localStorage.getItem(LOCATION_STORAGE_KEY);
+      if (storedLoc) {
+        const parsed = JSON.parse(storedLoc);
+        setDeliveryLocationState(parsed);
+        if (parsed.hasSelectedLocation) {
+          const quote = DeliveryService.calculateDeliveryFee({
+            branchLatitude: activeBranch.latitude,
+            branchLongitude: activeBranch.longitude,
+            customerLatitude: parsed.latitude,
+            customerLongitude: parsed.longitude,
+          });
+          setDeliveryFeeResult(quote);
+        }
+      }
+
+      const storedCust = localStorage.getItem(CUSTOMER_STORAGE_KEY);
+      if (storedCust) setCustomerInfoState(JSON.parse(storedCust));
+    } catch (e) {
+      console.error('Failed to load state from localStorage:', e);
+    }
+  }, []);
+
+  // Sync Cart to LocalStorage
   useEffect(() => {
     try {
       localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
     } catch (e) {
-      console.error('Failed to save cart', e);
+      console.error(e);
     }
   }, [cart]);
 
-  // Product Availability Handler
+  // Catalog Handlers
   const toggleProductAvailability = async (productId: string, isAvailable: boolean) => {
+    setProducts((prev) =>
+      prev.map((p) => (p.id === productId ? { ...p, isAvailable } : p))
+    );
     await ProductRepository.setProductAvailability(productId, isAvailable);
-    const updated = await ProductRepository.getAllProducts();
-    setProducts(updated);
   };
 
-  // Modal Handlers
-  const openProductModal = (product: Product) => {
-    setSelectedProductForModal(product);
-  };
+  const openProductModal = (product: Product) => setSelectedProductForModal(product);
+  const closeProductModal = () => setSelectedProductForModal(null);
 
-  const closeProductModal = () => {
-    setSelectedProductForModal(null);
-  };
-
-  // Cart Operations
-  const addToCart = (newItem: Omit<CartItem, 'id'>) => {
-    const instanceId = `item_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
-    setCart((prev) => [...prev, { ...newItem, id: instanceId }]);
+  // Cart Handlers
+  const addToCart = (item: Omit<CartItem, 'id'>) => {
+    const newItem: CartItem = {
+      ...item,
+      id: `${item.product.id}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+    };
+    setCart((prev) => [...prev, newItem]);
+    setIsCartOpen(true);
   };
 
   const updateCartItemQuantity = (id: string, delta: number) => {
@@ -211,16 +192,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .map((item) => {
           if (item.id === id) {
             const newQty = item.quantity + delta;
-            if (newQty <= 0) return null;
-            return {
-              ...item,
-              quantity: newQty,
-              totalPrice: item.unitPrice * newQty,
-            };
+            return newQty > 0 ? { ...item, quantity: newQty } : null;
           }
           return item;
         })
         .filter(Boolean) as CartItem[]
+    );
+  };
+
+  const updateItemNotes = (id: string, notes: string) => {
+    setCart((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, notes } : item))
     );
   };
 
@@ -233,14 +215,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       localStorage.removeItem(CART_STORAGE_KEY);
     } catch (e) {
-      console.error('Failed to clear cart storage', e);
+      console.error(e);
     }
   };
 
-  const cartSubtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
-  const cartTotalCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const cartSubtotal = cart.reduce((sum, item) => {
+    const modifiersCost = (item.selectedModifiers || []).reduce((mSum, m) => mSum + m.price, 0);
+    return sum + (item.unitPrice + modifiersCost) * item.quantity;
+  }, 0);
 
-  // Delivery Handlers
+  const cartTotalCount = cart.reduce((count, item) => count + item.quantity, 0);
+
+  // Delivery & Customer Handlers
   const setDeliveryMethod = (method: DeliveryMethod) => {
     setDeliveryMethodState(method);
     try {
@@ -251,7 +237,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const setDeliveryLocation = (loc: DeliveryLocation) => {
-    setDeliveryLocationState(loc);
+    const updatedLoc = { ...loc, hasSelectedLocation: true };
+    setDeliveryLocationState(updatedLoc);
     const quote = DeliveryService.calculateDeliveryFee({
       branchLatitude: activeBranch.latitude,
       branchLongitude: activeBranch.longitude,
@@ -260,13 +247,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     setDeliveryFeeResult(quote);
     try {
-      localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(loc));
+      localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(updatedLoc));
     } catch (e) {
       console.error(e);
     }
   };
 
   const calculateDelivery = (lat: number, lng: number): DeliveryQuote => {
+    setDeliveryLocationState((prev) => ({
+      ...prev,
+      latitude: lat,
+      longitude: lng,
+      hasSelectedLocation: true,
+    }));
     const quote = DeliveryService.calculateDeliveryFee({
       branchLatitude: activeBranch.latitude,
       branchLongitude: activeBranch.longitude,
@@ -297,6 +290,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await refreshOrders();
   };
 
+  const executeOrderAction = async (params: ExecuteActionParams) => {
+    await OrderRepository.executeOrderAction(params);
+    await refreshOrders();
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -311,6 +309,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsCartOpen,
         addToCart,
         updateCartItemQuantity,
+        updateItemNotes,
         removeFromCart,
         clearCart,
         cartSubtotal,
@@ -325,6 +324,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCustomerInfo,
         orders,
         updateOrderStatus,
+        executeOrderAction,
         refreshOrders,
       }}
     >
@@ -335,6 +335,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
 export const useApp = () => {
   const context = useContext(AppContext);
-  if (!context) throw new Error('useApp must be used within an AppProvider');
+  if (!context) {
+    throw new Error('useApp must be used within an AppProvider');
+  }
   return context;
 };

@@ -16,11 +16,14 @@ import {
   Store,
   AlertCircle,
   Sparkles,
+  Search,
 } from 'lucide-react';
 import { OrderStatus } from '@/types';
 import { businessConfig } from '@/config/business';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { isDemoMode } from '@/config/demo';
+import { getOrderRepository } from '@/repositories/factory';
+import { OrderLookupModal } from '@/components/OrderLookupModal';
 
 const statusSteps: { status: OrderStatus; label: string; icon: React.ElementType; description: string }[] = [
   { status: 'new', label: 'Pedido recibido', icon: Receipt, description: 'Tu pedido ha sido recibido por El Taca Nijo.' },
@@ -38,10 +41,50 @@ export default function OrderSuccessPage({ params }: { params: Promise<{ id: str
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLookupModalOpen, setIsLookupModalOpen] = useState(false);
 
   const fetchOrder = async () => {
     setIsRefreshing(true);
     try {
+      if (isDemoMode()) {
+        const repo = getOrderRepository();
+        const demoOrder = await repo.getOrderByTrackingToken(trackingToken);
+        if (demoOrder) {
+          setOrder({
+            id: demoOrder.id,
+            orderNumber: demoOrder.orderNumber,
+            trackingToken: demoOrder.trackingToken,
+            status: demoOrder.status,
+            deliveryMethod: demoOrder.deliveryMethod,
+            paymentMethod: demoOrder.paymentMethod,
+            transferDetails: demoOrder.transferDetails,
+            subtotal: demoOrder.subtotal,
+            deliveryFee: demoOrder.deliveryFee,
+            total: demoOrder.total,
+            customerName: demoOrder.customer.name,
+            customerPhone: demoOrder.customer.phone,
+            deliveryAddress: demoOrder.deliveryLocation?.address,
+            deliveryReference: demoOrder.deliveryLocation?.reference,
+            estimatedMinutes: demoOrder.estimatedTime,
+            createdAt: demoOrder.createdAt,
+            items: demoOrder.items.map((it: any) => ({
+              id: it.id,
+              productName: it.productName,
+              unitPrice: it.unitPrice,
+              quantity: it.quantity,
+              totalPrice: it.totalPrice,
+              notes: it.notes,
+              selectedModifiers: (it.selectedModifiers || []).map((m: any) => ({
+                modifierName: m.modifierName,
+                price: m.price,
+              })),
+            })),
+          });
+          setError(null);
+          return;
+        }
+      }
+
       const res = await fetch(`/api/orders/${trackingToken}`);
       if (!res.ok) {
         throw new Error('No se pudo obtener la información del pedido.');
@@ -109,23 +152,39 @@ export default function OrderSuccessPage({ params }: { params: Promise<{ id: str
     return (
       <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-4">
         <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-8 text-center space-y-6 shadow-2xl">
-          <div className="w-16 h-16 bg-rose-950/80 border border-rose-800 rounded-full flex items-center justify-center mx-auto text-rose-500">
+          <div className="w-16 h-16 bg-amber-950/80 border border-amber-800 rounded-full flex items-center justify-center mx-auto text-amber-500">
             <AlertCircle className="w-8 h-8" />
           </div>
           <div className="space-y-2">
             <h1 className="text-xl font-black">Pedido no encontrado</h1>
             <p className="text-xs text-zinc-400 leading-relaxed">
-              {error || 'No pudimos localizar la información de este pedido.'}
+              No pudimos encontrar este pedido. Puedes buscarlo nuevamente con tu número de orden y teléfono.
             </p>
           </div>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-600 to-amber-500 text-white font-extrabold px-6 py-3 rounded-2xl text-xs shadow-lg"
-          >
-            <Home className="w-4 h-4" />
-            <span>Volver al Menú</span>
-          </Link>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              onClick={() => setIsLookupModalOpen(true)}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-rose-600 text-zinc-950 font-black px-5 py-3 rounded-xl text-xs shadow-lg hover:from-amber-400 hover:to-rose-500 transition-all"
+            >
+              <Search className="w-4 h-4" />
+              <span>Buscar mi pedido</span>
+            </button>
+
+            <Link
+              href="/"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-zinc-950 border border-zinc-800 text-zinc-300 hover:text-white font-bold px-5 py-3 rounded-xl text-xs transition-all"
+            >
+              <Home className="w-4 h-4" />
+              <span>Volver al Menú</span>
+            </Link>
+          </div>
         </div>
+
+        <OrderLookupModal
+          isOpen={isLookupModalOpen}
+          onClose={() => setIsLookupModalOpen(false)}
+        />
       </div>
     );
   }
@@ -250,6 +309,42 @@ export default function OrderSuccessPage({ params }: { params: Promise<{ id: str
               )}
             </div>
           </div>
+
+          {/* Payment Verification Banner (Transferencia) */}
+          {order.paymentMethod === 'transfer' && (
+            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-850 space-y-2 text-xs">
+              <div className="flex items-center justify-between border-b border-zinc-850 pb-2">
+                <span className="font-extrabold text-zinc-300">Pago por Transferencia</span>
+                {order.transferDetails?.verificationStatus === 'verified' ? (
+                  <span className="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">
+                    Pago Verificado
+                  </span>
+                ) : order.transferDetails?.verificationStatus === 'rejected' ? (
+                  <span className="bg-rose-950 text-rose-300 border border-rose-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">
+                    Comprobante Rechazado
+                  </span>
+                ) : (
+                  <span className="bg-amber-950 text-amber-300 border border-amber-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">
+                    Pendiente de Verificación
+                  </span>
+                )}
+              </div>
+
+              <div className="pt-1">
+                {order.transferDetails?.verificationStatus === 'verified' ? (
+                  <p className="text-emerald-400 font-medium">✓ Pago verificado.</p>
+                ) : order.transferDetails?.verificationStatus === 'rejected' ? (
+                  <p className="text-rose-400 font-medium">
+                    ✕ El restaurante no pudo validar el comprobante. Comunícate con el local o envía uno nuevo.
+                  </p>
+                ) : (
+                  <p className="text-amber-300 font-medium">
+                    ⏳ Comprobante recibido. Pendiente de verificación por el restaurante.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Itemized Receipt */}
           <div className="space-y-3 pt-2">

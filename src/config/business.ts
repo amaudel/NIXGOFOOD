@@ -21,6 +21,19 @@ export const businessConfig: Business = {
   openingHours: 'Lun - Dom: 09:00 - 23:00',
   rating: 4.9,
   reviewCount: 142,
+  paymentConfig: {
+    cashEnabled: true,
+    transferEnabled: true,
+    onlineEnabled: false,
+    bankInfo: {
+      bankName: 'Banco Pichincha',
+      accountType: 'Cuenta de Ahorros',
+      accountNumber: '2204567890',
+      accountHolder: 'El Taca Nijo S.A.S.',
+      identification: '0190456789001',
+      requireProof: false,
+    },
+  },
 };
 
 export const activeBranch: Branch = {

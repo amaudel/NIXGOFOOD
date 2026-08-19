@@ -170,9 +170,17 @@ export const LocationPicker: React.FC = () => {
         </p>
       </div>
 
-      {/* Delivery Fee Quote Banner (6 States) */}
+      {/* Delivery Fee Quote Banner (Unselected / Available / Out of Coverage) */}
       <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-3">
-        {quote.available ? (
+        {!deliveryLocation.hasSelectedLocation || quote.isUnselected ? (
+          <div className="flex items-center gap-2.5 text-amber-300 text-xs py-1">
+            <Compass className="w-5 h-5 text-amber-400 shrink-0 animate-pulse" />
+            <div>
+              <p className="font-bold text-sm text-amber-200">Selecciona tu ubicación para calcular el delivery</p>
+              <p className="text-zinc-400 text-xs">Haz clic en el mapa o mueve el pin hasta tu dirección en Cuenca.</p>
+            </div>
+          </div>
+        ) : quote.available ? (
           <div className="space-y-2">
             <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
               <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">

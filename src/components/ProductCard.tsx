@@ -25,8 +25,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
       <div>
         <div className="relative aspect-[4/3] w-full overflow-hidden bg-zinc-950">
           <img
-            src={product.image}
+            src={product.image || 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=800&q=80'}
             alt={product.name}
+            onError={(e) => {
+              const target = e.currentTarget;
+              target.onerror = null;
+              target.src = 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=800&q=80';
+            }}
             className={`w-full h-full object-cover transition-transform duration-500 ${
               isAvailable ? 'group-hover:scale-105' : ''
             }`}

@@ -41,12 +41,31 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Protect /admin routes in Production Mode (except /admin/login)
+  // Protect all /admin routes in REAL MODE BEFORE render (except /admin/login)
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
-    if (!user && process.env.NODE_ENV === 'production') {
+    // 1. Enforce active user session (Blocks unauthenticated requests 100%)
+    if (!user) {
       const url = request.nextUrl.clone();
       url.pathname = '/admin/login';
       return NextResponse.redirect(url);
+    }
+
+    // 2. Validate Profile Role & Active Status if profile record exists
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, business_id, role, active')
+      .eq('id', user.id)
+      .single();
+
+    const ALLOWED_ADMIN_ROLES = ['owner', 'admin', 'operator'];
+
+    if (profile) {
+      if (profile.active === false || !ALLOWED_ADMIN_ROLES.includes(profile.role)) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/admin/login';
+        url.searchParams.set('error', 'unauthorized_role');
+        return NextResponse.redirect(url);
+      }
     }
   }
 

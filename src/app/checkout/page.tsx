@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
-  CheckCircle,
+  CheckCircle2,
   Store,
   Truck,
   User,
@@ -13,11 +13,33 @@ import {
   AlertCircle,
   ShoppingBag,
   MapPin,
+  CreditCard,
+  Banknote,
+  Building2,
+  Copy,
+  Check,
+  ChevronRight,
+  Edit3,
+  Trash2,
+  MessageSquare,
+  Sparkles,
+  Plus,
+  Minus,
+  ShieldCheck,
+  ExternalLink,
+  Clock,
+  Camera,
+  Upload,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { LocationPicker } from '@/components/LocationPicker';
-import { activeBranch, CURRENT_BUSINESS_ID } from '@/config/business';
+import { activeBranch, businessConfig, CURRENT_BUSINESS_ID } from '@/config/business';
+import { isDemoMode } from '@/config/demo';
+import { StorageService } from '@/services/StorageService';
+import { DemoStorage } from '@/repositories/demo/DemoStorage';
+import { saveRecentOrder } from '@/utils/recentOrders';
 import { OrderRepository } from '@/repositories/OrderRepository';
+import { PaymentMethod, Order } from '@/types';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -31,27 +53,95 @@ export default function CheckoutPage() {
     deliveryFeeResult,
     customerInfo,
     setCustomerInfo,
+    updateCartItemQuantity,
+    removeFromCart,
+    updateItemNotes,
   } = useApp();
 
-  const [name, setName] = useState(customerInfo.name);
-  const [phone, setPhone] = useState(customerInfo.phone);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Stepper Stage: 1 = Carrito, 2 = Entrega, 3 = Pago, 4 = Confirmación, 5 = Éxito
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
 
-  // If cart is empty, show empty state prompt
-  if (cart.length === 0) {
+  // Form State
+  const [name, setName] = useState(customerInfo.name || '');
+  const [phone, setPhone] = useState(customerInfo.phone || '');
+  const [reference, setReference] = useState(deliveryLocation?.reference || '');
+
+  // Payment State
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [needsChange, setNeedsChange] = useState<boolean>(false);
+  const [payWithAmount, setPayWithAmount] = useState<string>('');
+  const [copiedBank, setCopiedBank] = useState<boolean>(false);
+
+  // Proof Photo State (Transferencia)
+  const [transferProofFile, setTransferProofFile] = useState<File | null>(null);
+  const [transferProofPreviewUrl, setTransferProofPreviewUrl] = useState<string | null>(null);
+  const [proofError, setProofError] = useState<string | null>(null);
+
+  // UI State
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
+
+  const bankInfo = businessConfig.paymentConfig?.bankInfo || {
+    bankName: 'Banco Pichincha',
+    accountType: 'Cuenta de Ahorros',
+    accountNumber: '2204567890',
+    accountHolder: 'El Taca Nijo S.A.S.',
+    identification: '0190456789001',
+  };
+
+  // Handle Photo Attachment Selection
+  const handleSelectProofFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setProofError(null);
+    setFormError(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type.toLowerCase())) {
+      setProofError('Formato no válido. Adjunta una imagen JPG, PNG o WebP.');
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024; // 5 MB
+    if (file.size > maxSize) {
+      setProofError(
+        `La imagen supera el tamaño máximo de 5 MB (tamaño actual: ${(file.size / (1024 * 1024)).toFixed(1)} MB).`
+      );
+      return;
+    }
+
+    setTransferProofFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setTransferProofPreviewUrl(objectUrl);
+  };
+
+  // Handle Remove Photo Attachment
+  const handleRemoveProofFile = () => {
+    setTransferProofFile(null);
+    if (transferProofPreviewUrl) {
+      URL.revokeObjectURL(transferProofPreviewUrl);
+    }
+    setTransferProofPreviewUrl(null);
+    setProofError(null);
+  };
+
+  // If cart is empty and not on success screen
+  if (cart.length === 0 && step !== 5) {
     return (
       <div className="max-w-xl mx-auto px-4 py-16 text-center space-y-6">
-        <div className="w-20 h-20 mx-auto rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500">
-          <ShoppingBag className="w-10 h-10" />
+        <div className="w-20 h-20 mx-auto rounded-3xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 shadow-xl">
+          <ShoppingBag className="w-10 h-10 text-rose-500" />
         </div>
-        <h2 className="text-2xl font-bold text-white">No tienes productos en el carrito</h2>
-        <p className="text-zinc-400 text-sm">
-          Agrega deliciosos tacos o hamburguesas desde el menú antes de continuar.
-        </p>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-black text-white">Tu carrito está vacío</h2>
+          <p className="text-zinc-400 text-xs sm:text-sm max-w-md mx-auto">
+            Agrega deliciosos tacos, smash burgers o combos artesanales desde nuestro menú para iniciar tu pedido.
+          </p>
+        </div>
         <Link
           href="/"
-          className="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 px-6 rounded-xl transition-all"
+          className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-600 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-extrabold py-3.5 px-6 rounded-2xl shadow-lg transition-all text-sm"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Volver al menú</span>
@@ -63,260 +153,1158 @@ export default function CheckoutPage() {
   const currentDeliveryFee = deliveryMethod === 'delivery' ? deliveryFeeResult.fee : 0;
   const orderTotal = cartSubtotal + currentDeliveryFee;
 
-  const handleConfirmOrder = async () => {
+  // Copy bank account helper
+  const handleCopyAccount = () => {
+    navigator.clipboard.writeText(bankInfo.accountNumber);
+    setCopiedBank(true);
+    setTimeout(() => setCopiedBank(false), 2500);
+  };
+
+  // Step 1 -> Step 2 validation
+  const handleProceedToDelivery = () => {
+    setFormError(null);
+    setStep(2);
+  };
+
+  // Step 2 -> Step 3 validation
+  const handleProceedToPayment = () => {
     setFormError(null);
 
     if (!name.trim()) {
-      setFormError('Por favor ingresa tu nombre.');
+      setFormError('Por favor ingresa tu nombre completo.');
       return;
     }
 
     if (!phone.trim() || phone.trim().length < 7) {
-      setFormError('Por favor ingresa un número de teléfono válido.');
+      setFormError('Por favor ingresa un número de teléfono / WhatsApp válido.');
       return;
     }
 
-    if (deliveryMethod === 'delivery' && !deliveryFeeResult.available) {
-      setFormError('Tu ubicación seleccionada está fuera de nuestra zona de delivery.');
-      return;
+    if (deliveryMethod === 'delivery') {
+      if (!deliveryLocation?.hasSelectedLocation) {
+        setFormError('Selecciona tu ubicación exacta en el mapa para calcular el envío.');
+        return;
+      }
+      if (!deliveryFeeResult.available) {
+        setFormError('La ubicación seleccionada está fuera de nuestra zona de delivery.');
+        return;
+      }
     }
 
-    setIsSubmitting(true);
     setCustomerInfo({ name: name.trim(), phone: phone.trim() });
+    setStep(3);
+  };
+
+  // Step 3 -> Step 4 validation
+  const handleProceedToReview = () => {
+    setFormError(null);
+
+    if (paymentMethod === 'cash' && needsChange) {
+      const parsedAmount = parseFloat(payWithAmount);
+      if (isNaN(parsedAmount) || parsedAmount < orderTotal) {
+        setFormError(
+          `El monto de pago ($${payWithAmount || 0}) debe ser igual o mayor al total del pedido ($${orderTotal.toFixed(2)}).`
+        );
+        return;
+      }
+    }
+
+    if (paymentMethod === 'transfer') {
+      if (!transferProofPreviewUrl && !transferProofFile) {
+        setFormError('Adjunta una foto del comprobante de transferencia para continuar.');
+        return;
+      }
+    }
+
+    setStep(4);
+  };
+
+  const isSubmittingRef = useRef<boolean>(false);
+
+  // Final Order Submission
+  const handleConfirmOrder = async () => {
+    if (isSubmittingRef.current || isSubmitting) return;
+
+    isSubmittingRef.current = true;
+    setFormError(null);
+    setIsSubmitting(true);
+
+    let uploadedProofPath: string | undefined = undefined;
+    let uploadedCleanupToken: string | undefined = undefined;
 
     try {
-      // Transactional RPC Payload (Server recalculates exact prices & delivery fee)
+      // Real Storage Upload if Transfer & Real Mode
+      if (paymentMethod === 'transfer' && !isDemoMode()) {
+        if (!transferProofFile) {
+          throw new Error('Adjunta una foto del comprobante de transferencia para continuar.');
+        }
+
+        const uploadRes = await StorageService.uploadPaymentProof(transferProofFile);
+        uploadedProofPath = uploadRes.proofPath;
+        uploadedCleanupToken = uploadRes.cleanupToken;
+      }
+
       const payload = {
         businessId: CURRENT_BUSINESS_ID,
         branchId: activeBranch.id,
         customer: { name: name.trim(), phone: phone.trim() },
         deliveryMethod,
-        deliveryLocation: deliveryMethod === 'delivery' ? deliveryLocation : null,
+        deliveryLocation:
+          deliveryMethod === 'delivery'
+            ? { ...deliveryLocation, reference: reference.trim() }
+            : null,
+        paymentMethod,
+        cashChange:
+          paymentMethod === 'cash'
+            ? {
+                needsChange,
+                payWith: needsChange ? parseFloat(payWithAmount) : undefined,
+              }
+            : undefined,
+        transferDetails:
+          paymentMethod === 'transfer'
+            ? {
+                bankName: bankInfo.bankName,
+                accountNumber: bankInfo.accountNumber,
+                accountHolder: bankInfo.accountHolder,
+                proofPath: uploadedProofPath || undefined,
+                proofFileName: transferProofFile?.name || 'comprobante_transferencia.jpg',
+                proofMimeType: transferProofFile?.type || 'image/jpeg',
+                proofFileSize: transferProofFile?.size || 0,
+                proofUploadedAt: new Date().toISOString(),
+                verificationStatus: 'pending',
+              }
+            : undefined,
         items: cart.map((item) => ({
           productId: item.product.id,
+          productName: item.product.name,
+          unitPrice: item.unitPrice,
           quantity: item.quantity,
           selectedModifiers: item.selectedModifiers.map((m) => ({
+            groupId: m.groupId,
+            groupName: m.groupName,
             modifierId: m.modifierId,
             modifierName: m.modifierName,
+            price: m.price,
           })),
           notes: item.notes || '',
         })),
+        subtotal: cartSubtotal,
+        deliveryFee: currentDeliveryFee,
+        total: orderTotal,
       };
 
       const result = await OrderRepository.createOrderTransactional(payload);
 
-      if (result && result.trackingToken) {
+      if (result && (result.trackingToken || result.id)) {
+        // In Demo Mode, save proof Blob to IndexedDB for local multi-tab admin preview
+        if (isDemoMode() && paymentMethod === 'transfer' && transferProofFile && result.id) {
+          await DemoStorage.saveProofBlob(result.id, transferProofFile);
+        }
+
+        // Save to local recent orders manager
+        saveRecentOrder(
+          result.orderNumber ? String(result.orderNumber) : '#1050',
+          result.trackingToken || result.id
+        );
+
         clearCart();
-        router.push(`/order/${result.trackingToken}`);
+        // The create_order RPC response omits deliveryMethod/paymentMethod/deliveryLocation,
+        // so fill them from the values we just submitted rather than trusting the RPC shape.
+        setCreatedOrder({
+          ...result,
+          deliveryMethod,
+          paymentMethod,
+          deliveryLocation:
+            deliveryMethod === 'delivery'
+              ? { ...deliveryLocation, reference: reference.trim() }
+              : undefined,
+        });
+        setStep(5);
       } else {
-        throw new Error('No se pudo obtener el identificador de seguimiento del pedido.');
+        throw new Error('No se pudo generar el código de seguimiento del pedido.');
       }
     } catch (err: any) {
+      // Rollback cleanup if upload succeeded but order creation failed
+      if (uploadedCleanupToken) {
+        await StorageService.deletePaymentProof(uploadedCleanupToken);
+      }
       setFormError(err.message || 'Error al procesar el pedido. Intenta nuevamente.');
+    } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-      {/* Navigation Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-zinc-400 hover:text-white text-sm font-semibold transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Volver al menú</span>
-        </Link>
-        <h1 className="font-extrabold text-xl text-white">Finalizar Pedido</h1>
-      </div>
-
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Delivery Option & Location & Customer Details */}
-        <div className="lg:col-span-7 space-y-6">
-          {/* Option Selector */}
-          <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-3">
-            <h2 className="font-bold text-base text-white">¿Cómo quieres recibir tu pedido?</h2>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setDeliveryMethod('delivery')}
-                className={`flex items-center justify-center gap-2.5 p-3.5 rounded-2xl border font-bold text-sm transition-all ${
-                  deliveryMethod === 'delivery'
-                    ? 'bg-rose-950/60 border-rose-500 text-rose-300 shadow-md'
-                    : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <Truck className="w-5 h-5" />
-                <span>Delivery</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDeliveryMethod('pickup')}
-                className={`flex items-center justify-center gap-2.5 p-3.5 rounded-2xl border font-bold text-sm transition-all ${
-                  deliveryMethod === 'pickup'
-                    ? 'bg-rose-950/60 border-rose-500 text-rose-300 shadow-md'
-                    : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <Store className="w-5 h-5" />
-                <span>Retiro en local</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Location Picker (If Delivery) */}
-          {deliveryMethod === 'delivery' ? (
-            <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-4">
-              <h2 className="font-bold text-base text-white">¿Dónde entregamos?</h2>
-              <LocationPicker />
-            </div>
-          ) : (
-            /* Pickup Branch Card (If Pickup) */
-            <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-3">
-              <div className="flex items-center gap-2 text-rose-400 font-bold text-base">
-                <Store className="w-5 h-5" />
-                <h2>Retiro en Local</h2>
-              </div>
-              <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2 text-xs">
-                <p className="font-extrabold text-sm text-white">{activeBranch.name}</p>
-                <p className="text-zinc-300 flex items-start gap-1.5">
-                  <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                  <span>{activeBranch.address}</span>
-                </p>
-                <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between text-zinc-400 font-semibold">
-                  <span>Costo de envío:</span>
-                  <span className="text-emerald-400 font-bold text-sm">$0.00 (Retiro en local)</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Customer Contact Details Form */}
-          <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-4">
-            <h2 className="font-bold text-base text-white">Tus Datos de Contacto</h2>
-
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label htmlFor="input-customer-name" className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
-                  Nombre completo *
-                </label>
-                <div className="relative">
-                  <User className="w-5 h-5 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    id="input-customer-name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ej: Juan Pérez"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 pl-11 pr-4 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="input-customer-phone" className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
-                  Teléfono / WhatsApp *
-                </label>
-                <div className="relative">
-                  <Phone className="w-5 h-5 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    id="input-customer-phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="Ej: 0991234567"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 pl-11 pr-4 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition-colors"
-                  />
-                </div>
-              </div>
-            </div>
+    <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8 space-y-6 sm:space-y-8 min-h-screen pb-28 lg:pb-12">
+      {/* Navigation Top Header */}
+      {step !== 5 && (
+        <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-zinc-400 hover:text-white text-xs sm:text-sm font-bold transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 text-rose-500" />
+            <span>Volver al menú</span>
+          </Link>
+          <div className="text-right">
+            <h1 className="font-black text-lg sm:text-xl text-white">Finalizar Pedido</h1>
+            <p className="text-[11px] text-zinc-400 font-medium">Checkout Rápido NixgoFood</p>
           </div>
         </div>
+      )}
 
-        {/* Right Column: Order Summary & Confirmation CTA */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-5 sticky top-24">
-            <h2 className="font-bold text-lg text-white border-b border-zinc-800 pb-3">Resumen de Tu Pedido</h2>
+      {/* Stepper Progress Bar (Steps 1 to 4) */}
+      {step !== 5 && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-xl">
+          {/* Mobile Header (Paso X de 4) */}
+          <div className="flex sm:hidden items-center justify-between mb-2">
+            <span className="text-xs font-black text-amber-400 uppercase tracking-wider">
+              Paso {step} de 4
+            </span>
+            <span className="text-xs font-bold text-white">
+              {step === 1 && 'Carrito'}
+              {step === 2 && 'Entrega'}
+              {step === 3 && 'Método de Pago'}
+              {step === 4 && 'Confirmación'}
+            </span>
+          </div>
 
-            {/* Product items list */}
-            <div className="space-y-3 max-h-64 overflow-y-auto pr-1 no-scrollbar">
-              {cart.map((item) => (
-                <div key={item.id} className="flex items-start justify-between gap-3 text-sm">
-                  <div className="flex-1">
-                    <p className="font-bold text-zinc-200">
-                      {item.quantity}× {item.product.name}
-                    </p>
-                    {item.selectedModifiers.length > 0 && (
-                      <p className="text-[11px] text-zinc-400">
-                        {item.selectedModifiers.map((m) => m.modifierName).join(', ')}
-                      </p>
-                    )}
-                    {item.notes && (
-                      <p className="text-[11px] text-amber-400 italic">&quot;{item.notes}&quot;</p>
-                    )}
-                  </div>
-                  <span className="font-bold text-zinc-300">${item.totalPrice.toFixed(2)}</span>
+          {/* Stepper Buttons (Desktop & Mobile Bar) */}
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-3">
+            {[
+              { id: 1, label: 'Carrito', icon: ShoppingBag },
+              { id: 2, label: 'Entrega', icon: Truck },
+              { id: 3, label: 'Pago', icon: CreditCard },
+              { id: 4, label: 'Confirmar', icon: CheckCircle2 },
+            ].map((st) => {
+              const Icon = st.icon;
+              const isCurrent = step === st.id;
+              const isPassed = step > st.id;
+
+              return (
+                <button
+                  key={st.id}
+                  disabled={st.id > step}
+                  onClick={() => st.id < step && setStep(st.id as any)}
+                  className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-xl sm:rounded-2xl transition-all text-xs font-bold ${
+                    isCurrent
+                      ? 'bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 text-white shadow-lg shadow-rose-950/50'
+                      : isPassed
+                      ? 'bg-zinc-950 text-amber-400 border border-amber-500/30 hover:border-amber-500/60'
+                      : 'bg-zinc-950/60 text-zinc-600 border border-zinc-850 cursor-not-allowed'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${isCurrent ? 'text-white' : isPassed ? 'text-amber-400' : 'text-zinc-600'}`} />
+                  <span className="hidden sm:inline">{st.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Main Grid Layout for Checkout */}
+      {step !== 5 && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
+          {/* Left Column: Interactive Step Views */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* ========================================================================= */}
+            {/* STEP 1: CARRITO                                                           */}
+            {/* ========================================================================= */}
+            {step === 1 && (
+              <div className="bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-zinc-800 space-y-5 shadow-2xl">
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                  <h2 className="font-extrabold text-base sm:text-lg text-white flex items-center gap-2">
+                    <ShoppingBag className="w-5 h-5 text-rose-500" />
+                    <span>Tu Comanda ({cart.reduce((sum, item) => sum + item.quantity, 0)})</span>
+                  </h2>
+                  <span className="text-xs text-zinc-400 font-medium">Revisa tus productos</span>
                 </div>
-              ))}
-            </div>
 
-            {/* Price Calculations */}
-            <div className="space-y-2 pt-3 border-t border-zinc-800 text-sm">
-              <div className="flex justify-between text-zinc-400">
-                <span>Subtotal</span>
-                <span className="font-semibold text-zinc-200">${cartSubtotal.toFixed(2)}</span>
-              </div>
+                {/* Items List */}
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 no-scrollbar">
+                  {cart.map((item) => (
+                    <div
+                      key={item.id}
+                      className="bg-zinc-950 p-3.5 sm:p-4 rounded-2xl border border-zinc-800 space-y-3 transition-all hover:border-zinc-700"
+                    >
+                      <div className="flex items-start gap-3">
+                        <img
+                          src={item.product.image}
+                          alt={item.product.name}
+                          className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border border-zinc-800 shrink-0"
+                        />
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="font-black text-sm text-zinc-100 truncate">{item.product.name}</h3>
+                            <button
+                              onClick={() => removeFromCart(item.id)}
+                              className="text-zinc-500 hover:text-rose-400 p-1 rounded-lg transition-colors"
+                              title="Eliminar producto"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
 
-              <div className="flex justify-between text-zinc-400">
-                <span>Costo Delivery</span>
-                <span className="font-semibold text-zinc-200">
-                  {deliveryMethod === 'delivery'
-                    ? deliveryFeeResult.available
-                      ? `$${deliveryFeeResult.fee.toFixed(2)}`
-                      : 'No disponible'
-                    : '$0.00 (Retiro)'}
-                </span>
-              </div>
+                          {item.selectedModifiers.length > 0 && (
+                            <p className="text-[11px] text-zinc-400 leading-tight">
+                              {item.selectedModifiers.map((m) => m.modifierName).join(', ')}
+                            </p>
+                          )}
 
-              <div className="flex justify-between text-base font-black text-white pt-2 border-t border-zinc-800">
-                <span>Total a Pagar</span>
-                <span className="text-amber-400 text-xl">${orderTotal.toFixed(2)}</span>
-              </div>
-            </div>
+                          <div className="text-xs font-extrabold text-amber-400 pt-0.5">
+                            ${item.unitPrice.toFixed(2)} c/u
+                          </div>
+                        </div>
+                      </div>
 
-            {/* Form Error Notification */}
-            {formError && (
-              <div className="bg-rose-950/60 border border-rose-800 p-3.5 rounded-xl flex items-center gap-2.5 text-xs text-rose-300">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                <span>{formError}</span>
+                      {/* Notes per Item Input */}
+                      <div className="relative pt-1">
+                        <MessageSquare className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-3.5" />
+                        <input
+                          type="text"
+                          value={item.notes || ''}
+                          onChange={(e) => updateItemNotes(item.id, e.target.value)}
+                          placeholder="Observaciones (ej. sin cebolla, salsa aparte...)"
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 pl-9 pr-3 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition-colors"
+                        />
+                      </div>
+
+                      {/* Quantity & Subtotal Row */}
+                      <div className="flex items-center justify-between pt-2 border-t border-zinc-800/80 text-xs">
+                        <div className="flex items-center gap-2 bg-zinc-900 p-1 rounded-xl border border-zinc-800">
+                          <button
+                            onClick={() => updateCartItemQuantity(item.id, -1)}
+                            className="p-1 rounded-lg bg-zinc-950 text-zinc-300 hover:text-white hover:bg-zinc-800 transition-all"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="font-extrabold text-zinc-100 px-2 min-w-[20px] text-center">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateCartItemQuantity(item.id, 1)}
+                            className="p-1 rounded-lg bg-zinc-950 text-zinc-300 hover:text-white hover:bg-zinc-800 transition-all"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-[10px] text-zinc-500 block font-medium">Subtotal ítem</span>
+                          <span className="font-black text-sm text-white">${item.totalPrice.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Subtotal Summary Footer */}
+                <div className="pt-4 border-t border-zinc-800 flex items-center justify-between text-sm">
+                  <span className="text-zinc-400 font-bold">Subtotal de la orden</span>
+                  <span className="text-amber-400 font-black text-lg">${cartSubtotal.toFixed(2)}</span>
+                </div>
+
+                {/* Action CTA */}
+                <button
+                  type="button"
+                  onClick={handleProceedToDelivery}
+                  className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black py-4 px-6 rounded-2xl shadow-xl shadow-rose-950/60 active:scale-95 transition-all text-sm sm:text-base"
+                >
+                  <span>Continuar con la entrega</span>
+                  <ChevronRight className="w-5 h-5" />
+                </button>
               </div>
             )}
 
-            {/* Submit Button */}
-            <button
-              onClick={handleConfirmOrder}
-              disabled={isSubmitting || (deliveryMethod === 'delivery' && !deliveryFeeResult.available)}
-              className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-extrabold py-4 px-6 rounded-2xl shadow-xl shadow-rose-950/80 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-base"
-            >
-              <CheckCircle className="w-5 h-5" />
-              <span>
-                {isSubmitting
-                  ? 'Validando y procesando...'
-                  : deliveryMethod === 'delivery' && !deliveryFeeResult.available
-                  ? 'Ubicación fuera de cobertura'
-                  : 'Confirmar pedido'}
-              </span>
-            </button>
+            {/* ========================================================================= */}
+            {/* STEP 2: ENTREGA (DELIVERY vs RETIRO)                                      */}
+            {/* ========================================================================= */}
+            {step === 2 && (
+              <div className="space-y-6">
+                {/* Method Selector Cards */}
+                <div className="bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-zinc-800 space-y-4 shadow-2xl">
+                  <h2 className="font-extrabold text-base sm:text-lg text-white border-b border-zinc-800 pb-3">
+                    ¿Cómo quieres recibir tu pedido?
+                  </h2>
 
-            <p className="text-[11px] text-zinc-400 text-center">
-              Al confirmar, tu pedido será validado en el servidor e insertado de forma transaccional.
-            </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryMethod('delivery')}
+                      className={`flex items-center gap-3 p-4 rounded-2xl border text-left transition-all ${
+                        deliveryMethod === 'delivery'
+                          ? 'bg-rose-950/50 border-rose-500 text-white shadow-lg shadow-rose-950/50'
+                          : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                          deliveryMethod === 'delivery' ? 'bg-rose-600 text-white' : 'bg-zinc-900 text-zinc-400'
+                        }`}
+                      >
+                        <Truck className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="font-extrabold text-sm block">🛵 Delivery a Domicilio</span>
+                        <span className="text-[11px] text-zinc-400 block">Enviamos a tu ubicación exacta</span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryMethod('pickup')}
+                      className={`flex items-center gap-3 p-4 rounded-2xl border text-left transition-all ${
+                        deliveryMethod === 'pickup'
+                          ? 'bg-rose-950/50 border-rose-500 text-white shadow-lg shadow-rose-950/50'
+                          : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                          deliveryMethod === 'pickup' ? 'bg-rose-600 text-white' : 'bg-zinc-900 text-zinc-400'
+                        }`}
+                      >
+                        <Store className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="font-extrabold text-sm block">🏪 Retiro en Local</span>
+                        <span className="text-[11px] text-zinc-400 block">Retiras en cocina ($0.00 envío)</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Delivery Options & Map */}
+                {deliveryMethod === 'delivery' ? (
+                  <div className="bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-zinc-800 space-y-4 shadow-2xl">
+                    <h3 className="font-extrabold text-base text-white">📍 Ubicación de Entrega</h3>
+                    <LocationPicker />
+
+                    {/* Reference Input */}
+                    <div className="space-y-1.5 pt-2">
+                      <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
+                        Referencia del Domicilio (Opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={reference}
+                        onChange={(e) => setReference(e.target.value)}
+                        placeholder="Ej: Casa blanca de dos pisos, frente al parque, junto al banco..."
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition-colors"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  /* Pickup Branch Details Card */
+                  <div className="bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-zinc-800 space-y-4 shadow-2xl">
+                    <div className="flex items-center gap-2 text-rose-400 font-extrabold text-base border-b border-zinc-800 pb-3">
+                      <Store className="w-5 h-5 text-rose-500" />
+                      <h3>Datos de la Sucursal para Retiro</h3>
+                    </div>
+
+                    <div className="bg-zinc-950 p-4 sm:p-5 rounded-2xl border border-zinc-800 space-y-3 text-xs sm:text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="font-black text-white text-base">{activeBranch.name}</span>
+                        <span className="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">
+                          Envío $0.00
+                        </span>
+                      </div>
+
+                      <p className="text-zinc-300 flex items-start gap-2">
+                        <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                        <span>{activeBranch.address}</span>
+                      </p>
+
+                      <div className="pt-2 border-t border-zinc-850 grid grid-cols-2 gap-2 text-zinc-400 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Preparación: <strong>15 - 25 min</strong></span>
+                        </div>
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <Phone className="w-3.5 h-3.5 text-amber-400" />
+                          <span>{activeBranch.phone}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Customer Contact Details */}
+                <div className="bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-zinc-800 space-y-4 shadow-2xl">
+                  <h3 className="font-extrabold text-base text-white border-b border-zinc-800 pb-3">
+                    Datos del Cliente
+                  </h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
+                        Nombre Completo *
+                      </label>
+                      <div className="relative">
+                        <User className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="Ej: Juan Pérez"
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
+                        Teléfono / WhatsApp *
+                      </label>
+                      <div className="relative">
+                        <Phone className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="Ej: 0991234567"
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition-colors"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Form Error Banner */}
+                {formError && (
+                  <div className="bg-rose-950/60 border border-rose-800 p-4 rounded-2xl flex items-center gap-3 text-xs sm:text-sm text-rose-300 shadow-xl">
+                    <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+                    <span>{formError}</span>
+                  </div>
+                )}
+
+                {/* Step 2 Actions */}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="w-1/3 py-4 px-4 bg-zinc-950 hover:bg-zinc-850 text-zinc-300 font-bold rounded-2xl border border-zinc-800 transition-all text-xs sm:text-sm"
+                  >
+                    Atrás
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleProceedToPayment}
+                    className="w-2/3 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black py-4 px-6 rounded-2xl shadow-xl shadow-rose-950/60 active:scale-95 transition-all text-xs sm:text-base"
+                  >
+                    <span>Continuar al pago</span>
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* STEP 3: MÉTODOS DE PAGO                                                   */}
+            {/* ========================================================================= */}
+            {step === 3 && (
+              <div className="bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-zinc-800 space-y-6 shadow-2xl">
+                <div className="border-b border-zinc-800 pb-3">
+                  <h2 className="font-extrabold text-base sm:text-lg text-white flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-rose-500" />
+                    <span>Selecciona tu Método de Pago</span>
+                  </h2>
+                  <p className="text-xs text-zinc-400">Elige la opción más conveniente para ti</p>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Option 1: Efectivo */}
+                  <div
+                    onClick={() => setPaymentMethod('cash')}
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                      paymentMethod === 'cash'
+                        ? 'bg-rose-950/40 border-rose-500 text-white shadow-lg'
+                        : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-950 text-amber-400 border border-amber-800 flex items-center justify-center shrink-0">
+                          <Banknote className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <span className="font-black text-sm text-white block">💵 Efectivo al entregar / retirar</span>
+                          <span className="text-xs text-zinc-400 block">Pagas directamente en el momento del recibo</span>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${paymentMethod === 'cash' ? 'border-rose-500 bg-rose-600 text-white' : 'border-zinc-700'}`}>
+                        {paymentMethod === 'cash' && <Check className="w-3.5 h-3.5" />}
+                      </div>
+                    </div>
+
+                    {/* Cash Details: Needs change inquiry */}
+                    {paymentMethod === 'cash' && (
+                      <div className="mt-4 pt-3 border-t border-zinc-800/80 space-y-3" onClick={(e) => e.stopPropagation()}>
+                        <p className="text-xs font-bold text-zinc-200">¿Necesitas cambio?</p>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => setNeedsChange(false)}
+                            className={`py-2 px-3 rounded-xl border font-bold transition-all ${
+                              !needsChange
+                                ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                            }`}
+                          >
+                            No necesito cambio
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setNeedsChange(true)}
+                            className={`py-2 px-3 rounded-xl border font-bold transition-all ${
+                              needsChange
+                                ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                            }`}
+                          >
+                            Sí, pagaré con billete
+                          </button>
+                        </div>
+
+                        {needsChange && (
+                          <div className="space-y-1.5 pt-1">
+                            <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                              Indica con cuánto pagarás ($)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.50"
+                              value={payWithAmount}
+                              onChange={(e) => setPayWithAmount(e.target.value)}
+                              placeholder={`Ej: ${(Math.ceil(orderTotal / 5) * 5 || 20).toFixed(2)}`}
+                              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2.5 px-3 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-rose-500"
+                            />
+                            <p className="text-[10px] text-zinc-500">
+                              Calcularemos tu cambio exacto: ${(parseFloat(payWithAmount) - orderTotal > 0 ? parseFloat(payWithAmount) - orderTotal : 0).toFixed(2)}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Option 2: Transferencia Bancaria */}
+                  <div
+                    onClick={() => setPaymentMethod('transfer')}
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                      paymentMethod === 'transfer'
+                        ? 'bg-rose-950/40 border-rose-500 text-white shadow-lg'
+                        : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-purple-950 text-purple-400 border border-purple-800 flex items-center justify-center shrink-0">
+                          <Building2 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <span className="font-black text-sm text-white block">🏦 Transferencia Bancaria Directa</span>
+                          <span className="text-xs text-zinc-400 block">Transferencia a cuenta oficial del negocio</span>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${paymentMethod === 'transfer' ? 'border-rose-500 bg-rose-600 text-white' : 'border-zinc-700'}`}>
+                        {paymentMethod === 'transfer' && <Check className="w-3.5 h-3.5" />}
+                      </div>
+                    </div>
+
+                    {/* Bank Info & Photo Attachment UI when transfer selected */}
+                    {paymentMethod === 'transfer' && (
+                      <div className="mt-4 pt-3 border-t border-zinc-800/80 space-y-4" onClick={(e) => e.stopPropagation()}>
+                        <div className="bg-zinc-900 p-4 rounded-xl border border-zinc-800 space-y-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-black text-amber-400 text-sm">{bankInfo.bankName}</span>
+                            <button
+                              type="button"
+                              onClick={handleCopyAccount}
+                              className="inline-flex items-center gap-1 bg-zinc-950 hover:bg-zinc-800 text-zinc-300 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-zinc-700 transition-all"
+                            >
+                              {copiedBank ? (
+                                <>
+                                  <Check className="w-3 h-3 text-emerald-400" />
+                                  <span className="text-emerald-400">¡Copiado!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3 h-3 text-amber-400" />
+                                  <span>Copiar cuenta</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+
+                          <div className="space-y-1 text-zinc-300 pt-1">
+                            <p><strong>Tipo:</strong> {bankInfo.accountType}</p>
+                            <p><strong>Número de Cuenta:</strong> <span className="font-mono text-white bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800">{bankInfo.accountNumber}</span></p>
+                            <p><strong>Titular:</strong> {bankInfo.accountHolder}</p>
+                            {bankInfo.identification && <p><strong>RUC / CI:</strong> {bankInfo.identification}</p>}
+                          </div>
+                        </div>
+
+                        {/* Photo Attachment Section */}
+                        <div className="space-y-2 pt-1">
+                          <label className="block text-xs font-bold text-zinc-200">
+                            📷 Adjuntar comprobante de pago *
+                          </label>
+
+                          {!transferProofPreviewUrl ? (
+                            <label className="flex flex-col items-center justify-center gap-2 p-5 sm:p-6 rounded-2xl border-2 border-dashed border-zinc-700 bg-zinc-900/60 hover:bg-zinc-900 hover:border-amber-500/60 cursor-pointer transition-all text-center">
+                              <div className="w-12 h-12 rounded-2xl bg-amber-950/80 border border-amber-800 flex items-center justify-center text-amber-400">
+                                <Camera className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <span className="font-extrabold text-xs sm:text-sm text-white block">
+                                  Toma una foto o selecciona de la galería
+                                </span>
+                                <span className="text-[11px] text-zinc-400 block pt-0.5">
+                                  Formatos permitidos: JPG, PNG, WebP (Máx. 5 MB)
+                                </span>
+                              </div>
+                              <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={handleSelectProofFile}
+                                className="hidden"
+                              />
+                            </label>
+                          ) : (
+                            /* Preview Card */
+                            <div className="bg-zinc-900 p-3.5 rounded-2xl border border-zinc-800 space-y-3">
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={transferProofPreviewUrl}
+                                  alt="Comprobante de pago"
+                                  className="w-20 h-20 rounded-xl object-cover border border-zinc-800 bg-zinc-950 shrink-0"
+                                />
+                                <div className="flex-1 min-w-0 space-y-1">
+                                  <span className="inline-flex items-center gap-1 bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">
+                                    <CheckCircle2 className="w-3 h-3" />
+                                    <span>Comprobante adjuntado</span>
+                                  </span>
+                                  <p className="text-xs font-bold text-zinc-200 truncate">
+                                    {transferProofFile?.name || 'comprobante_pago.jpg'}
+                                  </p>
+                                  <p className="text-[11px] text-zinc-400 font-mono">
+                                    {transferProofFile
+                                      ? `${(transferProofFile.size / (1024 * 1024)).toFixed(2)} MB`
+                                      : 'Imagen cargada'}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 pt-2 border-t border-zinc-800/80">
+                                <label className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-zinc-950 hover:bg-zinc-800 text-zinc-300 text-xs font-bold rounded-xl border border-zinc-700 cursor-pointer transition-all">
+                                  <Upload className="w-3.5 h-3.5 text-amber-400" />
+                                  <span>Cambiar foto</span>
+                                  <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    onChange={handleSelectProofFile}
+                                    className="hidden"
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={handleRemoveProofFile}
+                                  className="py-2 px-3 bg-zinc-950 hover:bg-rose-950/60 text-zinc-400 hover:text-rose-400 text-xs font-bold rounded-xl border border-zinc-700 hover:border-rose-800 transition-all flex items-center gap-1"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Eliminar</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {proofError && (
+                            <div className="bg-rose-950/60 border border-rose-800 p-3 rounded-xl flex items-center gap-2 text-xs text-rose-300">
+                              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                              <span>{proofError}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Option 3: Pago en Línea (Disabled / Prepared) */}
+                  <div className="p-4 rounded-2xl border border-zinc-850 bg-zinc-950/40 opacity-60 cursor-not-allowed">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-zinc-900 text-zinc-500 border border-zinc-800 flex items-center justify-center shrink-0">
+                          <CreditCard className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-sm text-zinc-400">💳 Pago en Línea con Tarjeta</span>
+                            <span className="bg-zinc-800 text-zinc-400 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                              Próximamente
+                            </span>
+                          </div>
+                          <span className="text-xs text-zinc-600 block">Integración de pasarela de pago en progreso</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Form Error Banner */}
+                {formError && (
+                  <div className="bg-rose-950/60 border border-rose-800 p-4 rounded-2xl flex items-center gap-3 text-xs sm:text-sm text-rose-300 shadow-xl">
+                    <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+                    <span>{formError}</span>
+                  </div>
+                )}
+
+                {/* Step 3 Actions */}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStep(2)}
+                    className="w-1/3 py-4 px-4 bg-zinc-950 hover:bg-zinc-850 text-zinc-300 font-bold rounded-2xl border border-zinc-800 transition-all text-xs sm:text-sm"
+                  >
+                    Atrás
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleProceedToReview}
+                    className="w-2/3 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black py-4 px-6 rounded-2xl shadow-xl shadow-rose-950/60 active:scale-95 transition-all text-xs sm:text-base"
+                  >
+                    <span>Revisar pedido</span>
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* STEP 4: RESUMEN Y CONFIRMACIÓN ANTES DE ENVIAR                            */}
+            {/* ========================================================================= */}
+            {step === 4 && (
+              <div className="bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-zinc-800 space-y-6 shadow-2xl">
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                  <h2 className="font-extrabold text-base sm:text-lg text-white flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-rose-500" />
+                    <span>Confirmación Final de Tu Pedido</span>
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="text-xs text-amber-400 hover:underline font-bold flex items-center gap-1"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Editar pedido</span>
+                  </button>
+                </div>
+
+                {/* Section 1: Tu Pedido */}
+                <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-3">
+                  <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
+                    <span className="text-xs font-black uppercase text-amber-400 tracking-wider">
+                      1. Productos ({cart.reduce((s, i) => s + i.quantity, 0)})
+                    </span>
+                    <button onClick={() => setStep(1)} className="text-[11px] text-zinc-400 hover:text-white">
+                      Editar
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1 no-scrollbar text-xs">
+                    {cart.map((item) => (
+                      <div key={item.id} className="flex justify-between items-start">
+                        <div>
+                          <p className="font-bold text-zinc-200">
+                            {item.quantity}× {item.product.name}
+                          </p>
+                          {item.selectedModifiers.length > 0 && (
+                            <p className="text-[10px] text-zinc-400">
+                              {item.selectedModifiers.map((m) => m.modifierName).join(', ')}
+                            </p>
+                          )}
+                          {item.notes && <p className="text-[10px] text-amber-400 italic">&quot;{item.notes}&quot;</p>}
+                        </div>
+                        <span className="font-bold text-zinc-100">${item.totalPrice.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Section 2: Entrega */}
+                <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2 text-xs">
+                  <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
+                    <span className="text-xs font-black uppercase text-amber-400 tracking-wider">
+                      2. Modalidad de Entrega
+                    </span>
+                    <button onClick={() => setStep(2)} className="text-[11px] text-zinc-400 hover:text-white">
+                      Editar
+                    </button>
+                  </div>
+
+                  <div className="space-y-1 text-zinc-300">
+                    <p className="font-bold text-sm text-white">
+                      {deliveryMethod === 'delivery' ? '🛵 Delivery a Domicilio' : '🏪 Retiro en Local'}
+                    </p>
+                    <p><strong>Cliente:</strong> {name} ({phone})</p>
+                    {deliveryMethod === 'delivery' ? (
+                      <>
+                        <p><strong>Dirección:</strong> {deliveryLocation?.address}</p>
+                        {reference && <p><strong>Referencia:</strong> {reference}</p>}
+                        <p><strong>Costo de Envío:</strong> ${currentDeliveryFee.toFixed(2)}</p>
+                      </>
+                    ) : (
+                      <p><strong>Sucursal:</strong> {activeBranch.name} ({activeBranch.address})</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Section 3: Pago */}
+                <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2 text-xs">
+                  <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
+                    <span className="text-xs font-black uppercase text-amber-400 tracking-wider">
+                      3. Método de Pago
+                    </span>
+                    <button onClick={() => setStep(3)} className="text-[11px] text-zinc-400 hover:text-white">
+                      Editar
+                    </button>
+                  </div>
+
+                  <div className="text-zinc-300 space-y-2">
+                    <p className="font-bold text-sm text-white">
+                      {paymentMethod === 'cash' && '💵 Efectivo'}
+                      {paymentMethod === 'transfer' && '🏦 Transferencia Bancaria'}
+                      {paymentMethod === 'online' && '💳 Pago en Línea'}
+                    </p>
+                    {paymentMethod === 'cash' && (
+                      <p>
+                        {needsChange
+                          ? `Paga con billete de $${parseFloat(payWithAmount).toFixed(2)} (Cambio: $${(parseFloat(payWithAmount) - orderTotal).toFixed(2)})`
+                          : 'No requiere cambio'}
+                      </p>
+                    )}
+                    {paymentMethod === 'transfer' && (
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex items-center gap-2 text-emerald-400 font-extrabold text-xs">
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Comprobante adjuntado</span>
+                        </div>
+                        {transferProofPreviewUrl && (
+                          <div className="flex items-center gap-3 bg-zinc-900 p-2 rounded-xl border border-zinc-800 max-w-xs">
+                            <img
+                              src={transferProofPreviewUrl}
+                              alt="Miniatura comprobante"
+                              className="w-12 h-12 rounded-lg object-cover border border-zinc-800 shrink-0"
+                            />
+                            <span className="text-[11px] text-zinc-400 truncate">
+                              {transferProofFile?.name || 'comprobante_pago.jpg'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Form Error Banner */}
+                {formError && (
+                  <div className="bg-rose-950/60 border border-rose-800 p-4 rounded-2xl flex items-center gap-3 text-xs sm:text-sm text-rose-300 shadow-xl">
+                    <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+                    <span>{formError}</span>
+                  </div>
+                )}
+
+                {/* Step 4 Actions */}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStep(3)}
+                    disabled={isSubmitting}
+                    className="w-1/3 py-4 px-4 bg-zinc-950 hover:bg-zinc-850 text-zinc-300 font-bold rounded-2xl border border-zinc-800 transition-all text-xs sm:text-sm disabled:opacity-50"
+                  >
+                    Atrás
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmOrder}
+                    disabled={isSubmitting}
+                    className="w-2/3 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black py-4 px-6 rounded-2xl shadow-xl shadow-rose-950/80 active:scale-95 disabled:opacity-50 transition-all text-xs sm:text-base"
+                  >
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span>{isSubmitting ? 'Procesando comanda...' : 'Confirmar pedido'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Sticky Summary & Breakdown (Desktop & Mobile Bar) */}
+          <div className="lg:col-span-5 space-y-6">
+            <div className="bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-zinc-800 space-y-5 sticky top-24 shadow-2xl">
+              <h2 className="font-extrabold text-base sm:text-lg text-white border-b border-zinc-800 pb-3">
+                Resumen de Costos
+              </h2>
+
+              <div className="space-y-2.5 text-xs sm:text-sm">
+                <div className="flex justify-between text-zinc-400">
+                  <span>Productos ({cart.reduce((s, i) => s + i.quantity, 0)})</span>
+                  <span className="font-semibold text-zinc-200">${cartSubtotal.toFixed(2)}</span>
+                </div>
+
+                <div className="flex justify-between text-zinc-400">
+                  <span>Costo de Delivery</span>
+                  <span className="font-semibold text-zinc-200">
+                    {deliveryMethod === 'delivery'
+                      ? deliveryFeeResult.available
+                        ? `$${deliveryFeeResult.fee.toFixed(2)}`
+                        : 'No disponible'
+                      : '$0.00 (Retiro)'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between text-base font-black text-white pt-3 border-t border-zinc-800">
+                  <span>Total a Pagar</span>
+                  <span className="text-amber-400 text-xl font-mono">${orderTotal.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="bg-zinc-950 p-3.5 rounded-2xl border border-zinc-850 flex items-center gap-2.5 text-[11px] text-zinc-400">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Garantía NixgoFood: Sin costos ocultos. Precios transparentes.</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Mobile Fixed Bottom CTA Bar (Steps 1 to 3) */}
+      {step !== 5 && step !== 4 && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/95 backdrop-blur-md border-t border-zinc-800 p-3 sm:p-4 shadow-2xl flex items-center justify-between gap-3">
+          <div>
+            <span className="text-[10px] text-zinc-400 uppercase tracking-wider block font-bold">Total del Pedido</span>
+            <span className="font-black text-amber-400 text-lg font-mono">${orderTotal.toFixed(2)}</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (step === 1) handleProceedToDelivery();
+              else if (step === 2) handleProceedToPayment();
+              else if (step === 3) handleProceedToReview();
+            }}
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-600 to-amber-500 text-white font-extrabold py-3 px-5 rounded-xl shadow-lg text-xs sm:text-sm active:scale-95"
+          >
+            <span>Continuar</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* STEP 5: PANTALLA VISUAL DE ÉXITO (PEDIDO CREADO)                           */}
+      {/* ========================================================================= */}
+      {step === 5 && createdOrder && (
+        <div className="max-w-2xl mx-auto py-8 sm:py-12 space-y-6">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-10 space-y-6 shadow-2xl text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-600" />
+
+            {/* Success Icon */}
+            <div className="w-20 h-20 mx-auto rounded-3xl bg-emerald-950 border border-emerald-800 flex items-center justify-center text-emerald-400 shadow-xl shadow-emerald-950/50">
+              <CheckCircle2 className="w-10 h-10 animate-bounce" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest bg-emerald-950 text-emerald-400 border border-emerald-800 px-3.5 py-1 rounded-full">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                <span>¡Pedido Recibido!</span>
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black text-white">Comanda #{createdOrder.orderNumber.replace('#', '')}</h2>
+              
+              {createdOrder.paymentMethod === 'transfer' ? (
+                <p className="text-amber-300 text-xs sm:text-sm max-w-md mx-auto font-medium bg-amber-950/40 p-3 rounded-2xl border border-amber-800/60">
+                  Tu comprobante fue adjuntado y está <strong>pendiente de verificación</strong> por el restaurante.
+                </p>
+              ) : (
+                <p className="text-zinc-400 text-xs sm:text-sm max-w-md mx-auto">
+                  Tu comanda ya se encuentra ingresada en la cocina de <strong>{businessConfig.name}</strong>.
+                </p>
+              )}
+            </div>
+
+            {/* Order Summary Recap Box */}
+            <div className="bg-zinc-950 p-5 rounded-2xl border border-zinc-800 space-y-3 text-left text-xs sm:text-sm">
+              <div className="flex items-center justify-between border-b border-zinc-850 pb-2">
+                <span className="text-zinc-400 font-bold">Estado del pedido:</span>
+                <span className="bg-rose-950 text-rose-300 border border-rose-800 text-xs font-extrabold px-3 py-0.5 rounded-full uppercase">
+                  Pedido Recibido
+                </span>
+              </div>
+
+              {createdOrder.paymentMethod === 'transfer' && (
+                <div className="flex items-center justify-between border-b border-zinc-850 pb-2">
+                  <span className="text-zinc-400 font-bold">Estado de pago:</span>
+                  <span className="bg-amber-950 text-amber-300 border border-amber-800 text-xs font-extrabold px-3 py-0.5 rounded-full uppercase">
+                    Pendiente de verificación
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-400">Modalidad:</span>
+                <span className="font-bold text-white">
+                  {createdOrder.deliveryMethod === 'delivery' ? '🛵 Delivery a Domicilio' : '🏪 Retiro en Local'}
+                </span>
+              </div>
+
+              {createdOrder.deliveryLocation && (
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-400">Dirección:</span>
+                  <span className="font-medium text-zinc-200 truncate max-w-[200px] sm:max-w-[300px]">
+                    {createdOrder.deliveryLocation.address}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-400">Método de Pago:</span>
+                <span className="font-bold text-white uppercase">
+                  {createdOrder.paymentMethod === 'cash' ? '💵 Efectivo' : '🏦 Transferencia'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-zinc-850 font-bold">
+                <span className="text-zinc-300">Total:</span>
+                <span className="text-amber-400 text-base font-black">${createdOrder.total.toFixed(2)}</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => router.push(`/order/${createdOrder.trackingToken}`)}
+                className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-extrabold py-4 px-6 rounded-2xl shadow-xl active:scale-95 transition-all text-xs sm:text-sm"
+              >
+                <span>Ver estado de mi pedido</span>
+                <ExternalLink className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => router.push('/')}
+                className="w-full inline-flex items-center justify-center gap-2 bg-zinc-950 hover:bg-zinc-850 text-zinc-300 font-bold py-4 px-6 rounded-2xl border border-zinc-800 transition-all text-xs sm:text-sm"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Volver al menú</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

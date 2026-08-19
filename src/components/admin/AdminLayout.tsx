@@ -5,28 +5,37 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   ShoppingBag,
+  ChefHat,
+  LayoutDashboard,
   UtensilsCrossed,
   Layers,
   Sliders,
   Truck,
   Clock,
   Settings,
-  LogOut,
   ShieldCheck,
   Menu as MenuIcon,
   X,
+  LogOut,
   Home,
   RotateCcw,
-  Sparkles,
+  Package,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { businessConfig } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
+import { createClient } from '@/lib/supabase/client';
 import { DemoStorage } from '@/repositories/demo/DemoStorage';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 
+import { NewOrderAlertProvider, useNewOrderAlerts } from '@/context/NewOrderAlertContext';
+import { AudioAlertToggle } from '@/components/admin/AudioAlertToggle';
+import { NewOrderEmergencyModal } from '@/components/admin/NewOrderEmergencyModal';
+
 const navItems = [
-  { href: '/admin', label: 'Pedidos', icon: ShoppingBag },
+  { href: '/admin', label: 'Resumen', icon: LayoutDashboard },
+  { href: '/admin/orders', label: 'Pedidos / Caja', icon: ShoppingBag },
+  { href: '/admin/kitchen', label: 'Cocina KDS', icon: ChefHat },
+  { href: '/admin/dispatch', label: 'Expedición / Despacho', icon: Package },
   { href: '/admin/menu/products', label: 'Productos', icon: UtensilsCrossed },
   { href: '/admin/menu/categories', label: 'Categorías', icon: Layers },
   { href: '/admin/menu/modifiers', label: 'Modificadores', icon: Sliders },
@@ -35,11 +44,12 @@ const navItems = [
   { href: '/admin/settings/business', label: 'Configuración Negocio', icon: Settings },
 ];
 
-export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const AdminLayoutInner: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const { unreviewedOrders } = useNewOrderAlerts();
 
   const isDemo = isDemoMode();
 
@@ -65,23 +75,25 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col md:flex-row">
+      {/* High-Priority Emergency Fullscreen Overlay Modal for New Orders */}
+      <NewOrderEmergencyModal />
+
       {/* Mobile Header Bar */}
-      <div className="md:hidden sticky top-0 z-40 bg-zinc-900 border-b border-zinc-800 p-4 flex items-center justify-between">
+      <div className="md:hidden sticky top-0 z-40 bg-zinc-900 border-b border-zinc-800 p-4 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-6 h-6 text-amber-400" />
           <span className="font-extrabold text-sm text-white">{businessConfig.name}</span>
-          {isDemo && (
-            <span className="text-[10px] uppercase font-black tracking-wider bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded-full">
-              Demo
-            </span>
-          )}
         </div>
-        <button
-          onClick={() => setMobileOpen(!mobileOpen)}
-          className="p-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-300"
-        >
-          {mobileOpen ? <X className="w-5 h-5" /> : <MenuIcon className="w-5 h-5" />}
-        </button>
+
+        <div className="flex items-center gap-2">
+          <AudioAlertToggle />
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="p-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-300 min-h-[44px] min-w-[44px] flex items-center justify-center"
+          >
+            {mobileOpen ? <X className="w-5 h-5" /> : <MenuIcon className="w-5 h-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Sidebar Navigation */}
@@ -113,25 +125,38 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
             </div>
           </div>
 
+          {/* Audio Toggle Control in Desktop Sidebar */}
+          <div className="hidden md:block bg-zinc-950/80 p-2 rounded-2xl border border-zinc-800/80">
+            <AudioAlertToggle />
+          </div>
+
           {/* Navigation Items */}
           <nav className="space-y-1">
             {navItems.map((item) => {
               const isActive = pathname === item.href;
               const Icon = item.icon;
+              const isOrdersItem = item.href === '/admin/orders' || item.href === '/admin/kitchen';
 
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all ${
+                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all ${
                     isActive
                       ? 'bg-gradient-to-r from-rose-600 to-rose-700 text-white shadow-md shadow-rose-950/40'
                       : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-850'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span>{item.label}</span>
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-4 h-4" />
+                    <span>{item.label}</span>
+                  </div>
+                  {isOrdersItem && unreviewedOrders.length > 0 && (
+                    <span className="px-2 py-0.5 text-[10px] font-black rounded-full bg-rose-600 text-white animate-pulse shadow-sm shadow-rose-950">
+                      {unreviewedOrders.length}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -204,5 +229,17 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         </div>
       )}
     </div>
+  );
+};
+
+import { KdsClockProvider } from '@/context/KdsClockContext';
+
+export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return (
+    <KdsClockProvider>
+      <NewOrderAlertProvider>
+        <AdminLayoutInner>{children}</AdminLayoutInner>
+      </NewOrderAlertProvider>
+    </KdsClockProvider>
   );
 };
