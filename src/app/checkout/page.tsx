@@ -12,7 +12,6 @@ import {
   Phone,
   AlertCircle,
   ShoppingBag,
-  MapPin,
   CreditCard,
   Banknote,
   Building2,
@@ -32,8 +31,10 @@ import {
   Upload,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
+import { useBranch } from '@/context/BranchContext';
 import { LocationPicker } from '@/components/LocationPicker';
-import { activeBranch, businessConfig, CURRENT_BUSINESS_ID } from '@/config/business';
+import { BranchPicker } from '@/components/BranchPicker';
+import { businessConfig, CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { StorageService } from '@/services/StorageService';
 import { DemoStorage } from '@/repositories/demo/DemoStorage';
@@ -57,6 +58,8 @@ export default function CheckoutPage() {
     removeFromCart,
     updateItemNotes,
   } = useApp();
+  const { selectedBranch, branches } = useBranch();
+  const sucursalActual = selectedBranch || branches[0];
 
   // Stepper Stage: 1 = Carrito, 2 = Entrega, 3 = Pago, 4 = Confirmación, 5 = Éxito
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
@@ -81,6 +84,7 @@ export default function CheckoutPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
+  const [mostrarSucursales, setMostrarSucursales] = useState(false);
 
   const bankInfo = businessConfig.paymentConfig?.bankInfo || {
     bankName: 'Banco Pichincha',
@@ -246,7 +250,7 @@ export default function CheckoutPage() {
 
       const payload = {
         businessId: CURRENT_BUSINESS_ID,
-        branchId: activeBranch.id,
+        branchId: (selectedBranch || branches[0]).id,
         customer: { name: name.trim(), phone: phone.trim() },
         deliveryMethod,
         deliveryLocation:
@@ -328,6 +332,13 @@ export default function CheckoutPage() {
       // Rollback cleanup if upload succeeded but order creation failed
       if (uploadedCleanupToken) {
         await StorageService.deletePaymentProof(uploadedCleanupToken);
+      }
+      const msg = err?.message || '';
+      if (msg.includes('sucursal')) {
+        setFormError('La sucursal seleccionada ya no está disponible. Elige otra para continuar.');
+        setMostrarSucursales(true);
+        setStep(2);
+        return;
       }
       setFormError(err.message || 'Error al procesar el pedido. Intenta nuevamente.');
     } finally {
@@ -583,6 +594,29 @@ export default function CheckoutPage() {
                     <h3 className="font-extrabold text-base text-white">📍 Ubicación de Entrega</h3>
                     <LocationPicker />
 
+                    {/* Te atiende: resumen de sucursal asignada */}
+                    {deliveryMethod === 'delivery' && selectedBranch && deliveryLocation.hasSelectedLocation && (
+                      <div className="flex items-center justify-between gap-3 bg-zinc-950 border border-zinc-800 rounded-2xl p-3.5">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-black uppercase tracking-wide text-zinc-500 block">
+                            Te atiende
+                          </span>
+                          <span className="font-extrabold text-sm text-white truncate block">{selectedBranch.name}</span>
+                          {deliveryFeeResult.distanceKm !== undefined && (
+                            <span className="text-[11px] text-zinc-400">A {deliveryFeeResult.distanceKm} km de tu dirección</span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setMostrarSucursales((v) => !v)}
+                          className="text-[11px] font-extrabold text-amber-400 hover:text-amber-300 underline shrink-0"
+                        >
+                          {mostrarSucursales ? 'Cerrar' : 'Cambiar'}
+                        </button>
+                      </div>
+                    )}
+                    {mostrarSucursales && deliveryMethod === 'delivery' && <BranchPicker mode="delivery" />}
+
                     {/* Reference Input */}
                     <div className="space-y-1.5 pt-2">
                       <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
@@ -598,36 +632,23 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 ) : (
-                  /* Pickup Branch Details Card */
+                  /* Pickup Branch Picker Card */
                   <div className="bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-zinc-800 space-y-4 shadow-2xl">
-                    <div className="flex items-center gap-2 text-rose-400 font-extrabold text-base border-b border-zinc-800 pb-3">
-                      <Store className="w-5 h-5 text-rose-500" />
-                      <h3>Datos de la Sucursal para Retiro</h3>
+                    <div className="flex items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+                      <div className="flex items-center gap-2 text-rose-400 font-extrabold text-base">
+                        <Store className="w-5 h-5 text-rose-500" />
+                        <h3>Elige la Sucursal para Retiro</h3>
+                      </div>
+                      <span className="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shrink-0">
+                        Envío $0.00
+                      </span>
                     </div>
 
-                    <div className="bg-zinc-950 p-4 sm:p-5 rounded-2xl border border-zinc-800 space-y-3 text-xs sm:text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="font-black text-white text-base">{activeBranch.name}</span>
-                        <span className="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">
-                          Envío $0.00
-                        </span>
-                      </div>
+                    <BranchPicker mode="pickup" />
 
-                      <p className="text-zinc-300 flex items-start gap-2">
-                        <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                        <span>{activeBranch.address}</span>
-                      </p>
-
-                      <div className="pt-2 border-t border-zinc-850 grid grid-cols-2 gap-2 text-zinc-400 text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Preparación: <strong>15 - 25 min</strong></span>
-                        </div>
-                        <div className="flex items-center gap-1.5 justify-end">
-                          <Phone className="w-3.5 h-3.5 text-amber-400" />
-                          <span>{activeBranch.phone}</span>
-                        </div>
-                      </div>
+                    <div className="flex items-center gap-1.5 text-zinc-400 text-xs pt-1">
+                      <Clock className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Preparación: <strong>15 - 25 min</strong></span>
                     </div>
                   </div>
                 )}
@@ -1058,7 +1079,7 @@ export default function CheckoutPage() {
                         <p><strong>Costo de Envío:</strong> ${currentDeliveryFee.toFixed(2)}</p>
                       </>
                     ) : (
-                      <p><strong>Sucursal:</strong> {activeBranch.name} ({activeBranch.address})</p>
+                      <p><strong>Sucursal:</strong> {sucursalActual.name} ({sucursalActual.address})</p>
                     )}
                   </div>
                 </div>
