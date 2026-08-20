@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { Branch, DeliveryZone } from '@/types';
+import { Branch, BusinessHours, DeliveryZone } from '@/types';
 import {
   groupZonesByBranch,
   evaluateBranchCoverage,
   selectNearestCoveringBranch,
   resolvePersistedBranch,
+  hoursForBranch,
 } from '@/lib/branchSelection';
 
 const BIZ = 'biz-1';
@@ -94,6 +95,17 @@ describe('selectNearestCoveringBranch', () => {
 
   it('devuelve null sin sucursales', () => {
     expect(selectNearestCoveringBranch([], [], -2.9, -79.0)).toBeNull();
+  });
+});
+
+describe('hoursForBranch', () => {
+  it('devuelve solo los horarios de la sucursal pedida', () => {
+    const hours = [
+      { id: 'h1', businessId: 'b', branchId: 'br-matriz', dayOfWeek: 1, openTime: '09:00:00', closeTime: '23:00:00', closed: false },
+      { id: 'h2', businessId: 'b', branchId: 'br-norte', dayOfWeek: 1, openTime: '11:00:00', closeTime: '21:00:00', closed: false },
+    ];
+    expect(hoursForBranch(hours as any, 'br-norte')).toHaveLength(1);
+    expect(hoursForBranch(hours as any, 'br-norte')[0].openTime).toBe('11:00:00');
   });
 });
 

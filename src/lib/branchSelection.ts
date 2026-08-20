@@ -1,4 +1,4 @@
-import { Branch, DeliveryZone } from '@/types';
+import { Branch, BusinessHours, DeliveryZone } from '@/types';
 import { calculateDistanceKm } from '@/services/DeliveryService';
 
 export interface BranchCoverage {
@@ -57,6 +57,11 @@ export function selectNearestCoveringBranch(
     (c) => c.zone !== null
   );
   return covering[0] || null;
+}
+
+/** Horarios de una sucursal concreta. */
+export function hoursForBranch(hours: BusinessHours[], branchId: string): BusinessHours[] {
+  return hours.filter((h) => h.branchId === branchId);
 }
 
 export function resolvePersistedBranch(
