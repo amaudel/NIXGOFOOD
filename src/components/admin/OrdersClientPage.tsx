@@ -78,7 +78,7 @@ const formatDayLabel = (dayKey: string): string => {
 
 function OrdersPageContent() {
   const { executeOrderAction } = useApp();
-  const { selectedBranch } = useBranch();
+  const { selectedBranch, loading: branchLoading } = useBranch();
   const now = useOperationalClock();
   const [orders, setOrders] = useState<Order[]>([]);
   const [historyMap, setHistoryMap] = useState<Record<string, OrderStatusHistoryItem[]>>({});
@@ -210,6 +210,8 @@ function OrdersPageContent() {
   };
 
   useEffect(() => {
+    if (branchLoading) return;
+
     loadOrders();
 
     if (!isDemo) {
@@ -272,7 +274,7 @@ function OrdersPageContent() {
         supabase.removeChannel(channel);
       };
     }
-  }, [isDemo, checkAndNotifyNewPendingTransfer, selectedBranch?.id]);
+  }, [isDemo, checkAndNotifyNewPendingTransfer, selectedBranch?.id, branchLoading]);
 
   const handleCancelOrder = async (order: Order, reason: string) => {
     if (!reason.trim()) {

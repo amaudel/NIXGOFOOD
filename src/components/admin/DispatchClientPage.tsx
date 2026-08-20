@@ -37,7 +37,7 @@ import {
 
 export default function DispatchClientPage() {
   const { executeOrderAction } = useApp();
-  const { selectedBranch } = useBranch();
+  const { selectedBranch, loading: branchLoading } = useBranch();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -109,6 +109,8 @@ export default function DispatchClientPage() {
   };
 
   useEffect(() => {
+    if (branchLoading) return;
+
     loadData();
 
     if (isDemo) {
@@ -146,7 +148,7 @@ export default function DispatchClientPage() {
         supabase.removeChannel(ordersChannel);
       };
     }
-  }, [isDemo, selectedBranch?.id]);
+  }, [isDemo, selectedBranch?.id, branchLoading]);
 
   const handleToggleChecklist = async (orderId: string, key: keyof ChecklistState) => {
     const current = checklists[orderId] || { complete: false, packaging: false };

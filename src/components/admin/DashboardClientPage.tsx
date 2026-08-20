@@ -28,9 +28,11 @@ export default function DashboardClientPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const isDemo = isDemoMode();
-  const { selectedBranch } = useBranch();
+  const { selectedBranch, loading: branchLoading } = useBranch();
 
   useEffect(() => {
+    if (branchLoading) return;
+
     const checkRoleAndLoad = async () => {
       try {
         if (!isDemo) {
@@ -61,7 +63,7 @@ export default function DashboardClientPage() {
     };
 
     checkRoleAndLoad();
-  }, [isDemo, router, selectedBranch?.id]);
+  }, [isDemo, router, selectedBranch?.id, branchLoading]);
 
   const activeOrders = orders.filter(
     (o) => o.status === 'new' || o.status === 'preparing' || o.status === 'ready' || o.status === 'on_the_way'

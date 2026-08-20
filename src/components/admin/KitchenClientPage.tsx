@@ -28,7 +28,7 @@ import { UndoToastNotification, ActiveUndoToast } from '@/components/admin/UndoT
 
 export default function KitchenClientPage() {
   const { executeOrderAction } = useApp();
-  const { selectedBranch } = useBranch();
+  const { selectedBranch, loading: branchLoading } = useBranch();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -109,6 +109,8 @@ export default function KitchenClientPage() {
   };
 
   useEffect(() => {
+    if (branchLoading) return;
+
     loadOrders();
 
     if (isDemo) {
@@ -143,7 +145,7 @@ export default function KitchenClientPage() {
         supabase.removeChannel(channel);
       };
     }
-  }, [isDemo, selectedBranch?.id]);
+  }, [isDemo, selectedBranch?.id, branchLoading]);
 
   // Operational action transitions strictly for Kitchen
   const handleKitchenAction = async (
