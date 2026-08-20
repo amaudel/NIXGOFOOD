@@ -3,8 +3,8 @@ import { getOrderRepository } from './factory';
 import { RollbackParams, ExecuteActionParams } from './interfaces/IOrderRepository';
 
 export class OrderRepository {
-  static async getOrders(businessId?: string): Promise<Order[]> {
-    return getOrderRepository().getOrders(businessId);
+  static async getOrders(businessId?: string, branchId?: string): Promise<Order[]> {
+    return getOrderRepository().getOrders(businessId, branchId);
   }
 
   static async createOrderTransactional(payload: any): Promise<any> {
