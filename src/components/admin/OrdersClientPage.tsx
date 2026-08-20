@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ShoppingBag,
   Search,
@@ -25,6 +25,7 @@ import { isDemoMode } from '@/config/demo';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { OrderItemsList } from '@/components/admin/OrderItemsList';
 import { NewOrderAlertBanner } from '@/components/admin/NewOrderAlertBanner';
+import { useNewOrderAlerts } from '@/context/NewOrderAlertContext';
 import { UndoToastNotification, ActiveUndoToast } from '@/components/admin/UndoToastNotification';
 import { RollbackOrderModal as RollbackModal } from '@/components/admin/RollbackOrderModal';
 import { OrderFilterBadge } from '@/components/admin/OrderFilterBadge';
@@ -65,10 +66,12 @@ function OrdersPageContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingFocusOrderId, setPendingFocusOrderId] = useState<string | null>(null);
 
-  // Audio Context & Deduplication Ref for Sound Policy
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const notifiedPendingTransferOrderIdsRef = useRef<Set<string>>(new Set());
+  // New-order detection: tracks every order id already seen so loadOrders can
+  // alert on genuinely new orders regardless of how it was triggered (realtime,
+  // demo broadcast, or the backup poll).
+  const seenOrderIdsRef = useRef<Set<string>>(new Set());
   const isInitialLoadRef = useRef<boolean>(true);
+  const { triggerNewOrderAlert } = useNewOrderAlerts();
 
   // Proof viewer modal
   const [selectedProofOrder, setSelectedProofOrder] = useState<Order | null>(null);
@@ -86,58 +89,6 @@ function OrdersPageContent() {
 
   const isDemo = isDemoMode();
 
-  // Phase 2.1 Sound Policy: Single, short, discrete chime for BRAND NEW pending transfer orders ONLY
-  const triggerPendingTransferChime = useCallback(() => {
-    try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      const ctx = audioContextRef.current;
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15); // A5
-
-      gain.gain.setValueAtTime(0.2, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 0.35);
-    } catch (e) {
-      console.warn('Audio chime error:', e);
-    }
-  }, []);
-
-  // Deduplication check: Emits sound ONLY if order is transfer + pending AND not previously notified
-  const checkAndNotifyNewPendingTransfer = useCallback(
-    (ordPayload: any) => {
-      if (isInitialLoadRef.current) return; // 0 sound on initial load!
-
-      const isTransfer =
-        ordPayload.payment_method === 'transfer' || ordPayload.paymentMethod === 'transfer';
-      const transferDetails = ordPayload.transfer_details || ordPayload.transferDetails;
-      const verificationStatus = transferDetails?.verificationStatus || 'pending';
-      const orderId = ordPayload.id;
-
-      if (isTransfer && verificationStatus === 'pending' && orderId) {
-        if (!notifiedPendingTransferOrderIdsRef.current.has(orderId)) {
-          notifiedPendingTransferOrderIdsRef.current.add(orderId);
-          triggerPendingTransferChime();
-        }
-      }
-    },
-    [triggerPendingTransferChime]
-  );
-
   const loadOrders = async () => {
     try {
       setError(null);
@@ -148,14 +99,19 @@ function OrdersPageContent() {
       );
       setOrders(sorted);
 
-      // Seed deduplication set on initial load to ensure 0 sounds on page open
+      // Seed the seen-orders set on initial load (0 alerts on page open), then
+      // alert on every genuinely new order from then on — works regardless of
+      // whether this load came from realtime, demo broadcast, or the backup poll.
       if (isInitialLoadRef.current) {
-        sorted.forEach((o) => {
-          if (o.paymentMethod === 'transfer' && o.transferDetails?.verificationStatus === 'pending') {
-            notifiedPendingTransferOrderIdsRef.current.add(o.id);
-          }
-        });
+        sorted.forEach((o) => seenOrderIdsRef.current.add(o.id));
         isInitialLoadRef.current = false;
+      } else {
+        sorted
+          .filter((o) => !seenOrderIdsRef.current.has(o.id))
+          .forEach((o) => {
+            seenOrderIdsRef.current.add(o.id);
+            triggerNewOrderAlert(o);
+          });
       }
 
       // Single Batch Query for Order History (No N+1)
@@ -209,9 +165,6 @@ function OrdersPageContent() {
 
     if (isDemo) {
       const unsubscribe = DemoBroadcastService.subscribe((msg) => {
-        if (msg.payload) {
-          checkAndNotifyNewPendingTransfer(msg.payload);
-        }
         loadOrders();
         if (msg.payload?.orderId || msg.payload?.id) {
           fetchSingleOrderHistory(msg.payload.orderId || msg.payload.id);
@@ -233,9 +186,6 @@ function OrdersPageContent() {
           'postgres_changes',
           { event: '*', schema: 'public', table: 'orders' },
           (payload) => {
-            if (payload.new) {
-              checkAndNotifyNewPendingTransfer(payload.new);
-            }
             loadOrders();
             if (payload.new && (payload.new as any).id) {
               fetchSingleOrderHistory((payload.new as any).id);
@@ -253,7 +203,7 @@ function OrdersPageContent() {
         supabase.removeChannel(channel);
       };
     }
-  }, [isDemo, checkAndNotifyNewPendingTransfer]);
+  }, [isDemo, triggerNewOrderAlert]);
 
   const handleCancelOrder = async (order: Order, reason: string) => {
     if (!reason.trim()) {
