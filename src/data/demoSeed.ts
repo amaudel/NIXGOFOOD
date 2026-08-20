@@ -32,6 +32,19 @@ export const demoBranch: Branch = {
   active: true,
 };
 
+export const demoBranchNorte: Branch = {
+  id: 'b0000000-0000-0000-0000-000000000003',
+  businessId: 'b0000000-0000-0000-0000-000000000001',
+  name: 'El Taca Nijo - Sucursal Norte',
+  address: 'Av. Ordóñez Lasso y Los Cerezos, Cuenca, Ecuador',
+  latitude: -2.88540,
+  longitude: -79.03210,
+  phone: '0993334444',
+  active: true,
+};
+
+export const demoBranches: Branch[] = [demoBranch, demoBranchNorte];
+
 export const demoCategories: Category[] = [
   {
     id: 'cat_tacos',
@@ -424,17 +437,48 @@ export const demoDeliveryZones: DeliveryZone[] = [
     estimatedMinutes: '35-45 min',
     active: true,
   },
+  {
+    id: 'zn000000-0000-0000-0000-000000000001',
+    businessId: demoBusiness.id,
+    branchId: demoBranchNorte.id,
+    name: 'Norte - Cercana',
+    maxDistanceKm: 2.5,
+    fee: 1.75,
+    estimatedMinutes: '20-30 min',
+    active: true,
+  },
+  {
+    id: 'zn000000-0000-0000-0000-000000000002',
+    businessId: demoBusiness.id,
+    branchId: demoBranchNorte.id,
+    name: 'Norte - Extendida',
+    maxDistanceKm: 5.0,
+    fee: 2.75,
+    estimatedMinutes: '30-40 min',
+    active: true,
+  },
 ];
 
-export const demoBusinessHours: BusinessHours[] = [0, 1, 2, 3, 4, 5, 6].map((dow) => ({
-  id: `hours_${dow}`,
-  businessId: demoBusiness.id,
-  branchId: demoBranch.id,
-  dayOfWeek: dow,
-  openTime: '09:00:00',
-  closeTime: '23:00:00',
-  closed: false,
-}));
+export const demoBusinessHours: BusinessHours[] = [
+  ...[0, 1, 2, 3, 4, 5, 6].map((dow) => ({
+    id: `hours_matriz_${dow}`,
+    businessId: demoBusiness.id,
+    branchId: demoBranch.id,
+    dayOfWeek: dow,
+    openTime: '09:00:00',
+    closeTime: '23:00:00',
+    closed: false,
+  })),
+  ...[0, 1, 2, 3, 4, 5, 6].map((dow) => ({
+    id: `hours_norte_${dow}`,
+    businessId: demoBusiness.id,
+    branchId: demoBranchNorte.id,
+    dayOfWeek: dow,
+    openTime: '11:00:00',
+    closeTime: '21:00:00',
+    closed: false,
+  })),
+];
 
 export const demoInitialOrders: Order[] = [
   {
