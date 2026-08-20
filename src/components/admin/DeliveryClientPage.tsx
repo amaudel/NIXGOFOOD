@@ -5,9 +5,10 @@ import { Truck, Plus, Save, Edit, Trash2, X, AlertCircle } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { DeliveryZone } from '@/types';
 import { createClient } from '@/lib/supabase/client';
-import { CURRENT_BUSINESS_ID, activeBranch } from '@/config/business';
+import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { DemoBusinessRepository } from '@/repositories/demo/DemoBusinessRepository';
+import { useBranch } from '@/context/BranchContext';
 
 export default function DeliveryClientPage() {
   const [zones, setZones] = useState<DeliveryZone[]>([]);
@@ -25,12 +26,13 @@ export default function DeliveryClientPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const isDemo = isDemoMode();
+  const { selectedBranch, loading: branchLoading } = useBranch();
 
   const loadZones = async () => {
     try {
       setError(null);
       if (isDemo) {
-        const demoZones = await DemoBusinessRepository.getDeliveryZones();
+        const demoZones = await DemoBusinessRepository.getDeliveryZones(selectedBranch?.id);
         setZones(demoZones);
         setLoading(false);
         return;
@@ -40,19 +42,21 @@ export default function DeliveryClientPage() {
         !process.env.NEXT_PUBLIC_SUPABASE_URL ||
         process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co'
       ) {
-        const demoZones = await DemoBusinessRepository.getDeliveryZones();
+        const demoZones = await DemoBusinessRepository.getDeliveryZones(selectedBranch?.id);
         setZones(demoZones);
         setLoading(false);
         return;
       }
 
       const supabase = createClient();
-      const { data, error: err } = await supabase
+      let query = supabase
         .from('delivery_zones')
         .select('*')
         .eq('business_id', CURRENT_BUSINESS_ID)
         .eq('active', true)
         .order('max_distance_km', { ascending: true });
+      if (selectedBranch) query = query.eq('branch_id', selectedBranch.id);
+      const { data, error: err } = await query;
 
       if (err) throw new Error(err.message);
 
@@ -75,8 +79,9 @@ export default function DeliveryClientPage() {
   };
 
   useEffect(() => {
+    if (branchLoading) return;
     loadZones();
-  }, [isDemo]);
+  }, [isDemo, selectedBranch?.id, branchLoading]);
 
   const handleOpenCreate = () => {
     setEditingZoneId(null);
@@ -144,7 +149,7 @@ export default function DeliveryClientPage() {
           updated.push({
             id: `z_demo_${Date.now()}`,
             businessId: CURRENT_BUSINESS_ID,
-            branchId: activeBranch.id,
+            branchId: selectedBranch!.id,
             name: name.trim(),
             maxDistanceKm: dist,
             fee: feeVal,
@@ -152,7 +157,12 @@ export default function DeliveryClientPage() {
             active: true,
           });
         }
-        await DemoBusinessRepository.saveDeliveryZones(updated);
+        // `zones` (y por tanto `updated`) solo trae las zonas de la sucursal seleccionada
+        // (getDeliveryZones ya filtra por branchId). Guardarlo tal cual sobreescribiria el
+        // storage completo y borraria las zonas de las demas sucursales, asi que se preservan.
+        const allZones = await DemoBusinessRepository.getDeliveryZones();
+        const otherBranchesZones = allZones.filter((z) => z.branchId !== selectedBranch?.id);
+        await DemoBusinessRepository.saveDeliveryZones([...otherBranchesZones, ...updated]);
         await loadZones();
         setIsModalOpen(false);
         setSaving(false);
@@ -166,7 +176,7 @@ export default function DeliveryClientPage() {
         const supabase = createClient();
         const payload = {
           business_id: CURRENT_BUSINESS_ID,
-          branch_id: activeBranch.id,
+          branch_id: selectedBranch!.id,
           name: name.trim(),
           max_distance_km: dist,
           fee: feeVal,
@@ -198,7 +208,9 @@ export default function DeliveryClientPage() {
     try {
       if (isDemo) {
         const updated = zones.filter((z) => z.id !== zoneId);
-        await DemoBusinessRepository.saveDeliveryZones(updated);
+        const allZones = await DemoBusinessRepository.getDeliveryZones();
+        const otherBranchesZones = allZones.filter((z) => z.branchId !== selectedBranch?.id);
+        await DemoBusinessRepository.saveDeliveryZones([...otherBranchesZones, ...updated]);
         await loadZones();
         return;
       }
@@ -245,9 +257,9 @@ export default function DeliveryClientPage() {
 
         {/* Origin Branch Card */}
         <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl text-xs space-y-1">
-          <p className="font-extrabold text-sm text-white">Origen del Delivery: {activeBranch.name}</p>
-          <p className="text-zinc-400">📍 {activeBranch.address}</p>
-          <p className="text-zinc-500">Coordenadas: {activeBranch.latitude}, {activeBranch.longitude}</p>
+          <p className="font-extrabold text-sm text-white">Origen del Delivery: {selectedBranch?.name}</p>
+          <p className="text-zinc-400">📍 {selectedBranch?.address}</p>
+          <p className="text-zinc-500">Coordenadas: {selectedBranch?.latitude}, {selectedBranch?.longitude}</p>
         </div>
 
         {error && (
