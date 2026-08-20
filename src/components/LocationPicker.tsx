@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { LocationType } from '@/types';
 import { useApp } from '@/context/AppContext';
-import { activeBranch } from '@/config/business';
+import { useBranch } from '@/context/BranchContext';
 import { RealMapWrapper } from '@/components/RealMapWrapper';
 
 export const LocationPicker: React.FC = () => {
@@ -26,6 +26,8 @@ export const LocationPicker: React.FC = () => {
     calculateDelivery,
     setDeliveryMethod,
   } = useApp();
+  const { selectedBranch, branches } = useBranch();
+  const sucursalMapa = selectedBranch || branches[0];
 
   const [address, setAddress] = useState(deliveryLocation.address);
   const [reference, setReference] = useState(deliveryLocation.reference || '');
@@ -152,9 +154,9 @@ export const LocationPicker: React.FC = () => {
           <RealMapWrapper
             customerLat={deliveryLocation.latitude}
             customerLng={deliveryLocation.longitude}
-            branchLat={activeBranch.latitude}
-            branchLng={activeBranch.longitude}
-            branchName={activeBranch.name}
+            branchLat={sucursalMapa.latitude}
+            branchLng={sucursalMapa.longitude}
+            branchName={sucursalMapa.name}
             onPositionChange={(lat, lng) => updatePosition(lat, lng)}
           />
 

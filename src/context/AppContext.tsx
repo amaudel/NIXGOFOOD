@@ -17,8 +17,8 @@ import { ProductRepository } from '@/repositories/ProductRepository';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { ExecuteActionParams } from '@/repositories/interfaces/IOrderRepository';
 import { DeliveryService } from '@/services/DeliveryService';
-import { activeBranch } from '@/config/business';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
+import { useBranch } from '@/context/BranchContext';
 
 const CART_STORAGE_KEY = 'el_taca_nijo_cart';
 const LOCATION_STORAGE_KEY = 'el_taca_nijo_location';
@@ -70,14 +70,16 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const DEFAULT_LOCATION: DeliveryLocation = {
-  latitude: activeBranch.latitude,
-  longitude: activeBranch.longitude,
-  address: activeBranch.address,
+  latitude: 0,
+  longitude: 0,
+  address: '',
   locationType: 'Casa',
   hasSelectedLocation: false,
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { selectedBranch, autoSelectForLocation, zones, loading: branchLoading } = useBranch();
+
   // State
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [products, setProducts] = useState<Product[]>(initialProducts);
@@ -138,15 +140,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (storedLoc) {
         const parsed = JSON.parse(storedLoc);
         setDeliveryLocationState(parsed);
-        if (parsed.hasSelectedLocation) {
-          const quote = DeliveryService.calculateDeliveryFee({
-            branchLatitude: activeBranch.latitude,
-            branchLongitude: activeBranch.longitude,
-            customerLatitude: parsed.latitude,
-            customerLongitude: parsed.longitude,
-          });
-          setDeliveryFeeResult(quote);
-        }
       }
 
       const storedCust = localStorage.getItem(CUSTOMER_STORAGE_KEY);
@@ -236,16 +229,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const cotizarPara = (lat: number, lng: number): DeliveryQuote => {
+    const cobertura = autoSelectForLocation(lat, lng);
+
+    if (!cobertura || !cobertura.zone) {
+      return {
+        available: false,
+        fee: 0,
+        reason: 'Ninguna de nuestras sucursales llega a esta dirección. Puedes elegir retiro en local.',
+      };
+    }
+
+    return DeliveryService.calculateDeliveryFee(
+      {
+        branchLatitude: cobertura.branch.latitude,
+        branchLongitude: cobertura.branch.longitude,
+        customerLatitude: lat,
+        customerLongitude: lng,
+      },
+      zones.filter((z) => z.branchId === cobertura.branch.id)
+    );
+  };
+
   const setDeliveryLocation = (loc: DeliveryLocation) => {
     const updatedLoc = { ...loc, hasSelectedLocation: true };
     setDeliveryLocationState(updatedLoc);
-    const quote = DeliveryService.calculateDeliveryFee({
-      branchLatitude: activeBranch.latitude,
-      branchLongitude: activeBranch.longitude,
-      customerLatitude: loc.latitude,
-      customerLongitude: loc.longitude,
-    });
-    setDeliveryFeeResult(quote);
+    setDeliveryFeeResult(cotizarPara(loc.latitude, loc.longitude));
     try {
       localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(updatedLoc));
     } catch (e) {
@@ -260,15 +269,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       longitude: lng,
       hasSelectedLocation: true,
     }));
-    const quote = DeliveryService.calculateDeliveryFee({
-      branchLatitude: activeBranch.latitude,
-      branchLongitude: activeBranch.longitude,
-      customerLatitude: lat,
-      customerLongitude: lng,
-    });
+    const quote = cotizarPara(lat, lng);
     setDeliveryFeeResult(quote);
     return quote;
   };
+
+  // Recalcula la cotizacion de delivery una vez que BranchContext termina de cargar
+  // sucursales y zonas, para no cotizar contra un array de zonas todavia vacio.
+  useEffect(() => {
+    if (!branchLoading && deliveryLocation.hasSelectedLocation) {
+      setDeliveryFeeResult(cotizarPara(deliveryLocation.latitude, deliveryLocation.longitude));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchLoading]);
 
   const setCustomerInfo = (cust: Customer) => {
     setCustomerInfoState(cust);
