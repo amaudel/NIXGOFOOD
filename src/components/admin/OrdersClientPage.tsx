@@ -31,6 +31,7 @@ import { OrderFilterBadge } from '@/components/admin/OrderFilterBadge';
 import { ORDER_FILTERS, getOrderFilterCount } from '@/config/orderFilters';
 import { OperationalClockProvider, useOperationalClock } from '@/context/OperationalClockContext';
 import { getOrderSupervisionState } from '@/lib/orderSupervision';
+import { DemoStorage } from '@/repositories/demo/DemoStorage';
 
 const getStatusLabel = (s: OrderStatus): string => {
   switch (s) {
@@ -272,25 +273,17 @@ function OrdersPageContent() {
     setLoadingProof(true);
 
     if (isDemo) {
-      setSelectedProofUrl(
-        ord.transferDetails?.proofUrl ||
-          'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80'
-      );
+      const blobUrl = await DemoStorage.getProofBlobUrl(ord.id);
+      setSelectedProofUrl(blobUrl);
       setLoadingProof(false);
       return;
     }
 
     try {
-      if (ord.transferDetails?.proofUrl) {
-        const path = ord.transferDetails.proofUrl.includes('proofs/')
-          ? ord.transferDetails.proofUrl.split('proofs/')[1]
-          : ord.transferDetails.proofUrl;
-
-        const res = await fetch(`/api/admin/proof-url?path=${encodeURIComponent(path)}`);
-        if (!res.ok) throw new Error('Error al obtener URL del comprobante');
-        const data = await res.json();
-        setSelectedProofUrl(data.url);
-      }
+      const res = await fetch(`/api/admin/proof-url?orderId=${encodeURIComponent(ord.id)}`);
+      if (!res.ok) throw new Error('Error al obtener URL del comprobante');
+      const data = await res.json();
+      setSelectedProofUrl(data.signedUrl);
     } catch (e: any) {
       console.error('Error fetching proof URL:', e);
       alert(e.message || 'No se pudo cargar la imagen del comprobante.');
@@ -727,7 +720,7 @@ function OrdersPageContent() {
                           {(ord.paymentMethod || 'cash').toUpperCase()}
                         </span>
                       </span>
-                      {ord.transferDetails?.proofUrl && (
+                      {ord.paymentMethod === 'transfer' && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
