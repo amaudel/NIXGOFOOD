@@ -109,6 +109,10 @@ export default function DispatchClientPage() {
   useEffect(() => {
     loadData();
 
+    // Backup poll: guarantees the dispatch board picks up new/updated orders
+    // even if the realtime/broadcast subscription below never fires.
+    const pollInterval = setInterval(loadData, 20000);
+
     if (isDemo) {
       const unsubscribe = DemoBroadcastService.subscribe(() => {
         loadData();
@@ -116,6 +120,7 @@ export default function DispatchClientPage() {
       const handleDemoUpdate = () => loadData();
       window.addEventListener('nixgofood_demo_storage_change', handleDemoUpdate);
       return () => {
+        clearInterval(pollInterval);
         unsubscribe();
         window.removeEventListener('nixgofood_demo_storage_change', handleDemoUpdate);
       };
@@ -138,9 +143,14 @@ export default function DispatchClientPage() {
             loadData();
           }
         )
-        .subscribe();
+        .subscribe((status, err) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error('[Dispatch Realtime] subscription failed:', status, err);
+          }
+        });
 
       return () => {
+        clearInterval(pollInterval);
         supabase.removeChannel(ordersChannel);
       };
     }

@@ -82,11 +82,18 @@ export default function KitchenClientPage() {
   useEffect(() => {
     loadOrders();
 
+    // Backup poll: guarantees the KDS picks up new comandas (and fires the
+    // alert) even if the realtime/broadcast subscription below never fires.
+    const pollInterval = setInterval(loadOrders, 20000);
+
     if (isDemo) {
       const unsubscribe = DemoBroadcastService.subscribe(() => {
         loadOrders();
       });
-      return () => unsubscribe();
+      return () => {
+        clearInterval(pollInterval);
+        unsubscribe();
+      };
     } else {
       const supabase = createClient();
       const channel = supabase
@@ -98,9 +105,14 @@ export default function KitchenClientPage() {
             loadOrders();
           }
         )
-        .subscribe();
+        .subscribe((status, err) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error('[Kitchen Realtime] subscription failed:', status, err);
+          }
+        });
 
       return () => {
+        clearInterval(pollInterval);
         supabase.removeChannel(channel);
       };
     }

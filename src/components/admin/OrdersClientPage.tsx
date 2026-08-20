@@ -187,6 +187,10 @@ function OrdersPageContent() {
   useEffect(() => {
     loadOrders();
 
+    // Backup poll: guarantees the list picks up new/updated orders even if
+    // the realtime/broadcast subscription below never fires.
+    const pollInterval = setInterval(loadOrders, 20000);
+
     if (!isDemo) {
       const supabase = createClient();
       supabase.auth.getUser().then(({ data: { user } }) => {
@@ -217,6 +221,7 @@ function OrdersPageContent() {
       const handleDemoUpdate = () => loadOrders();
       window.addEventListener('nixgofood_demo_storage_change', handleDemoUpdate);
       return () => {
+        clearInterval(pollInterval);
         unsubscribe();
         window.removeEventListener('nixgofood_demo_storage_change', handleDemoUpdate);
       };
@@ -237,9 +242,14 @@ function OrdersPageContent() {
             }
           }
         )
-        .subscribe();
+        .subscribe((status, err) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error('[Orders Realtime] subscription failed:', status, err);
+          }
+        });
 
       return () => {
+        clearInterval(pollInterval);
         supabase.removeChannel(channel);
       };
     }
