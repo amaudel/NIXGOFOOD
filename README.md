@@ -63,3 +63,13 @@ npm run build
 2. **Cloudflare (DNS & Dominio)**:
    - Configurar registros CNAME/A apuntando a la URL pública de Vercel (`cname.vercel-dns.com`).
    - Habilitar SSL/HTTPS para garantizar la API de geolocalización (`navigator.geolocation`).
+
+---
+
+## 🗄️ Pasos Manuales Pendientes en Supabase (Producción)
+
+El esquema de base de datos, las funciones RPC (`create_order`, `calculate_distance_km`) y las políticas RLS viven en `supabase/scripts/master_setup.sql`. Este script **no se ejecuta automáticamente** — hay que copiar su contenido completo y correrlo manualmente en el editor SQL del proyecto Supabase de producción cada vez que cambie.
+
+El script es **idempotente** (usa `CREATE TABLE IF NOT EXISTS`, `ON CONFLICT DO NOTHING`, `CREATE OR REPLACE FUNCTION` y `DROP POLICY IF EXISTS` antes de cada `CREATE POLICY`), así que es seguro volver a correrlo completo sobre una base de datos ya provisionada.
+
+**Importante:** hasta que este script se corra contra producción, cualquier tabla o política que se haya agregado recientemente (por ejemplo, las políticas RLS de `branches`) no estará activa en el entorno real, aunque el código de la aplicación ya la use.

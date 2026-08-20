@@ -367,8 +367,12 @@ CREATE POLICY "Authenticated read all branches" ON branches
   FOR SELECT TO authenticated USING (true);
 
 DROP POLICY IF EXISTS "Authenticated manage branches" ON branches;
-CREATE POLICY "Authenticated manage branches" ON branches
-  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Authenticated insert branches" ON branches;
+DROP POLICY IF EXISTS "Authenticated update branches" ON branches;
+CREATE POLICY "Authenticated insert branches" ON branches
+  FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated update branches" ON branches
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 
 GRANT SELECT ON branches TO public, anon, authenticated;
 GRANT INSERT, UPDATE ON branches TO authenticated;

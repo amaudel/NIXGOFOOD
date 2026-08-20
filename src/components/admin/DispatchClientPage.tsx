@@ -114,7 +114,9 @@ export default function DispatchClientPage() {
     }
 
     if (isDemo) {
-      const unsubscribe = DemoBroadcastService.subscribe(() => {
+      const unsubscribe = DemoBroadcastService.subscribe((msg) => {
+        const eventBranchId = (msg?.payload as any)?.branchId;
+        if (selectedBranch && eventBranchId && eventBranchId !== selectedBranch.id) return;
         loadData();
       });
       const handleDemoUpdate = () => loadData();
@@ -131,7 +133,9 @@ export default function DispatchClientPage() {
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'orders' },
-          () => {
+          (payload) => {
+            const branchIdEvento = (payload.new as any)?.branch_id ?? (payload.old as any)?.branch_id;
+            if (selectedBranch && branchIdEvento && branchIdEvento !== selectedBranch.id) return;
             loadData();
           }
         )

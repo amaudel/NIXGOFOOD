@@ -11,6 +11,7 @@ import {
   Customer,
   Order,
   OrderStatus,
+  Branch,
 } from '@/types';
 import { initialCategories, initialProducts } from '@/data/mockData';
 import { ProductRepository } from '@/repositories/ProductRepository';
@@ -229,6 +230,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const cotizarParaSucursal = (branch: Branch, lat: number, lng: number): DeliveryQuote => {
+    return DeliveryService.calculateDeliveryFee(
+      {
+        branchLatitude: branch.latitude,
+        branchLongitude: branch.longitude,
+        customerLatitude: lat,
+        customerLongitude: lng,
+      },
+      zones.filter((z) => z.branchId === branch.id)
+    );
+  };
+
   const cotizarPara = (lat: number, lng: number): DeliveryQuote => {
     const cobertura = autoSelectForLocation(lat, lng);
 
@@ -240,15 +253,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    return DeliveryService.calculateDeliveryFee(
-      {
-        branchLatitude: cobertura.branch.latitude,
-        branchLongitude: cobertura.branch.longitude,
-        customerLatitude: lat,
-        customerLongitude: lng,
-      },
-      zones.filter((z) => z.branchId === cobertura.branch.id)
-    );
+    return cotizarParaSucursal(cobertura.branch, lat, lng);
   };
 
   const setDeliveryLocation = (loc: DeliveryLocation) => {
@@ -282,6 +287,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchLoading]);
+
+  // Recotiza cuando el cliente cambia la sucursal manualmente (ej. desde BranchPicker),
+  // usando la sucursal elegida directamente en vez de auto-seleccionar de nuevo —
+  // auto-seleccionar aqui revertiria la eleccion manual del cliente.
+  useEffect(() => {
+    if (!branchLoading && selectedBranch && deliveryLocation.hasSelectedLocation) {
+      setDeliveryFeeResult(cotizarParaSucursal(selectedBranch, deliveryLocation.latitude, deliveryLocation.longitude));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBranch?.id]);
 
   const setCustomerInfo = (cust: Customer) => {
     setCustomerInfoState(cust);
