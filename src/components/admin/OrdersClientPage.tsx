@@ -210,9 +210,9 @@ function OrdersPageContent() {
   };
 
   useEffect(() => {
-    if (branchLoading) return;
-
-    loadOrders();
+    if (!branchLoading) {
+      loadOrders();
+    }
 
     if (!isDemo) {
       const supabase = createClient();

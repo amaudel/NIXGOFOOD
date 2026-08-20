@@ -109,9 +109,9 @@ export default function DispatchClientPage() {
   };
 
   useEffect(() => {
-    if (branchLoading) return;
-
-    loadData();
+    if (!branchLoading) {
+      loadData();
+    }
 
     if (isDemo) {
       const unsubscribe = DemoBroadcastService.subscribe(() => {

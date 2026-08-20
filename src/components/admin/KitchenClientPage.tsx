@@ -109,9 +109,9 @@ export default function KitchenClientPage() {
   };
 
   useEffect(() => {
-    if (branchLoading) return;
-
-    loadOrders();
+    if (!branchLoading) {
+      loadOrders();
+    }
 
     if (isDemo) {
       const unsubscribe = DemoBroadcastService.subscribe((event) => {
