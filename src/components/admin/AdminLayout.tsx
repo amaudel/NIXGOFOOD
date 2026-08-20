@@ -20,6 +20,7 @@ import {
   Home,
   RotateCcw,
   Package,
+  Store,
 } from 'lucide-react';
 import { businessConfig } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
@@ -30,6 +31,8 @@ import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { NewOrderAlertProvider, useNewOrderAlerts } from '@/context/NewOrderAlertContext';
 import { AudioAlertToggle } from '@/components/admin/AudioAlertToggle';
 import { NewOrderEmergencyModal } from '@/components/admin/NewOrderEmergencyModal';
+import { BranchSwitcher } from '@/components/admin/BranchSwitcher';
+import { BranchProvider } from '@/context/BranchContext';
 
 const navItems = [
   { href: '/admin', label: 'Resumen', icon: LayoutDashboard },
@@ -41,6 +44,7 @@ const navItems = [
   { href: '/admin/menu/modifiers', label: 'Modificadores', icon: Sliders },
   { href: '/admin/delivery', label: 'Delivery', icon: Truck },
   { href: '/admin/hours', label: 'Horarios', icon: Clock },
+  { href: '/admin/branches', label: 'Sucursales', icon: Store },
   { href: '/admin/settings/business', label: 'Configuración Negocio', icon: Settings },
 ];
 
@@ -86,6 +90,7 @@ const AdminLayoutInner: React.FC<{ children: React.ReactNode }> = ({ children })
         </div>
 
         <div className="flex items-center gap-2">
+          <BranchSwitcher />
           <AudioAlertToggle />
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -123,6 +128,11 @@ const AdminLayoutInner: React.FC<{ children: React.ReactNode }> = ({ children })
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Branch Switcher in Desktop Sidebar */}
+          <div className="hidden md:block">
+            <BranchSwitcher />
           </div>
 
           {/* Audio Toggle Control in Desktop Sidebar */}
@@ -236,10 +246,12 @@ import { KdsClockProvider } from '@/context/KdsClockContext';
 
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <KdsClockProvider>
-      <NewOrderAlertProvider>
-        <AdminLayoutInner>{children}</AdminLayoutInner>
-      </NewOrderAlertProvider>
-    </KdsClockProvider>
+    <BranchProvider scope="admin">
+      <KdsClockProvider>
+        <NewOrderAlertProvider>
+          <AdminLayoutInner>{children}</AdminLayoutInner>
+        </NewOrderAlertProvider>
+      </KdsClockProvider>
+    </BranchProvider>
   );
 };
