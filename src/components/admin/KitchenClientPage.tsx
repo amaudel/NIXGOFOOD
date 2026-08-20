@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useApp } from '@/context/AppContext';
+import { useBranch } from '@/context/BranchContext';
 import { Order, OrderStatus } from '@/types';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { createClient } from '@/lib/supabase/client';
@@ -27,6 +28,7 @@ import { UndoToastNotification, ActiveUndoToast } from '@/components/admin/UndoT
 
 export default function KitchenClientPage() {
   const { executeOrderAction } = useApp();
+  const { selectedBranch } = useBranch();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +80,7 @@ export default function KitchenClientPage() {
   const loadOrders = async () => {
     try {
       setError(null);
-      const fetched = await OrderRepository.getOrders(CURRENT_BUSINESS_ID);
+      const fetched = await OrderRepository.getOrders(CURRENT_BUSINESS_ID, selectedBranch?.id);
 
       // KDS Sorting: OLDEST FIRST (created_at ASC)
       const sorted = [...fetched].sort(
@@ -111,6 +113,8 @@ export default function KitchenClientPage() {
 
     if (isDemo) {
       const unsubscribe = DemoBroadcastService.subscribe((event) => {
+        const eventBranchId = (event?.payload as any)?.branchId;
+        if (selectedBranch && eventBranchId && eventBranchId !== selectedBranch.id) return;
         if (event?.type === 'NEW_ORDER_CREATED') {
           triggerNewOrderAlert();
         }
@@ -125,6 +129,8 @@ export default function KitchenClientPage() {
           'postgres_changes',
           { event: '*', schema: 'public', table: 'orders' },
           (payload) => {
+            const branchIdEvento = (payload.new as any)?.branch_id ?? (payload.old as any)?.branch_id;
+            if (selectedBranch && branchIdEvento && branchIdEvento !== selectedBranch.id) return;
             if (payload.eventType === 'INSERT') {
               triggerNewOrderAlert();
             }
@@ -137,7 +143,7 @@ export default function KitchenClientPage() {
         supabase.removeChannel(channel);
       };
     }
-  }, [isDemo]);
+  }, [isDemo, selectedBranch?.id]);
 
   // Operational action transitions strictly for Kitchen
   const handleKitchenAction = async (

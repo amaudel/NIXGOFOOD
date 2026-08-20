@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useApp } from '@/context/AppContext';
+import { useBranch } from '@/context/BranchContext';
 import { Order, OrderStatus } from '@/types';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { DispatchCheckRepository } from '@/repositories/DispatchCheckRepository';
@@ -36,6 +37,7 @@ import {
 
 export default function DispatchClientPage() {
   const { executeOrderAction } = useApp();
+  const { selectedBranch } = useBranch();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export default function DispatchClientPage() {
     try {
       setError(null);
       const [fetchedOrders, fetchedChecks] = await Promise.all([
-        OrderRepository.getOrders(CURRENT_BUSINESS_ID),
+        OrderRepository.getOrders(CURRENT_BUSINESS_ID, selectedBranch?.id),
         DispatchCheckRepository.getChecks(CURRENT_BUSINESS_ID),
       ]);
 
@@ -144,7 +146,7 @@ export default function DispatchClientPage() {
         supabase.removeChannel(ordersChannel);
       };
     }
-  }, [isDemo]);
+  }, [isDemo, selectedBranch?.id]);
 
   const handleToggleChecklist = async (orderId: string, key: keyof ChecklistState) => {
     const current = checklists[orderId] || { complete: false, packaging: false };

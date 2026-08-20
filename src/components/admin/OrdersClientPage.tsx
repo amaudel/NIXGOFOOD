@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useApp } from '@/context/AppContext';
+import { useBranch } from '@/context/BranchContext';
 import { Order, OrderStatus, AdminRole, OrderStatusHistoryItem } from '@/types';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { createClient } from '@/lib/supabase/client';
@@ -77,6 +78,7 @@ const formatDayLabel = (dayKey: string): string => {
 
 function OrdersPageContent() {
   const { executeOrderAction } = useApp();
+  const { selectedBranch } = useBranch();
   const now = useOperationalClock();
   const [orders, setOrders] = useState<Order[]>([]);
   const [historyMap, setHistoryMap] = useState<Record<string, OrderStatusHistoryItem[]>>({});
@@ -164,7 +166,7 @@ function OrdersPageContent() {
   const loadOrders = async () => {
     try {
       setError(null);
-      const data = await OrderRepository.getOrders(CURRENT_BUSINESS_ID);
+      const data = await OrderRepository.getOrders(CURRENT_BUSINESS_ID, selectedBranch?.id);
       // Commercial Orders Sorting: NEWEST FIRST (created_at DESC)
       const sorted = [...data].sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -228,6 +230,8 @@ function OrdersPageContent() {
 
     if (isDemo) {
       const unsubscribe = DemoBroadcastService.subscribe((msg) => {
+        const eventBranchId = (msg.payload as any)?.branchId;
+        if (selectedBranch && eventBranchId && eventBranchId !== selectedBranch.id) return;
         if (msg.payload) {
           checkAndNotifyNewPendingTransfer(msg.payload);
         }
@@ -251,6 +255,8 @@ function OrdersPageContent() {
           'postgres_changes',
           { event: '*', schema: 'public', table: 'orders' },
           (payload) => {
+            const branchIdEvento = (payload.new as any)?.branch_id ?? (payload.old as any)?.branch_id;
+            if (selectedBranch && branchIdEvento && branchIdEvento !== selectedBranch.id) return;
             if (payload.new) {
               checkAndNotifyNewPendingTransfer(payload.new);
             }
@@ -266,7 +272,7 @@ function OrdersPageContent() {
         supabase.removeChannel(channel);
       };
     }
-  }, [isDemo, checkAndNotifyNewPendingTransfer]);
+  }, [isDemo, checkAndNotifyNewPendingTransfer, selectedBranch?.id]);
 
   const handleCancelOrder = async (order: Order, reason: string) => {
     if (!reason.trim()) {
