@@ -32,7 +32,6 @@ import { NewOrderAlertProvider, useNewOrderAlerts } from '@/context/NewOrderAler
 import { AudioAlertToggle } from '@/components/admin/AudioAlertToggle';
 import { NewOrderEmergencyModal } from '@/components/admin/NewOrderEmergencyModal';
 import { BranchSwitcher } from '@/components/admin/BranchSwitcher';
-import { BranchProvider } from '@/context/BranchContext';
 
 const navItems = [
   { href: '/admin', label: 'Resumen', icon: LayoutDashboard },
@@ -246,12 +245,10 @@ import { KdsClockProvider } from '@/context/KdsClockContext';
 
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <BranchProvider scope="admin">
-      <KdsClockProvider>
-        <NewOrderAlertProvider>
-          <AdminLayoutInner>{children}</AdminLayoutInner>
-        </NewOrderAlertProvider>
-      </KdsClockProvider>
-    </BranchProvider>
+    <KdsClockProvider>
+      <NewOrderAlertProvider>
+        <AdminLayoutInner>{children}</AdminLayoutInner>
+      </NewOrderAlertProvider>
+    </KdsClockProvider>
   );
 };
