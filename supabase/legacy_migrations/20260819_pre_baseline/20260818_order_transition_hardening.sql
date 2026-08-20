@@ -348,6 +348,12 @@ BEGIN
       v_expected_status := 'new';
       v_target_status := 'preparing';
 
+      -- Pago
+      v_verification_status := COALESCE(v_transfer_details->>'verificationStatus', 'pending');
+      IF v_payment_method <> 'cash' AND v_verification_status <> 'verified' THEN
+        RAISE EXCEPTION 'PAYMENT_NOT_VERIFIED: No se puede empezar la preparación de un pedido con pago por transferencia sin verificar.';
+      END IF;
+
     WHEN 'KITCHEN_READY' THEN
       v_expected_status := 'preparing';
       v_target_status := 'ready';

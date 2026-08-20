@@ -267,7 +267,14 @@ export default function KitchenClientPage() {
 
         {/* Primary Kitchen Action Buttons */}
         <div>
-          {ord.status === 'new' && (
+          {ord.status === 'new' && !isPaid && (
+            <div className="w-full py-3.5 px-4 rounded-2xl bg-amber-950/40 border border-amber-800/60 text-amber-300 text-xs font-black flex items-center justify-center gap-2 text-center">
+              <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>VERIFICA EL PAGO ANTES DE PREPARAR</span>
+            </div>
+          )}
+
+          {ord.status === 'new' && isPaid && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
