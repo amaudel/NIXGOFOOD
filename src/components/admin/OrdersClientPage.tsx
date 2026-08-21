@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ShoppingBag,
   Search,
@@ -25,12 +25,14 @@ import { isDemoMode } from '@/config/demo';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { OrderItemsList } from '@/components/admin/OrderItemsList';
 import { NewOrderAlertBanner } from '@/components/admin/NewOrderAlertBanner';
+import { useNewOrderAlerts } from '@/context/NewOrderAlertContext';
 import { UndoToastNotification, ActiveUndoToast } from '@/components/admin/UndoToastNotification';
 import { RollbackOrderModal as RollbackModal } from '@/components/admin/RollbackOrderModal';
 import { OrderFilterBadge } from '@/components/admin/OrderFilterBadge';
 import { ORDER_FILTERS, getOrderFilterCount } from '@/config/orderFilters';
 import { OperationalClockProvider, useOperationalClock } from '@/context/OperationalClockContext';
 import { getOrderSupervisionState } from '@/lib/orderSupervision';
+import { DemoStorage } from '@/repositories/demo/DemoStorage';
 
 const getStatusLabel = (s: OrderStatus): string => {
   switch (s) {
@@ -88,10 +90,12 @@ function OrdersPageContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingFocusOrderId, setPendingFocusOrderId] = useState<string | null>(null);
 
-  // Audio Context & Deduplication Ref for Sound Policy
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const notifiedPendingTransferOrderIdsRef = useRef<Set<string>>(new Set());
+  // New-order detection: tracks every order id already seen so loadOrders can
+  // alert on genuinely new orders regardless of how it was triggered (realtime,
+  // demo broadcast, or the backup poll).
+  const seenOrderIdsRef = useRef<Set<string>>(new Set());
   const isInitialLoadRef = useRef<boolean>(true);
+  const { triggerNewOrderAlert } = useNewOrderAlerts();
 
   // Proof viewer modal
   const [selectedProofOrder, setSelectedProofOrder] = useState<Order | null>(null);
@@ -109,58 +113,6 @@ function OrdersPageContent() {
 
   const isDemo = isDemoMode();
 
-  // Phase 2.1 Sound Policy: Single, short, discrete chime for BRAND NEW pending transfer orders ONLY
-  const triggerPendingTransferChime = useCallback(() => {
-    try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      const ctx = audioContextRef.current;
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15); // A5
-
-      gain.gain.setValueAtTime(0.2, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 0.35);
-    } catch (e) {
-      console.warn('Audio chime error:', e);
-    }
-  }, []);
-
-  // Deduplication check: Emits sound ONLY if order is transfer + pending AND not previously notified
-  const checkAndNotifyNewPendingTransfer = useCallback(
-    (ordPayload: any) => {
-      if (isInitialLoadRef.current) return; // 0 sound on initial load!
-
-      const isTransfer =
-        ordPayload.payment_method === 'transfer' || ordPayload.paymentMethod === 'transfer';
-      const transferDetails = ordPayload.transfer_details || ordPayload.transferDetails;
-      const verificationStatus = transferDetails?.verificationStatus || 'pending';
-      const orderId = ordPayload.id;
-
-      if (isTransfer && verificationStatus === 'pending' && orderId) {
-        if (!notifiedPendingTransferOrderIdsRef.current.has(orderId)) {
-          notifiedPendingTransferOrderIdsRef.current.add(orderId);
-          triggerPendingTransferChime();
-        }
-      }
-    },
-    [triggerPendingTransferChime]
-  );
-
   const loadOrders = async () => {
     try {
       setError(null);
@@ -171,14 +123,19 @@ function OrdersPageContent() {
       );
       setOrders(sorted);
 
-      // Seed deduplication set on initial load to ensure 0 sounds on page open
+      // Seed the seen-orders set on initial load (0 alerts on page open), then
+      // alert on every genuinely new order from then on — works regardless of
+      // whether this load came from realtime, demo broadcast, or the backup poll.
       if (isInitialLoadRef.current) {
-        sorted.forEach((o) => {
-          if (o.paymentMethod === 'transfer' && o.transferDetails?.verificationStatus === 'pending') {
-            notifiedPendingTransferOrderIdsRef.current.add(o.id);
-          }
-        });
+        sorted.forEach((o) => seenOrderIdsRef.current.add(o.id));
         isInitialLoadRef.current = false;
+      } else {
+        sorted
+          .filter((o) => !seenOrderIdsRef.current.has(o.id))
+          .forEach((o) => {
+            seenOrderIdsRef.current.add(o.id);
+            triggerNewOrderAlert(o);
+          });
       }
 
       // Single Batch Query for Order History (No N+1)
@@ -210,6 +167,10 @@ function OrdersPageContent() {
   useEffect(() => {
     loadOrders();
 
+    // Backup poll: guarantees the list picks up new/updated orders even if
+    // the realtime/broadcast subscription below never fires.
+    const pollInterval = setInterval(loadOrders, 20000);
+
     if (!isDemo) {
       const supabase = createClient();
       supabase.auth.getUser().then(({ data: { user } }) => {
@@ -228,9 +189,6 @@ function OrdersPageContent() {
 
     if (isDemo) {
       const unsubscribe = DemoBroadcastService.subscribe((msg) => {
-        if (msg.payload) {
-          checkAndNotifyNewPendingTransfer(msg.payload);
-        }
         loadOrders();
         if (msg.payload?.orderId || msg.payload?.id) {
           fetchSingleOrderHistory(msg.payload.orderId || msg.payload.id);
@@ -240,6 +198,7 @@ function OrdersPageContent() {
       const handleDemoUpdate = () => loadOrders();
       window.addEventListener('nixgofood_demo_storage_change', handleDemoUpdate);
       return () => {
+        clearInterval(pollInterval);
         unsubscribe();
         window.removeEventListener('nixgofood_demo_storage_change', handleDemoUpdate);
       };
@@ -251,22 +210,24 @@ function OrdersPageContent() {
           'postgres_changes',
           { event: '*', schema: 'public', table: 'orders' },
           (payload) => {
-            if (payload.new) {
-              checkAndNotifyNewPendingTransfer(payload.new);
-            }
             loadOrders();
             if (payload.new && (payload.new as any).id) {
               fetchSingleOrderHistory((payload.new as any).id);
             }
           }
         )
-        .subscribe();
+        .subscribe((status, err) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error('[Orders Realtime] subscription failed:', status, err);
+          }
+        });
 
       return () => {
+        clearInterval(pollInterval);
         supabase.removeChannel(channel);
       };
     }
-  }, [isDemo, checkAndNotifyNewPendingTransfer]);
+  }, [isDemo, triggerNewOrderAlert]);
 
   const handleCancelOrder = async (order: Order, reason: string) => {
     if (!reason.trim()) {
@@ -296,25 +257,17 @@ function OrdersPageContent() {
     setLoadingProof(true);
 
     if (isDemo) {
-      setSelectedProofUrl(
-        ord.transferDetails?.proofUrl ||
-          'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80'
-      );
+      const blobUrl = await DemoStorage.getProofBlobUrl(ord.id);
+      setSelectedProofUrl(blobUrl);
       setLoadingProof(false);
       return;
     }
 
     try {
-      if (ord.transferDetails?.proofUrl) {
-        const path = ord.transferDetails.proofUrl.includes('proofs/')
-          ? ord.transferDetails.proofUrl.split('proofs/')[1]
-          : ord.transferDetails.proofUrl;
-
-        const res = await fetch(`/api/admin/proof-url?path=${encodeURIComponent(path)}`);
-        if (!res.ok) throw new Error('Error al obtener URL del comprobante');
-        const data = await res.json();
-        setSelectedProofUrl(data.url);
-      }
+      const res = await fetch(`/api/admin/proof-url?orderId=${encodeURIComponent(ord.id)}`);
+      if (!res.ok) throw new Error('Error al obtener URL del comprobante');
+      const data = await res.json();
+      setSelectedProofUrl(data.signedUrl);
     } catch (e: any) {
       console.error('Error fetching proof URL:', e);
       alert(e.message || 'No se pudo cargar la imagen del comprobante.');
@@ -539,7 +492,7 @@ function OrdersPageContent() {
                 {(ord.paymentMethod || 'cash').toUpperCase()}
               </span>
             </span>
-            {ord.transferDetails?.proofUrl && (
+            {ord.paymentMethod === 'transfer' && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();

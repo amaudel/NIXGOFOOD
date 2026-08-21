@@ -27,7 +27,7 @@ import { createClient } from '@/lib/supabase/client';
 import { DemoStorage } from '@/repositories/demo/DemoStorage';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 
-import { NewOrderAlertProvider, useNewOrderAlerts } from '@/context/NewOrderAlertContext';
+import { useNewOrderAlerts } from '@/context/NewOrderAlertContext';
 import { AudioAlertToggle } from '@/components/admin/AudioAlertToggle';
 import { NewOrderEmergencyModal } from '@/components/admin/NewOrderEmergencyModal';
 
@@ -237,9 +237,7 @@ import { KdsClockProvider } from '@/context/KdsClockContext';
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <KdsClockProvider>
-      <NewOrderAlertProvider>
-        <AdminLayoutInner>{children}</AdminLayoutInner>
-      </NewOrderAlertProvider>
+      <AdminLayoutInner>{children}</AdminLayoutInner>
     </KdsClockProvider>
   );
 };

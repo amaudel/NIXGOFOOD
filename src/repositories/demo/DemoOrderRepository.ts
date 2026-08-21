@@ -124,11 +124,14 @@ export class DemoOrderRepository implements IOrderRepository {
       throw new Error('INVALID_DELIVERY_METHOD: Confirmación de entrega aplica únicamente a pedidos con Delivery.');
     }
 
-    // Payment validation for dispatch actions
-    if (['DISPATCH_DELIVERY', 'DISPATCH_PICKUP'].includes(params.action)) {
+    // Payment validation: a transfer order needs its proof verified before advancing at all
+    if (['KITCHEN_START', 'DISPATCH_DELIVERY', 'DISPATCH_PICKUP'].includes(params.action)) {
       const isCash = currentOrder.paymentMethod === 'cash';
       const isVerified = currentOrder.transferDetails?.verificationStatus === 'verified';
       if (!isCash && !isVerified) {
+        if (params.action === 'KITCHEN_START') {
+          throw new Error('PAYMENT_NOT_VERIFIED: No se puede empezar la preparación de un pedido con pago por transferencia sin verificar.');
+        }
         throw new Error('PAYMENT_NOT_VERIFIED: No se puede despachar un pedido con pago por transferencia sin verificar.');
       }
     }

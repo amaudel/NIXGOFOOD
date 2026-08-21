@@ -37,3 +37,7 @@ testsprite_tests/tmp/config.json
 
 # supabase CLI local state
 /supabase/.temp
+
+# graphify local-only files
+graphify-out/cost.json
+graphify-out/__pycache__/

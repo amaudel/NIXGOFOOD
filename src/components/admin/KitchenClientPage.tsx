@@ -24,6 +24,7 @@ import { KdsOrderElapsedTime } from '@/components/admin/KdsOrderElapsedTime';
 import { OrderItemsList } from '@/components/admin/OrderItemsList';
 import { NewOrderAlertBanner } from '@/components/admin/NewOrderAlertBanner';
 import { UndoToastNotification, ActiveUndoToast } from '@/components/admin/UndoToastNotification';
+import { useNewOrderAlerts } from '@/context/NewOrderAlertContext';
 
 export default function KitchenClientPage() {
   const { executeOrderAction } = useApp();
@@ -31,49 +32,22 @@ export default function KitchenClientPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // Unreviewed / New comanda alerts
-  const [unreviewedOrderIds, setUnreviewedOrderIds] = useState<string[]>([]);
+  // Unreviewed / New comanda alerts — shared with the alert banner via context,
+  // so the chime, mobile audio unlock, vibration and banner actually fire.
+  const {
+    unreviewedOrderIds,
+    triggerNewOrderAlert,
+    acknowledgeOrder,
+    isAudioMuted,
+    toggleAudioMute,
+  } = useNewOrderAlerts();
   const previousOrderCountRef = useRef<number>(0);
-  const audioContextRef = useRef<AudioContext | null>(null);
 
   // Undo Toast state
   const [activeUndoToast, setActiveUndoToast] = useState<ActiveUndoToast | null>(null);
 
   const isDemo = isDemoMode();
-
-  // Play WebAudio alarm chime for new comandas
-  const triggerNewOrderAlert = () => {
-    if (!soundEnabled) return;
-    try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      const ctx = audioContextRef.current;
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
-      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.4);
-
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 0.4);
-    } catch (e) {
-      console.warn('Audio play prevented:', e);
-    }
-  };
 
   const loadOrders = async () => {
     try {
@@ -91,8 +65,7 @@ export default function KitchenClientPage() {
           (o) => o.status === 'new' && !unreviewedOrderIds.includes(o.id)
         );
         if (newlyAdded.length > 0) {
-          triggerNewOrderAlert();
-          setUnreviewedOrderIds((prev) => [...prev, ...newlyAdded.map((o) => o.id)]);
+          newlyAdded.forEach((o) => triggerNewOrderAlert(o));
         }
       }
       previousOrderCountRef.current = sorted.length;
@@ -109,14 +82,18 @@ export default function KitchenClientPage() {
   useEffect(() => {
     loadOrders();
 
+    // Backup poll: guarantees the KDS picks up new comandas (and fires the
+    // alert) even if the realtime/broadcast subscription below never fires.
+    const pollInterval = setInterval(loadOrders, 20000);
+
     if (isDemo) {
-      const unsubscribe = DemoBroadcastService.subscribe((event) => {
-        if (event?.type === 'NEW_ORDER_CREATED') {
-          triggerNewOrderAlert();
-        }
+      const unsubscribe = DemoBroadcastService.subscribe(() => {
         loadOrders();
       });
-      return () => unsubscribe();
+      return () => {
+        clearInterval(pollInterval);
+        unsubscribe();
+      };
     } else {
       const supabase = createClient();
       const channel = supabase
@@ -124,16 +101,18 @@ export default function KitchenClientPage() {
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'orders' },
-          (payload) => {
-            if (payload.eventType === 'INSERT') {
-              triggerNewOrderAlert();
-            }
+          () => {
             loadOrders();
           }
         )
-        .subscribe();
+        .subscribe((status, err) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error('[Kitchen Realtime] subscription failed:', status, err);
+          }
+        });
 
       return () => {
+        clearInterval(pollInterval);
         supabase.removeChannel(channel);
       };
     }
@@ -185,10 +164,6 @@ export default function KitchenClientPage() {
       console.error('Undo failed:', err);
       alert(err.message || 'No se pudo deshacer la acción.');
     }
-  };
-
-  const acknowledgeOrder = (orderId: string) => {
-    setUnreviewedOrderIds((prev) => prev.filter((id) => id !== orderId));
   };
 
   // Filter orders into active kitchen groups
@@ -267,7 +242,14 @@ export default function KitchenClientPage() {
 
         {/* Primary Kitchen Action Buttons */}
         <div>
-          {ord.status === 'new' && (
+          {ord.status === 'new' && !isPaid && (
+            <div className="w-full py-3.5 px-4 rounded-2xl bg-amber-950/40 border border-amber-800/60 text-amber-300 text-xs font-black flex items-center justify-center gap-2 text-center">
+              <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>VERIFICA EL PAGO ANTES DE PREPARAR</span>
+            </div>
+          )}
+
+          {ord.status === 'new' && isPaid && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -337,15 +319,15 @@ export default function KitchenClientPage() {
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
-              onClick={() => setSoundEnabled(!soundEnabled)}
+              onClick={toggleAudioMute}
               className={`p-2.5 rounded-xl border transition-all ${
-                soundEnabled
+                !isAudioMuted
                   ? 'bg-emerald-950/60 border-emerald-700 text-emerald-400'
                   : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-300'
               }`}
-              title={soundEnabled ? 'Alertas sonoras activas' : 'Alertas sonoras silenciadas'}
+              title={!isAudioMuted ? 'Alertas sonoras activas' : 'Alertas sonoras silenciadas'}
             >
-              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              {!isAudioMuted ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </button>
 
             <button
