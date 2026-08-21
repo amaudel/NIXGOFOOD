@@ -75,6 +75,24 @@ CREATE TABLE IF NOT EXISTS delivery_zones (
   active BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Reconciliacion para instalaciones donde delivery_zones ya existia antes del
+-- rediseno multi-sucursal (creada por la migracion production_baseline.sql sin
+-- branch_id/max_distance_km). CREATE TABLE IF NOT EXISTS no altera una tabla
+-- que ya existe, asi que sin esto las columnas nuevas nunca se agregan y toda
+-- consulta con .eq('branch_id', ...) falla en runtime, dejando el checkout sin
+-- zonas (todo pedido se reporta "fuera de zona de delivery").
+ALTER TABLE delivery_zones ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES branches(id) ON DELETE CASCADE;
+ALTER TABLE delivery_zones ADD COLUMN IF NOT EXISTS max_distance_km NUMERIC(5, 2);
+ALTER TABLE delivery_zones ADD COLUMN IF NOT EXISTS estimated_min_minutes INT DEFAULT 20;
+ALTER TABLE delivery_zones ADD COLUMN IF NOT EXISTS estimated_max_minutes INT DEFAULT 35;
+ALTER TABLE delivery_zones ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0;
+ALTER TABLE delivery_zones ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true;
+
+-- Las filas heredadas (esquema por poligono, sin max_distance_km) nunca podran
+-- matchear ninguna distancia; se desactivan para que no interfieran con las
+-- zonas nuevas sembradas mas abajo.
+UPDATE delivery_zones SET active = false WHERE max_distance_km IS NULL;
+
 CREATE TABLE IF NOT EXISTS business_hours (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
@@ -376,6 +394,32 @@ CREATE POLICY "Authenticated update branches" ON branches
 
 GRANT SELECT ON branches TO public, anon, authenticated;
 GRANT INSERT, UPDATE ON branches TO authenticated;
+
+-- RLS PARA DELIVERY_ZONES (multi-sucursal)
+-- production_baseline.sql ya habia hecho ENABLE ROW LEVEL SECURITY sobre esta
+-- tabla sin crear ninguna politica, lo que deniega toda lectura por defecto
+-- (anon/public reciben 0 filas). Sin este bloque, aunque el schema este
+-- reconciliado arriba, el checkout nunca ve zonas de delivery.
+ALTER TABLE delivery_zones ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read active delivery zones" ON delivery_zones;
+CREATE POLICY "Public read active delivery zones" ON delivery_zones
+  FOR SELECT USING (active = true);
+
+DROP POLICY IF EXISTS "Authenticated read all delivery zones" ON delivery_zones;
+CREATE POLICY "Authenticated read all delivery zones" ON delivery_zones
+  FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Authenticated manage delivery zones" ON delivery_zones;
+DROP POLICY IF EXISTS "Authenticated insert delivery zones" ON delivery_zones;
+DROP POLICY IF EXISTS "Authenticated update delivery zones" ON delivery_zones;
+CREATE POLICY "Authenticated insert delivery zones" ON delivery_zones
+  FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated update delivery zones" ON delivery_zones
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+GRANT SELECT ON delivery_zones TO public, anon, authenticated;
+GRANT INSERT, UPDATE ON delivery_zones TO authenticated;
 
 -- GRANTS FOR PUBLIC & ANON ACCESS
 GRANT SELECT, UPDATE ON orders TO public, anon, authenticated;
