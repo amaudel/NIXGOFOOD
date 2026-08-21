@@ -21,14 +21,18 @@ import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { createClient } from '@/lib/supabase/client';
 import { Order } from '@/types';
+import { useBranch } from '@/context/BranchContext';
 
 export default function DashboardClientPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const isDemo = isDemoMode();
+  const { selectedBranch, loading: branchLoading } = useBranch();
 
   useEffect(() => {
+    if (branchLoading) return;
+
     const checkRoleAndLoad = async () => {
       try {
         if (!isDemo) {
@@ -49,7 +53,7 @@ export default function DashboardClientPage() {
           }
         }
 
-        const data = await OrderRepository.getOrders(CURRENT_BUSINESS_ID);
+        const data = await OrderRepository.getOrders(CURRENT_BUSINESS_ID, selectedBranch?.id);
         setOrders(data);
       } catch (e) {
         console.error('Dashboard load error:', e);
@@ -59,7 +63,7 @@ export default function DashboardClientPage() {
     };
 
     checkRoleAndLoad();
-  }, [isDemo, router]);
+  }, [isDemo, router, selectedBranch?.id, branchLoading]);
 
   const activeOrders = orders.filter(
     (o) => o.status === 'new' || o.status === 'preparing' || o.status === 'ready' || o.status === 'on_the_way'

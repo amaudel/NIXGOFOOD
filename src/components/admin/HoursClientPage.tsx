@@ -5,9 +5,10 @@ import { Clock, Save, CheckCircle, AlertCircle, ToggleLeft, ToggleRight } from '
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { BusinessHours } from '@/types';
 import { createClient } from '@/lib/supabase/client';
-import { CURRENT_BUSINESS_ID, activeBranch } from '@/config/business';
+import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { DemoBusinessRepository } from '@/repositories/demo/DemoBusinessRepository';
+import { useBranch } from '@/context/BranchContext';
 
 const daysOfWeekNames = [
   'Domingo',
@@ -26,12 +27,13 @@ export default function HoursClientPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const isDemo = isDemoMode();
+  const { selectedBranch, loading: branchLoading } = useBranch();
 
   const loadHours = async () => {
     try {
       setMessage(null);
       if (isDemo) {
-        const demoHours = await DemoBusinessRepository.getBusinessHours();
+        const demoHours = await DemoBusinessRepository.getBusinessHours(selectedBranch?.id);
         setHours(demoHours);
         setLoading(false);
         return;
@@ -41,18 +43,20 @@ export default function HoursClientPage() {
         !process.env.NEXT_PUBLIC_SUPABASE_URL ||
         process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co'
       ) {
-        const demoHours = await DemoBusinessRepository.getBusinessHours();
+        const demoHours = await DemoBusinessRepository.getBusinessHours(selectedBranch?.id);
         setHours(demoHours);
         setLoading(false);
         return;
       }
 
       const supabase = createClient();
-      const { data, error: err } = await supabase
+      let query = supabase
         .from('business_hours')
         .select('*')
         .eq('business_id', CURRENT_BUSINESS_ID)
         .order('day_of_week', { ascending: true });
+      if (selectedBranch) query = query.eq('branch_id', selectedBranch.id);
+      const { data, error: err } = await query;
 
       if (err) throw new Error(err.message);
 
@@ -71,7 +75,7 @@ export default function HoursClientPage() {
       } else {
         const defaultHours: BusinessHours[] = daysOfWeekNames.map((_, idx) => ({
           businessId: CURRENT_BUSINESS_ID,
-          branchId: activeBranch.id,
+          branchId: selectedBranch!.id,
           dayOfWeek: idx,
           openTime: '09:00:00',
           closeTime: '23:00:00',
@@ -87,8 +91,9 @@ export default function HoursClientPage() {
   };
 
   useEffect(() => {
+    if (branchLoading) return;
     loadHours();
-  }, [isDemo]);
+  }, [isDemo, selectedBranch?.id, branchLoading]);
 
   const handleHourChange = (dayOfWeek: number, field: keyof BusinessHours, value: any) => {
     setHours((prev) =>
@@ -103,7 +108,12 @@ export default function HoursClientPage() {
 
     try {
       if (isDemo) {
-        await DemoBusinessRepository.saveBusinessHours(hours);
+        // `hours` solo trae los dias de la sucursal seleccionada (getBusinessHours ya filtra
+        // por branchId). Guardar `hours` tal cual sobreescribiria el storage completo y
+        // borraria los horarios de las demas sucursales, asi que se preservan primero.
+        const allHours = await DemoBusinessRepository.getBusinessHours();
+        const otherBranchesHours = allHours.filter((h) => h.branchId !== selectedBranch?.id);
+        await DemoBusinessRepository.saveBusinessHours([...otherBranchesHours, ...hours]);
         setMessage({ type: 'success', text: '✓ Horarios de atención guardados localmente (Modo Demo).' });
         setSaving(false);
         return;
@@ -118,7 +128,7 @@ export default function HoursClientPage() {
         for (const h of hours) {
           const payload = {
             business_id: CURRENT_BUSINESS_ID,
-            branch_id: activeBranch.id,
+            branch_id: selectedBranch!.id,
             day_of_week: h.dayOfWeek,
             open_time: h.openTime,
             close_time: h.closeTime,

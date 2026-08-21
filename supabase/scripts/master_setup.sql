@@ -355,6 +355,28 @@ ON storage.objects FOR SELECT
 TO public, anon, authenticated
 USING (bucket_id = 'payment-proofs');
 
+-- RLS PARA BRANCHES (multi-sucursal)
+ALTER TABLE branches ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read active branches" ON branches;
+CREATE POLICY "Public read active branches" ON branches
+  FOR SELECT USING (active = true);
+
+DROP POLICY IF EXISTS "Authenticated read all branches" ON branches;
+CREATE POLICY "Authenticated read all branches" ON branches
+  FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Authenticated manage branches" ON branches;
+DROP POLICY IF EXISTS "Authenticated insert branches" ON branches;
+DROP POLICY IF EXISTS "Authenticated update branches" ON branches;
+CREATE POLICY "Authenticated insert branches" ON branches
+  FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated update branches" ON branches
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+GRANT SELECT ON branches TO public, anon, authenticated;
+GRANT INSERT, UPDATE ON branches TO authenticated;
+
 -- GRANTS FOR PUBLIC & ANON ACCESS
 GRANT SELECT, UPDATE ON orders TO public, anon, authenticated;
 GRANT SELECT ON order_items TO public, anon, authenticated;

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useApp } from '@/context/AppContext';
+import { useBranch } from '@/context/BranchContext';
 import { Order, OrderStatus, AdminRole, OrderStatusHistoryItem } from '@/types';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { createClient } from '@/lib/supabase/client';
@@ -79,6 +80,7 @@ const formatDayLabel = (dayKey: string): string => {
 
 function OrdersPageContent() {
   const { executeOrderAction } = useApp();
+  const { selectedBranch, loading: branchLoading } = useBranch();
   const now = useOperationalClock();
   const [orders, setOrders] = useState<Order[]>([]);
   const [historyMap, setHistoryMap] = useState<Record<string, OrderStatusHistoryItem[]>>({});
@@ -116,7 +118,7 @@ function OrdersPageContent() {
   const loadOrders = async () => {
     try {
       setError(null);
-      const data = await OrderRepository.getOrders(CURRENT_BUSINESS_ID);
+      const data = await OrderRepository.getOrders(CURRENT_BUSINESS_ID, selectedBranch?.id);
       // Commercial Orders Sorting: NEWEST FIRST (created_at DESC)
       const sorted = [...data].sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -165,7 +167,9 @@ function OrdersPageContent() {
   };
 
   useEffect(() => {
-    loadOrders();
+    if (!branchLoading) {
+      loadOrders();
+    }
 
     // Backup poll: guarantees the list picks up new/updated orders even if
     // the realtime/broadcast subscription below never fires.
@@ -227,7 +231,7 @@ function OrdersPageContent() {
         supabase.removeChannel(channel);
       };
     }
-  }, [isDemo, triggerNewOrderAlert]);
+  }, [isDemo, triggerNewOrderAlert, selectedBranch?.id, branchLoading]);
 
   const handleCancelOrder = async (order: Order, reason: string) => {
     if (!reason.trim()) {

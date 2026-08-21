@@ -51,47 +51,88 @@ export class SupabaseBusinessRepository implements IBusinessRepository {
     return (await this.getBusiness())!;
   }
 
-  async getBranch(branchId?: string): Promise<Branch | null> {
+  private mapBranch(data: any): Branch {
+    return {
+      id: data.id,
+      businessId: data.business_id,
+      name: data.name,
+      address: data.address,
+      latitude: parseFloat(data.latitude),
+      longitude: parseFloat(data.longitude),
+      phone: data.phone || '',
+      active: data.active,
+    };
+  }
+
+  async getBranches(businessId: string = CURRENT_BUSINESS_ID): Promise<Branch[]> {
     try {
       const supabase = createClient();
-      const { data, error } = await supabase.from('branches').select('*').eq('business_id', CURRENT_BUSINESS_ID).single();
-      if (error || !data) return activeBranch;
-      return {
-        id: data.id,
-        businessId: data.business_id,
-        name: data.name,
-        address: data.address,
-        latitude: parseFloat(data.latitude),
-        longitude: parseFloat(data.longitude),
-        phone: data.phone || '',
-        active: data.active,
-      };
+      const { data, error } = await supabase
+        .from('branches')
+        .select('*')
+        .eq('business_id', businessId)
+        .order('name', { ascending: true });
+      if (error || !data || data.length === 0) return [activeBranch];
+      return data.map((d: any) => this.mapBranch(d));
     } catch {
-      return activeBranch;
+      return [activeBranch];
+    }
+  }
+
+  async getBranch(branchId: string): Promise<Branch | null> {
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('branches')
+        .select('*')
+        .eq('id', branchId)
+        .maybeSingle();
+      if (error || !data) return null;
+      return this.mapBranch(data);
+    } catch {
+      return null;
     }
   }
 
   async saveBranch(branch: Partial<Branch>): Promise<Branch> {
     const supabase = createClient();
-    const { error } = await supabase
-      .from('branches')
-      .update({
-        name: branch.name,
-        address: branch.address,
-        latitude: branch.latitude,
-        longitude: branch.longitude,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('business_id', CURRENT_BUSINESS_ID);
+    const payload = {
+      business_id: CURRENT_BUSINESS_ID,
+      name: branch.name,
+      address: branch.address,
+      latitude: branch.latitude,
+      longitude: branch.longitude,
+      phone: branch.phone,
+      active: branch.active ?? true,
+      updated_at: new Date().toISOString(),
+    };
 
+    if (branch.id) {
+      const { data, error } = await supabase
+        .from('branches')
+        .update(payload)
+        .eq('id', branch.id)
+        .select()
+        .single();
+      if (error) throw new Error(`Error Supabase: ${error.message}`);
+      return this.mapBranch(data);
+    }
+
+    const { data, error } = await supabase.from('branches').insert(payload).select().single();
     if (error) throw new Error(`Error Supabase: ${error.message}`);
-    return (await this.getBranch())!;
+    return this.mapBranch(data);
   }
 
-  async getDeliveryZones(): Promise<DeliveryZone[]> {
+  async getDeliveryZones(branchId?: string): Promise<DeliveryZone[]> {
     try {
       const supabase = createClient();
-      const { data } = await supabase.from('delivery_zones').select('*').eq('business_id', CURRENT_BUSINESS_ID).eq('active', true);
+      let query = supabase
+        .from('delivery_zones')
+        .select('*')
+        .eq('business_id', CURRENT_BUSINESS_ID)
+        .eq('active', true);
+      if (branchId) query = query.eq('branch_id', branchId);
+      const { data } = await query;
       return (data || []).map((z: any) => ({
         id: z.id,
         businessId: z.business_id,
@@ -111,10 +152,12 @@ export class SupabaseBusinessRepository implements IBusinessRepository {
     // Handled in specific UI route if needed
   }
 
-  async getBusinessHours(): Promise<BusinessHours[]> {
+  async getBusinessHours(branchId?: string): Promise<BusinessHours[]> {
     try {
       const supabase = createClient();
-      const { data } = await supabase.from('business_hours').select('*').eq('business_id', CURRENT_BUSINESS_ID);
+      let query = supabase.from('business_hours').select('*').eq('business_id', CURRENT_BUSINESS_ID);
+      if (branchId) query = query.eq('branch_id', branchId);
+      const { data } = await query;
       return (data || []).map((h: any) => ({
         id: h.id,
         businessId: h.business_id,

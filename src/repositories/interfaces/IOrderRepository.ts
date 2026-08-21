@@ -20,7 +20,7 @@ export interface ExecuteActionParams {
 }
 
 export interface IOrderRepository {
-  getOrders(businessId?: string): Promise<Order[]>;
+  getOrders(businessId?: string, branchId?: string): Promise<Order[]>;
   createOrderTransactional(payload: any): Promise<any>;
   updateOrderStatus(orderId: string, newStatus: OrderStatus, reason?: string): Promise<void>;
   executeOrderAction(params: ExecuteActionParams): Promise<void>;

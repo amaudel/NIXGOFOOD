@@ -1,3 +1,4 @@
+import { it } from 'vitest';
 import { Order, OrderStatusHistoryItem } from '@/types';
 import { getOrderSupervisionState, formatElapsedTime, findLatestTransitionTime } from '../orderSupervision';
 
@@ -345,4 +346,6 @@ function run62Tests() {
   console.log("\n🎉 ALL 62 MANDATORY PHASE 1.1 TEST SCENARIOS PASSED PERFECTLY!\n");
 }
 
-run62Tests();
+it('bateria de 62 puntos de supervision de pedidos', () => {
+  run62Tests();
+});

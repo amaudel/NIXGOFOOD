@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AppProvider } from '@/context/AppContext';
+import { BranchProvider } from '@/context/BranchContext';
 import { Header } from '@/components/Header';
 import { ActiveOrderBar } from '@/components/ActiveOrderBar';
 import { CartDrawer } from '@/components/CartDrawer';
@@ -20,14 +21,16 @@ export default function RootLayout({
   return (
     <html lang="es" className="dark">
       <body className="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col antialiased">
-        <AppProvider>
-          <Header />
-          <ActiveOrderBar />
-          <main className="flex-1 pb-20 sm:pb-8">{children}</main>
-          <CartDrawer />
-          <StickyCartBar />
-          <ModalWrapper />
-        </AppProvider>
+        <BranchProvider scope="customer">
+          <AppProvider>
+            <Header />
+            <ActiveOrderBar />
+            <main className="flex-1 pb-20 sm:pb-8">{children}</main>
+            <CartDrawer />
+            <StickyCartBar />
+            <ModalWrapper />
+          </AppProvider>
+        </BranchProvider>
       </body>
     </html>
   );

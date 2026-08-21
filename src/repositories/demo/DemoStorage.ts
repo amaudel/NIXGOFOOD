@@ -4,7 +4,7 @@ export const DEMO_KEYS = {
   MODIFIER_GROUPS: 'nixgo_food_demo_modifiers',
   ORDERS: 'nixgo_food_demo_orders',
   BUSINESS: 'nixgo_food_demo_business',
-  BRANCH: 'nixgo_food_demo_branch',
+  BRANCHES: 'nixgo_food_demo_branches',
   DELIVERY_ZONES: 'nixgo_food_demo_delivery_zones',
   BUSINESS_HOURS: 'nixgo_food_demo_hours',
 };

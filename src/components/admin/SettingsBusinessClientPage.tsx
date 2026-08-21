@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, CheckCircle, Navigation, Settings } from 'lucide-react';
+import Link from 'next/link';
+import { Save, AlertCircle, CheckCircle, Settings } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { RealMapWrapper } from '@/components/RealMapWrapper';
 import { createClient } from '@/lib/supabase/client';
-import { CURRENT_BUSINESS_ID, activeBranch } from '@/config/business';
+import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { DemoBusinessRepository } from '@/repositories/demo/DemoBusinessRepository';
 
@@ -17,13 +17,6 @@ export default function SettingsBusinessClientPage() {
   const [currency, setCurrency] = useState('USD');
   const [primaryColor, setPrimaryColor] = useState('#e11d48');
 
-  // Branch details
-  const [branchId, setBranchId] = useState<string | null>(null);
-  const [branchName, setBranchName] = useState('El Taca Nijo - Matriz');
-  const [branchAddress, setBranchAddress] = useState('Av. Los Shyris y Naciones Unidas, Quito');
-  const [latitude, setLatitude] = useState(activeBranch.latitude);
-  const [longitude, setLongitude] = useState(activeBranch.longitude);
-
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -34,7 +27,6 @@ export default function SettingsBusinessClientPage() {
     async function loadData() {
       if (isDemo) {
         const biz = await DemoBusinessRepository.getBusiness();
-        const br = await DemoBusinessRepository.getBranch();
         if (biz) {
           setName(biz.name);
           setDescription(biz.description || '');
@@ -42,13 +34,6 @@ export default function SettingsBusinessClientPage() {
           setWhatsapp(biz.whatsapp || '');
           setCurrency(biz.currency);
           setPrimaryColor(biz.primaryColor);
-        }
-        if (br) {
-          setBranchId(br.id);
-          setBranchName(br.name);
-          setBranchAddress(br.address);
-          setLatitude(br.latitude);
-          setLongitude(br.longitude);
         }
         return;
       }
@@ -78,21 +63,6 @@ export default function SettingsBusinessClientPage() {
           setCurrency(biz.currency || 'USD');
           setPrimaryColor(biz.primary_color || '#e11d48');
         }
-
-        // Branch
-        const { data: br } = await supabase
-          .from('branches')
-          .select('*')
-          .eq('business_id', CURRENT_BUSINESS_ID)
-          .single();
-
-        if (br) {
-          setBranchId(br.id);
-          setBranchName(br.name);
-          setBranchAddress(br.address);
-          setLatitude(parseFloat(br.latitude));
-          setLongitude(parseFloat(br.longitude));
-        }
       } catch (err) {
         console.error('Error loading business settings:', err);
       }
@@ -100,23 +70,6 @@ export default function SettingsBusinessClientPage() {
 
     loadData();
   }, [isDemo]);
-
-  const handleUseMyLocation = () => {
-    if (!navigator.geolocation) {
-      alert('Tu navegador no soporta geolocalización.');
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLatitude(pos.coords.latitude);
-        setLongitude(pos.coords.longitude);
-      },
-      (err) => {
-        alert(`Error al obtener ubicación: ${err.message}`);
-      }
-    );
-  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,19 +87,7 @@ export default function SettingsBusinessClientPage() {
           primaryColor: primaryColor,
         });
 
-        await DemoBusinessRepository.saveBranch({
-          name: branchName.trim(),
-          address: branchAddress.trim(),
-          latitude: latitude,
-          longitude: longitude,
-        });
-
-        // Sync local memory activeBranch for immediate delivery calculations
-        activeBranch.latitude = latitude;
-        activeBranch.longitude = longitude;
-        activeBranch.address = branchAddress;
-
-        setMessage({ type: 'success', text: '✓ Datos del negocio y ubicación de sucursal guardados localmente (Modo Demo).' });
+        setMessage({ type: 'success', text: '✓ Datos del negocio guardados localmente (Modo Demo).' });
         setSaving(false);
         return;
       }
@@ -155,9 +96,6 @@ export default function SettingsBusinessClientPage() {
         !process.env.NEXT_PUBLIC_SUPABASE_URL ||
         process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co'
       ) {
-        activeBranch.latitude = latitude;
-        activeBranch.longitude = longitude;
-        activeBranch.address = branchAddress;
         setMessage({ type: 'success', text: '✓ Configuración actualizada localmente.' });
         setSaving(false);
         return;
@@ -181,28 +119,7 @@ export default function SettingsBusinessClientPage() {
 
       if (bizErr) throw new Error(bizErr.message);
 
-      // Update Branch (Origin of Delivery)
-      if (branchId) {
-        const { error: brErr } = await supabase
-          .from('branches')
-          .update({
-            name: branchName.trim(),
-            address: branchAddress.trim(),
-            latitude,
-            longitude,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', branchId);
-
-        if (brErr) throw new Error(brErr.message);
-      }
-
-      // Sync local memory activeBranch for immediate delivery calculations
-      activeBranch.latitude = latitude;
-      activeBranch.longitude = longitude;
-      activeBranch.address = branchAddress;
-
-      setMessage({ type: 'success', text: '✓ Datos del negocio y ubicación de sucursal guardados exitosamente.' });
+      setMessage({ type: 'success', text: '✓ Datos del negocio guardados exitosamente.' });
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Error al guardar cambios.' });
     } finally {
@@ -216,10 +133,10 @@ export default function SettingsBusinessClientPage() {
         <div className="border-b border-zinc-800 pb-4">
           <h1 className="text-2xl font-black text-white flex items-center gap-2">
             <Settings className="w-6 h-6 text-rose-500" />
-            <span>Configuración del Negocio & Sucursal</span>
+            <span>Configuración del Negocio</span>
           </h1>
           <p className="text-xs text-zinc-400">
-            Administra los datos generales y fija la ubicación exacta del restaurante usada para el cálculo de delivery.
+            Administra los datos generales de tu negocio: marca, contacto y moneda.
           </p>
         </div>
 
@@ -311,78 +228,19 @@ export default function SettingsBusinessClientPage() {
             </div>
           </div>
 
-          {/* Branch Location Section */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 space-y-5 shadow-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
-              <div>
-                <h2 className="font-extrabold text-base text-white">Ubicación Origen de la Sucursal</h2>
-                <p className="text-xs text-zinc-400">
-                  Esta posición es la referencia oficial desde la cual `DeliveryService` calcula las distancias.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleUseMyLocation}
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-xs font-bold text-rose-400 transition-all"
-              >
-                <Navigation className="w-4 h-4" />
-                <span>📍 Usar mi ubicación actual</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
-                  Nombre de Sucursal *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={branchName}
-                  onChange={(e) => setBranchName(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm text-zinc-100 focus:border-rose-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
-                  Dirección Escrita *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={branchAddress}
-                  onChange={(e) => setBranchAddress(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm text-zinc-100 focus:border-rose-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Interactive Leaflet Map for Branch Location */}
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block">
-                Mueve el pin o haz clic en el mapa para ajustar la ubicación del restaurante
-              </span>
-
-              <div className="relative w-full h-72 rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950">
-                <RealMapWrapper
-                  customerLat={latitude}
-                  customerLng={longitude}
-                  branchLat={latitude}
-                  branchLng={longitude}
-                  branchName={branchName}
-                  onPositionChange={(lat, lng) => {
-                    setLatitude(lat);
-                    setLongitude(lng);
-                  }}
-                />
-              </div>
-
-              <p className="text-[11px] text-zinc-500 text-center font-mono">
-                Coordenadas origen: {latitude.toFixed(6)}, {longitude.toFixed(6)}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 flex items-center justify-between gap-3 shadow-xl">
+            <div>
+              <h2 className="font-extrabold text-base text-white">Sucursales</h2>
+              <p className="text-xs text-zinc-400">
+                La dirección, coordenadas y horarios de cada sucursal se administran en su propia pantalla.
               </p>
             </div>
+            <Link
+              href="/admin/branches"
+              className="shrink-0 text-xs font-extrabold text-amber-400 hover:text-amber-300 underline"
+            >
+              Gestionar sucursales →
+            </Link>
           </div>
 
           <button

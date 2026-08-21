@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useApp } from '@/context/AppContext';
+import { useBranch } from '@/context/BranchContext';
 import { Order, OrderStatus } from '@/types';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { createClient } from '@/lib/supabase/client';
@@ -28,6 +29,7 @@ import { useNewOrderAlerts } from '@/context/NewOrderAlertContext';
 
 export default function KitchenClientPage() {
   const { executeOrderAction } = useApp();
+  const { selectedBranch, loading: branchLoading } = useBranch();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +54,7 @@ export default function KitchenClientPage() {
   const loadOrders = async () => {
     try {
       setError(null);
-      const fetched = await OrderRepository.getOrders(CURRENT_BUSINESS_ID);
+      const fetched = await OrderRepository.getOrders(CURRENT_BUSINESS_ID, selectedBranch?.id);
 
       // KDS Sorting: OLDEST FIRST (created_at ASC)
       const sorted = [...fetched].sort(
@@ -80,7 +82,9 @@ export default function KitchenClientPage() {
   };
 
   useEffect(() => {
-    loadOrders();
+    if (!branchLoading) {
+      loadOrders();
+    }
 
     // Backup poll: guarantees the KDS picks up new comandas (and fires the
     // alert) even if the realtime/broadcast subscription below never fires.
@@ -116,7 +120,7 @@ export default function KitchenClientPage() {
         supabase.removeChannel(channel);
       };
     }
-  }, [isDemo]);
+  }, [isDemo, selectedBranch?.id, branchLoading]);
 
   // Operational action transitions strictly for Kitchen
   const handleKitchenAction = async (

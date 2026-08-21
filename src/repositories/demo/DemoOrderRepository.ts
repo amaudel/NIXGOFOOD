@@ -9,8 +9,9 @@ import {
 } from '@/lib/orderTransitions';
 
 export class DemoOrderRepository implements IOrderRepository {
-  static async getOrders(): Promise<Order[]> {
-    return DemoStorage.getItem<Order[]>(DEMO_KEYS.ORDERS, demoInitialOrders);
+  static async getOrders(branchId?: string): Promise<Order[]> {
+    const all = DemoStorage.getItem<Order[]>(DEMO_KEYS.ORDERS, demoInitialOrders);
+    return branchId ? all.filter((o) => o.branchId === branchId) : all;
   }
 
   static async getOrderByTrackingToken(trackingToken: string): Promise<Order | null> {
@@ -201,8 +202,8 @@ export class DemoOrderRepository implements IOrderRepository {
   }
 
   // Instance methods for IOrderRepository interface
-  async getOrders(): Promise<Order[]> {
-    return DemoOrderRepository.getOrders();
+  async getOrders(businessId?: string, branchId?: string): Promise<Order[]> {
+    return DemoOrderRepository.getOrders(branchId);
   }
 
   async getOrderByTrackingToken(trackingToken: string): Promise<Order | null> {

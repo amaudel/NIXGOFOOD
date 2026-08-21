@@ -5,16 +5,18 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ShoppingBag, UtensilsCrossed, ShieldCheck, MapPin, Search } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
+import { useBranch } from '@/context/BranchContext';
 import { businessConfig } from '@/config/business';
 import { BusinessHoursService } from '@/services/BusinessHoursService';
-import { isDemoMode } from '@/config/demo';
-import { DemoBusinessRepository } from '@/repositories/demo/DemoBusinessRepository';
+import { getBusinessRepository } from '@/repositories/factory';
+import { hoursForBranch } from '@/lib/branchSelection';
 import { getLastOrder, RecentOrder } from '@/utils/recentOrders';
 import { OrderLookupModal } from '@/components/OrderLookupModal';
 
 export const Header: React.FC = () => {
   const router = useRouter();
   const { cartTotalCount, cartSubtotal, setIsCartOpen } = useApp();
+  const { selectedBranch, branches } = useBranch();
   const [isOpenStatus, setIsOpenStatus] = useState<boolean>(true);
   const [lastOrder, setLastOrder] = useState<RecentOrder | null>(null);
   const [isLookupModalOpen, setIsLookupModalOpen] = useState<boolean>(false);
@@ -22,11 +24,17 @@ export const Header: React.FC = () => {
   useEffect(() => {
     async function checkStatus() {
       try {
-        if (isDemoMode()) {
-          const hours = await DemoBusinessRepository.getBusinessHours();
-          const biz = await DemoBusinessRepository.getBusiness();
-          const status = BusinessHoursService.isRestaurantOpen(hours, biz?.timezone || 'America/Guayaquil');
+        const repo = getBusinessRepository();
+        const [todos, biz] = await Promise.all([repo.getBusinessHours(), repo.getBusiness()]);
+        const timezone = biz?.timezone || 'America/Guayaquil';
+        if (selectedBranch) {
+          const status = BusinessHoursService.isRestaurantOpen(hoursForBranch(todos, selectedBranch.id), timezone);
           setIsOpenStatus(status.isOpen);
+        } else {
+          const algunaAbierta = branches.some(
+            (b) => BusinessHoursService.isRestaurantOpen(hoursForBranch(todos, b.id), timezone).isOpen
+          );
+          setIsOpenStatus(algunaAbierta);
         }
       } catch (e) {
         console.error(e);
@@ -34,7 +42,7 @@ export const Header: React.FC = () => {
     }
     checkStatus();
     setLastOrder(getLastOrder());
-  }, []);
+  }, [selectedBranch, branches]);
 
   const handleFollowOrderClick = () => {
     const currentLast = getLastOrder();
@@ -66,7 +74,9 @@ export const Header: React.FC = () => {
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="sm:hidden text-[11px] font-bold text-emerald-400">● Abierto</span>
+                <span className={`sm:hidden text-[11px] font-bold ${isOpenStatus ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {isOpenStatus ? '● Abierto' : '● Cerrado'}
+                </span>
                 <span className="hidden sm:inline text-xs text-zinc-400 font-medium truncate">{businessConfig.slogan}</span>
               </div>
             </div>

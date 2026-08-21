@@ -1,32 +1,4 @@
 import { DeliveryQuote, DeliveryCalculationParams, DeliveryZone } from '@/types';
-import { activeBranch, CURRENT_BUSINESS_ID } from '@/config/business';
-
-export const deliveryZones: DeliveryZone[] = [
-  {
-    id: 'zone-1',
-    businessId: CURRENT_BUSINESS_ID,
-    name: 'Zona 1',
-    maxDistanceKm: 2.0,
-    fee: 1.50,
-    estimatedMinutes: '20-30 min',
-  },
-  {
-    id: 'zone-2',
-    businessId: CURRENT_BUSINESS_ID,
-    name: 'Zona 2',
-    maxDistanceKm: 4.0,
-    fee: 2.00,
-    estimatedMinutes: '25-35 min',
-  },
-  {
-    id: 'zone-3',
-    businessId: CURRENT_BUSINESS_ID,
-    name: 'Zona 3',
-    maxDistanceKm: 6.0,
-    fee: 2.50,
-    estimatedMinutes: '35-45 min',
-  },
-];
 
 /**
  * Haversine formula to compute geographical distance in Kilometers between two coordinates
@@ -52,34 +24,23 @@ export function calculateDistanceKm(
 
 export class DeliveryService {
   /**
-   * Calculates delivery quote based on branch and customer coordinates.
-   * Decoupled architecture allowing future migration to polygon geofencing.
+   * Calcula la tarifa a partir de las zonas de UNA sucursal.
+   * Las zonas llegan siempre desde el repositorio: no hay tabla de zonas en codigo.
    */
   static calculateDeliveryFee(
-    paramsOrLat: DeliveryCalculationParams | number,
-    maybeLng?: number
+    params: DeliveryCalculationParams,
+    zones: DeliveryZone[]
   ): DeliveryQuote {
-    let branchLat: number;
-    let branchLng: number;
-    let custLat: number;
-    let custLng: number;
+    const distanceKm = calculateDistanceKm(
+      params.branchLatitude,
+      params.branchLongitude,
+      params.customerLatitude,
+      params.customerLongitude
+    );
 
-    if (typeof paramsOrLat === 'object') {
-      branchLat = paramsOrLat.branchLatitude;
-      branchLng = paramsOrLat.branchLongitude;
-      custLat = paramsOrLat.customerLatitude;
-      custLng = paramsOrLat.customerLongitude;
-    } else {
-      branchLat = activeBranch.latitude;
-      branchLng = activeBranch.longitude;
-      custLat = paramsOrLat;
-      custLng = maybeLng ?? activeBranch.longitude;
-    }
-
-    const distanceKm = calculateDistanceKm(branchLat, branchLng, custLat, custLng);
-
-    // Sort zones by maxDistanceKm ascending to find the smallest matching zone
-    const sortedZones = [...deliveryZones].sort((a, b) => a.maxDistanceKm - b.maxDistanceKm);
+    const sortedZones = [...zones]
+      .filter((z) => z.active !== false)
+      .sort((a, b) => a.maxDistanceKm - b.maxDistanceKm);
     const matchedZone = sortedZones.find((zone) => distanceKm <= zone.maxDistanceKm);
 
     if (matchedZone) {
@@ -93,12 +54,15 @@ export class DeliveryService {
       };
     }
 
-    // Out of delivery coverage (> 6.0 km)
+    const maxCobertura = sortedZones.length
+      ? `${sortedZones[sortedZones.length - 1].maxDistanceKm} km`
+      : 'la zona configurada';
+
     return {
       available: false,
       fee: 0,
       distanceKm,
-      reason: 'Esta ubicación está fuera de nuestra zona de delivery (máximo 6.0 km).',
+      reason: `Esta ubicación está fuera de nuestra zona de delivery (máximo ${maxCobertura}).`,
     };
   }
 }

@@ -5,10 +5,10 @@ import { initialOrders } from '@/data/mockData';
 import { createClient } from '@/lib/supabase/client';
 
 export class SupabaseOrderRepository implements IOrderRepository {
-  async getOrders(businessId: string = CURRENT_BUSINESS_ID): Promise<Order[]> {
+  async getOrders(businessId: string = CURRENT_BUSINESS_ID, branchId?: string): Promise<Order[]> {
     try {
       const supabase = createClient();
-      const { data: rawOrders, error } = await supabase
+      let query = supabase
         .from('orders')
         .select(`
           *,
@@ -19,6 +19,8 @@ export class SupabaseOrderRepository implements IOrderRepository {
         `)
         .eq('business_id', businessId)
         .order('created_at', { ascending: false });
+      if (branchId) query = query.eq('branch_id', branchId);
+      const { data: rawOrders, error } = await query;
 
       if (error) {
         if (process.env.NODE_ENV === 'production') throw new Error(`Error Supabase: ${error.message}`);
