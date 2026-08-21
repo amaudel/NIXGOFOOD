@@ -189,9 +189,9 @@ export default function BranchesClientPage() {
 
         {/* Create/Edit Branch Modal */}
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-            <div className="relative w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-3xl p-6 space-y-4 my-8">
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="relative w-full max-w-lg max-h-[90vh] bg-zinc-900 border border-zinc-800 rounded-3xl flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4 shrink-0">
                 <h3 className="font-extrabold text-lg text-white">
                   {editingBranchId ? 'Editar Sucursal' : 'Nueva Sucursal'}
                 </h3>
@@ -203,7 +203,7 @@ export default function BranchesClientPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleSave} className="space-y-4">
+              <form onSubmit={handleSave} className="space-y-4 overflow-y-auto px-6 py-4">
                 <div className="space-y-1">
                   <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
                     Nombre *
