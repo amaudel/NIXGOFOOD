@@ -297,7 +297,7 @@ and change to:
       ];
 ```
 
-This means `fetch()` needs `channel` in scope. Update its destructuring line:
+This means `fetch()` needs `channel` in scope. After Step 6 removes every use of `chatId` inside `fetch()`'s body (it only ever fed the now-removed Telegram calls and the now-`chatId`-free `runTool`/`doConfirmOrder`/`sendConfirmSummary`), `chatId` itself becomes unused there — so don't destructure it. Update the destructuring line:
 
 ```ts
     const { chatId, text, photoFileId, location, callbackData } = (await request.json()) as IncomingMessage;
@@ -306,8 +306,10 @@ This means `fetch()` needs `channel` in scope. Update its destructuring line:
 becomes:
 
 ```ts
-    const { chatId, text, photoFileId, location, callbackData, channel } = (await request.json()) as IncomingMessage;
+    const { text, photoFileId, location, callbackData, channel } = (await request.json()) as IncomingMessage;
 ```
+
+(`chatId` is still a real field on `IncomingMessage` — `index.ts` uses it to look up the Durable Object, Task 3 — it's just never read inside the Durable Object's own `fetch()` body once Step 6 finishes, so it shouldn't be bound to a local name that nothing reads.)
 
 - [ ] **Step 6: Update every remaining call-site signature that dropped `chatId` or `await`**
 
