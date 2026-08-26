@@ -3,7 +3,7 @@
 -- Idempotent Initial Seed for El Taca Nijo Pilot
 -- ==========================================
 
--- Fixed UUIDs for predictable references
+-- Fixed UUIDs for predictable references (must use only hex chars 0-9, a-f)
 DO $$
 DECLARE
   v_biz_id UUID := 'b0000000-0000-0000-0000-000000000001';
@@ -15,18 +15,18 @@ DECLARE
   v_cat_starters UUID := 'c0000000-0000-0000-0000-000000000004';
   v_cat_drinks UUID := 'c0000000-0000-0000-0000-000000000005';
 
-  v_grp_protein UUID := 'g0000000-0000-0000-0000-000000000001';
-  v_grp_extras UUID := 'g0000000-0000-0000-0000-000000000002';
-  v_grp_doneness UUID := 'g0000000-0000-0000-0000-000000000003';
+  v_grp_protein UUID := 'a0000000-0000-0000-0000-000000000001';
+  v_grp_extras UUID := 'a0000000-0000-0000-0000-000000000002';
+  v_grp_doneness UUID := 'a0000000-0000-0000-0000-000000000003';
 
-  v_prod_taco_birria UUID := 'p0000000-0000-0000-0000-000000000001';
-  v_prod_taco_pastor UUID := 'p0000000-0000-0000-0000-000000000002';
-  v_prod_taco_cochinita UUID := 'p0000000-0000-0000-0000-000000000003';
-  v_prod_burger_taca UUID := 'p0000000-0000-0000-0000-000000000004';
-  v_prod_combo_fiesta UUID := 'p0000000-0000-0000-0000-000000000005';
-  v_prod_nachos UUID := 'p0000000-0000-0000-0000-000000000006';
-  v_prod_limonada UUID := 'p0000000-0000-0000-0000-000000000007';
-  v_prod_coca_cola UUID := 'p0000000-0000-0000-0000-000000000008';
+  v_prod_taco_birria UUID := 'd0000000-0000-0000-0000-000000000001';
+  v_prod_taco_pastor UUID := 'd0000000-0000-0000-0000-000000000002';
+  v_prod_taco_cochinita UUID := 'd0000000-0000-0000-0000-000000000003';
+  v_prod_burger_taca UUID := 'd0000000-0000-0000-0000-000000000004';
+  v_prod_combo_fiesta UUID := 'd0000000-0000-0000-0000-000000000005';
+  v_prod_nachos UUID := 'd0000000-0000-0000-0000-000000000006';
+  v_prod_limonada UUID := 'd0000000-0000-0000-0000-000000000007';
+  v_prod_coca_cola UUID := 'd0000000-0000-0000-0000-000000000008';
 BEGIN
 
   -- 1. BUSINESS
@@ -70,14 +70,14 @@ BEGIN
 
   -- 5. MODIFIERS
   INSERT INTO modifiers (id, business_id, modifier_group_id, name, price_delta, available, sort_order, active) VALUES
-    ('m0000000-0000-0000-0000-000000000001', v_biz_id, v_grp_protein, 'Res Birria Tradicional', 0.00, true, 1, true),
-    ('m0000000-0000-0000-0000-000000000002', v_biz_id, v_grp_protein, 'Cerdo Adobado', 0.00, true, 2, true),
-    ('m0000000-0000-0000-0000-000000000003', v_biz_id, v_grp_protein, 'Pollo al Pastor', 0.00, true, 3, true),
-    ('m0000000-0000-0000-0000-000000000004', v_biz_id, v_grp_extras, 'Extra Queso Oaxaca', 0.50, true, 1, true),
-    ('m0000000-0000-0000-0000-000000000005', v_biz_id, v_grp_extras, 'Guacamole Casero', 0.75, true, 2, true),
-    ('m0000000-0000-0000-0000-000000000006', v_biz_id, v_grp_extras, 'Jalapeños Asados', 0.25, true, 3, true),
-    ('m0000000-0000-0000-0000-000000000007', v_biz_id, v_grp_doneness, 'Bien Cocida', 0.00, true, 1, true),
-    ('m0000000-0000-0000-0000-000000000008', v_biz_id, v_grp_doneness, '3/4 Jugoso', 0.00, true, 2, true)
+    ('e0000000-0000-0000-0000-000000000001', v_biz_id, v_grp_protein, 'Res Birria Tradicional', 0.00, true, 1, true),
+    ('e0000000-0000-0000-0000-000000000002', v_biz_id, v_grp_protein, 'Cerdo Adobado', 0.00, true, 2, true),
+    ('e0000000-0000-0000-0000-000000000003', v_biz_id, v_grp_protein, 'Pollo al Pastor', 0.00, true, 3, true),
+    ('e0000000-0000-0000-0000-000000000004', v_biz_id, v_grp_extras, 'Extra Queso Oaxaca', 0.50, true, 1, true),
+    ('e0000000-0000-0000-0000-000000000005', v_biz_id, v_grp_extras, 'Guacamole Casero', 0.75, true, 2, true),
+    ('e0000000-0000-0000-0000-000000000006', v_biz_id, v_grp_extras, 'Jalapeños Asados', 0.25, true, 3, true),
+    ('e0000000-0000-0000-0000-000000000007', v_biz_id, v_grp_doneness, 'Bien Cocida', 0.00, true, 1, true),
+    ('e0000000-0000-0000-0000-000000000008', v_biz_id, v_grp_doneness, '3/4 Jugoso', 0.00, true, 2, true)
   ON CONFLICT (id) DO NOTHING;
 
   -- 6. PRODUCTS
@@ -103,9 +103,9 @@ BEGIN
 
   -- 8. DELIVERY ZONES
   INSERT INTO delivery_zones (id, business_id, branch_id, name, max_distance_km, fee, estimated_min_minutes, estimated_max_minutes, sort_order, active) VALUES
-    ('z0000000-0000-0000-0000-000000000001', v_biz_id, v_branch_id, 'Zona 1 - Cercana', 2.0, 1.50, 20, 30, 1, true),
-    ('z0000000-0000-0000-0000-000000000002', v_biz_id, v_branch_id, 'Zona 2 - Media', 4.0, 2.00, 25, 35, 2, true),
-    ('z0000000-0000-0000-0000-000000000003', v_biz_id, v_branch_id, 'Zona 3 - Extendida', 6.0, 2.50, 35, 45, 3, true)
+    ('f0000000-0000-0000-0000-000000000001', v_biz_id, v_branch_id, 'Zona 1 - Cercana', 2.0, 1.50, 20, 30, 1, true),
+    ('f0000000-0000-0000-0000-000000000002', v_biz_id, v_branch_id, 'Zona 2 - Media', 4.0, 2.00, 25, 35, 2, true),
+    ('f0000000-0000-0000-0000-000000000003', v_biz_id, v_branch_id, 'Zona 3 - Extendida', 6.0, 2.50, 35, 45, 3, true)
   ON CONFLICT (id) DO NOTHING;
 
   -- 9. BUSINESS HOURS (Open Mon-Sun 09:00 to 23:00)

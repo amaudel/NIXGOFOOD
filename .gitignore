@@ -41,3 +41,4 @@ testsprite_tests/tmp/config.json
 # graphify local-only files
 graphify-out/cost.json
 graphify-out/__pycache__/
+.claude/
