@@ -352,6 +352,7 @@ git commit -m "Make ConversationAgent channel-agnostic: return OutgoingMessage[]
 
 **Files:**
 - Modify: `AgenteRestaurante/src/index.ts`
+- Modify: `AgenteRestaurante/src/telegram.ts` (add `channel: 'telegram'` to both `IncomingMessage` literals `parseTelegramUpdate` returns)
 
 **Interfaces:**
 - Consumes: `ConversationAgent.fetch()`'s new response shape `{ messages: OutgoingMessage[] }` (Task 2); `sendTelegramMessage`, `sendTelegramPhoto`, `sendTelegramMessageWithButtons`, `askForTelegramLocation` from `./telegram` (unchanged signatures, now called from `index.ts` instead of `agent.ts`).
