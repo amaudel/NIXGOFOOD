@@ -7,6 +7,7 @@ import { ActiveOrderBar } from '@/components/ActiveOrderBar';
 import { CartDrawer } from '@/components/CartDrawer';
 import { StickyCartBar } from '@/components/StickyCartBar';
 import { ModalWrapper } from '@/components/ModalWrapper';
+import ChatWidget from '@/components/ChatWidget';
 
 export const metadata: Metadata = {
   title: 'El Taca Nijo - Pedidos Directos',
@@ -29,6 +30,7 @@ export default function RootLayout({
             <CartDrawer />
             <StickyCartBar />
             <ModalWrapper />
+            <ChatWidget />
           </AppProvider>
         </BranchProvider>
       </body>
