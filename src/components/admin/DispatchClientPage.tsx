@@ -334,6 +334,16 @@ export default function DispatchClientPage() {
             )}
           </div>
 
+          {/* Location actions are always visible for delivery orders - this is the
+              screen where staff hand off the address to the motorizado, so they
+              shouldn't need an extra click to reach it. */}
+          {!isPickup && ord.deliveryLocation && (
+            <DeliveryLocationActions
+              deliveryLocation={ord.deliveryLocation}
+              customerName={ord.customer.name}
+            />
+          )}
+
           {!isPickup && isCustomerExpanded && (
             <div className="pt-2 border-t border-zinc-850 space-y-1.5 text-[11px] text-zinc-400">
               <p className="flex items-center gap-1 text-amber-300 font-bold">
@@ -352,12 +362,6 @@ export default function DispatchClientPage() {
                   <span className="text-zinc-500 font-bold">Ref: </span>
                   {ord.deliveryLocation.reference}
                 </p>
-              )}
-              {ord.deliveryLocation && (
-                <DeliveryLocationActions
-                  deliveryLocation={ord.deliveryLocation}
-                  customerName={ord.customer.name}
-                />
               )}
             </div>
           )}
