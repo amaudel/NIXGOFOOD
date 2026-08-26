@@ -29,6 +29,7 @@ import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { KdsOrderElapsedTime } from '@/components/admin/KdsOrderElapsedTime';
 import { OrderItemsList } from '@/components/admin/OrderItemsList';
 import { UndoToastNotification, ActiveUndoToast } from '@/components/admin/UndoToastNotification';
+import { DeliveryLocationActions } from '@/components/admin/DeliveryLocationActions';
 import {
   DispatchChecklist,
   ChecklistState,
@@ -351,6 +352,12 @@ export default function DispatchClientPage() {
                   <span className="text-zinc-500 font-bold">Ref: </span>
                   {ord.deliveryLocation.reference}
                 </p>
+              )}
+              {ord.deliveryLocation && (
+                <DeliveryLocationActions
+                  deliveryLocation={ord.deliveryLocation}
+                  customerName={ord.customer.name}
+                />
               )}
             </div>
           )}

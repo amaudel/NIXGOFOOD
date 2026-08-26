@@ -28,6 +28,7 @@ import { OrderItemsList } from '@/components/admin/OrderItemsList';
 import { NewOrderAlertBanner } from '@/components/admin/NewOrderAlertBanner';
 import { useNewOrderAlerts } from '@/context/NewOrderAlertContext';
 import { UndoToastNotification, ActiveUndoToast } from '@/components/admin/UndoToastNotification';
+import { DeliveryLocationActions } from '@/components/admin/DeliveryLocationActions';
 import { RollbackOrderModal as RollbackModal } from '@/components/admin/RollbackOrderModal';
 import { OrderFilterBadge } from '@/components/admin/OrderFilterBadge';
 import { ORDER_FILTERS, getOrderFilterCount } from '@/config/orderFilters';
@@ -479,6 +480,12 @@ function OrdersPageContent() {
               <span className="text-zinc-500 font-bold">Ref: </span>
               {ord.deliveryLocation.reference}
             </p>
+          )}
+          {ord.deliveryLocation && (
+            <DeliveryLocationActions
+              deliveryLocation={ord.deliveryLocation}
+              customerName={ord.customer.name}
+            />
           )}
         </div>
 
