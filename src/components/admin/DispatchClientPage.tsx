@@ -19,9 +19,10 @@ import {
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useApp } from '@/context/AppContext';
 import { useBranch } from '@/context/BranchContext';
-import { Order, OrderStatus } from '@/types';
+import { Order, OrderStatus, Motorizado } from '@/types';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { DispatchCheckRepository } from '@/repositories/DispatchCheckRepository';
+import { getBusinessRepository } from '@/repositories/factory';
 import { createClient } from '@/lib/supabase/client';
 import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
@@ -55,8 +56,17 @@ export default function DispatchClientPage() {
   const [readyTimestamps, setReadyTimestamps] = useState<Record<string, string>>({});
   // Expanded customer details toggle
   const [expandedCustomerDetails, setExpandedCustomerDetails] = useState<Record<string, boolean>>({});
+  const [motorizados, setMotorizados] = useState<Motorizado[]>([]);
 
   const isDemo = isDemoMode();
+
+  useEffect(() => {
+    if (branchLoading || !selectedBranch) return;
+    getBusinessRepository()
+      .getMotorizados(selectedBranch.id)
+      .then(setMotorizados)
+      .catch(() => setMotorizados([]));
+  }, [selectedBranch?.id, branchLoading]);
 
   const loadData = async () => {
     try {
@@ -341,6 +351,7 @@ export default function DispatchClientPage() {
             <DeliveryLocationActions
               deliveryLocation={ord.deliveryLocation}
               customerName={ord.customer.name}
+              motorizados={motorizados}
             />
           )}
 

@@ -1,4 +1,4 @@
-import { Business, Branch, DeliveryZone, BusinessHours } from '@/types';
+import { Business, Branch, DeliveryZone, BusinessHours, Motorizado } from '@/types';
 import { IBusinessRepository } from '../interfaces/IBusinessRepository';
 import { CURRENT_BUSINESS_ID, businessConfig, activeBranch } from '@/config/business';
 import { createClient } from '@/lib/supabase/client';
@@ -174,5 +174,67 @@ export class SupabaseBusinessRepository implements IBusinessRepository {
 
   async saveBusinessHours(): Promise<void> {
     // Handled in specific UI route if needed
+  }
+
+  private mapMotorizado(data: any): Motorizado {
+    return {
+      id: data.id,
+      businessId: data.business_id,
+      branchId: data.branch_id,
+      name: data.name,
+      whatsapp: data.whatsapp,
+      active: data.active,
+    };
+  }
+
+  async getMotorizados(branchId?: string): Promise<Motorizado[]> {
+    try {
+      const supabase = createClient();
+      let query = supabase
+        .from('motorizados')
+        .select('*')
+        .eq('business_id', CURRENT_BUSINESS_ID)
+        .eq('active', true)
+        .order('name', { ascending: true });
+      if (branchId) query = query.eq('branch_id', branchId);
+      const { data, error } = await query;
+      if (error || !data) return [];
+      return data.map((m: any) => this.mapMotorizado(m));
+    } catch {
+      return [];
+    }
+  }
+
+  async saveMotorizado(motorizado: Partial<Motorizado>): Promise<Motorizado> {
+    const supabase = createClient();
+    const payload = {
+      business_id: CURRENT_BUSINESS_ID,
+      branch_id: motorizado.branchId,
+      name: motorizado.name,
+      whatsapp: motorizado.whatsapp,
+      active: motorizado.active ?? true,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (motorizado.id) {
+      const { data, error } = await supabase
+        .from('motorizados')
+        .update(payload)
+        .eq('id', motorizado.id)
+        .select()
+        .single();
+      if (error) throw new Error(`Error Supabase: ${error.message}`);
+      return this.mapMotorizado(data);
+    }
+
+    const { data, error } = await supabase.from('motorizados').insert(payload).select().single();
+    if (error) throw new Error(`Error Supabase: ${error.message}`);
+    return this.mapMotorizado(data);
+  }
+
+  async deleteMotorizado(id: string): Promise<void> {
+    const supabase = createClient();
+    const { error } = await supabase.from('motorizados').update({ active: false }).eq('id', id);
+    if (error) throw new Error(`Error Supabase: ${error.message}`);
   }
 }

@@ -1,4 +1,4 @@
-import { Category, Product, ModifierGroup, DeliveryZone, BusinessHours, Business, Branch, Order } from '@/types';
+import { Category, Product, ModifierGroup, DeliveryZone, BusinessHours, Business, Branch, Order, Motorizado } from '@/types';
 
 export const demoBusiness: Business = {
   id: 'b0000000-0000-0000-0000-000000000001',
@@ -455,6 +455,33 @@ export const demoDeliveryZones: DeliveryZone[] = [
     maxDistanceKm: 5.0,
     fee: 2.75,
     estimatedMinutes: '30-40 min',
+    active: true,
+  },
+];
+
+export const demoMotorizados: Motorizado[] = [
+  {
+    id: 'm0000000-0000-0000-0000-000000000001',
+    businessId: demoBusiness.id,
+    branchId: demoBranch.id,
+    name: 'Luis Torres',
+    whatsapp: '0991112222',
+    active: true,
+  },
+  {
+    id: 'm0000000-0000-0000-0000-000000000002',
+    businessId: demoBusiness.id,
+    branchId: demoBranch.id,
+    name: 'Pedro Sánchez',
+    whatsapp: '0993334444',
+    active: true,
+  },
+  {
+    id: 'mn000000-0000-0000-0000-000000000001',
+    businessId: demoBusiness.id,
+    branchId: demoBranchNorte.id,
+    name: 'Jorge Vélez',
+    whatsapp: '0995556666',
     active: true,
   },
 ];

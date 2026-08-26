@@ -1,7 +1,7 @@
-import { Business, Branch, DeliveryZone, BusinessHours } from '@/types';
+import { Business, Branch, DeliveryZone, BusinessHours, Motorizado } from '@/types';
 import { IBusinessRepository } from '../interfaces/IBusinessRepository';
 import { DemoStorage, DEMO_KEYS } from './DemoStorage';
-import { demoBusiness, demoBranch, demoBranches, demoBranchNorte, demoDeliveryZones, demoBusinessHours } from '@/data/demoSeed';
+import { demoBusiness, demoBranch, demoBranches, demoBranchNorte, demoDeliveryZones, demoBusinessHours, demoMotorizados } from '@/data/demoSeed';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 
 export class DemoBusinessRepository implements IBusinessRepository {
@@ -73,6 +73,41 @@ export class DemoBusinessRepository implements IBusinessRepository {
     DemoBroadcastService.notify('BUSINESS_SETTINGS_UPDATED', hours);
   }
 
+  static async getMotorizados(branchId?: string): Promise<Motorizado[]> {
+    const all = DemoStorage.getItem<Motorizado[]>(DEMO_KEYS.MOTORIZADOS, demoMotorizados);
+    const activos = all.filter((m) => m.active !== false);
+    return branchId ? activos.filter((m) => m.branchId === branchId) : activos;
+  }
+
+  static async saveMotorizado(motorizado: Partial<Motorizado>): Promise<Motorizado> {
+    const all = DemoStorage.getItem<Motorizado[]>(DEMO_KEYS.MOTORIZADOS, demoMotorizados);
+    if (motorizado.id) {
+      const updated = all.map((m) => (m.id === motorizado.id ? { ...m, ...motorizado } : m));
+      DemoStorage.setItem(DEMO_KEYS.MOTORIZADOS, updated);
+      DemoBroadcastService.notify('BUSINESS_SETTINGS_UPDATED', updated);
+      return updated.find((m) => m.id === motorizado.id)!;
+    }
+    const nuevo: Motorizado = {
+      id: `mot_demo_${Date.now()}`,
+      businessId: demoBusiness.id,
+      branchId: motorizado.branchId!,
+      name: motorizado.name || 'Motorizado',
+      whatsapp: motorizado.whatsapp || '',
+      active: true,
+    };
+    const conNuevo = [...all, nuevo];
+    DemoStorage.setItem(DEMO_KEYS.MOTORIZADOS, conNuevo);
+    DemoBroadcastService.notify('BUSINESS_SETTINGS_UPDATED', conNuevo);
+    return nuevo;
+  }
+
+  static async deleteMotorizado(id: string): Promise<void> {
+    const all = DemoStorage.getItem<Motorizado[]>(DEMO_KEYS.MOTORIZADOS, demoMotorizados);
+    const updated = all.map((m) => (m.id === id ? { ...m, active: false } : m));
+    DemoStorage.setItem(DEMO_KEYS.MOTORIZADOS, updated);
+    DemoBroadcastService.notify('BUSINESS_SETTINGS_UPDATED', updated);
+  }
+
   // Instance methods for IBusinessRepository interface
   async getBusiness(): Promise<Business> {
     return DemoBusinessRepository.getBusiness();
@@ -108,5 +143,17 @@ export class DemoBusinessRepository implements IBusinessRepository {
 
   async saveBusinessHours(hours: BusinessHours[]): Promise<void> {
     return DemoBusinessRepository.saveBusinessHours(hours);
+  }
+
+  async getMotorizados(branchId?: string): Promise<Motorizado[]> {
+    return DemoBusinessRepository.getMotorizados(branchId);
+  }
+
+  async saveMotorizado(motorizado: Partial<Motorizado>): Promise<Motorizado> {
+    return DemoBusinessRepository.saveMotorizado(motorizado);
+  }
+
+  async deleteMotorizado(id: string): Promise<void> {
+    return DemoBusinessRepository.deleteMotorizado(id);
   }
 }

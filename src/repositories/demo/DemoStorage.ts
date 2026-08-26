@@ -7,6 +7,7 @@ export const DEMO_KEYS = {
   BRANCHES: 'nixgo_food_demo_branches',
   DELIVERY_ZONES: 'nixgo_food_demo_delivery_zones',
   BUSINESS_HOURS: 'nixgo_food_demo_hours',
+  MOTORIZADOS: 'nixgo_food_demo_motorizados',
 };
 
 // IndexedDB Helper for Proof Blobs

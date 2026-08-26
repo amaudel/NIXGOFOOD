@@ -228,6 +228,15 @@ export interface DeliveryZone {
   active?: boolean;
 }
 
+export interface Motorizado {
+  id: string;
+  businessId: string;
+  branchId: string;
+  name: string;
+  whatsapp: string;
+  active?: boolean;
+}
+
 export interface BusinessHours {
   id?: string;
   businessId: string;

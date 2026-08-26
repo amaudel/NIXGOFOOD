@@ -18,8 +18,9 @@ import {
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useApp } from '@/context/AppContext';
 import { useBranch } from '@/context/BranchContext';
-import { Order, OrderStatus, AdminRole, OrderStatusHistoryItem } from '@/types';
+import { Order, OrderStatus, AdminRole, OrderStatusHistoryItem, Motorizado } from '@/types';
 import { OrderRepository } from '@/repositories/OrderRepository';
+import { getBusinessRepository } from '@/repositories/factory';
 import { createClient } from '@/lib/supabase/client';
 import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
@@ -113,8 +114,17 @@ function OrdersPageContent() {
   const [cancelModalOrder, setCancelModalOrder] = useState<Order | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [userRole, setUserRole] = useState<AdminRole>('admin');
+  const [motorizados, setMotorizados] = useState<Motorizado[]>([]);
 
   const isDemo = isDemoMode();
+
+  useEffect(() => {
+    if (branchLoading || !selectedBranch) return;
+    getBusinessRepository()
+      .getMotorizados(selectedBranch.id)
+      .then(setMotorizados)
+      .catch(() => setMotorizados([]));
+  }, [selectedBranch?.id, branchLoading]);
 
   const loadOrders = async () => {
     try {
@@ -485,6 +495,7 @@ function OrdersPageContent() {
             <DeliveryLocationActions
               deliveryLocation={ord.deliveryLocation}
               customerName={ord.customer.name}
+              motorizados={motorizados}
             />
           )}
         </div>

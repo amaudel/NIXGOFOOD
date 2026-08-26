@@ -93,6 +93,17 @@ ALTER TABLE delivery_zones ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true;
 -- zonas nuevas sembradas mas abajo.
 UPDATE delivery_zones SET active = false WHERE max_distance_km IS NULL;
 
+CREATE TABLE IF NOT EXISTS motorizados (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  branch_id UUID NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+  name TEXT NOT NULL, whatsapp TEXT NOT NULL,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_motorizados_branch ON motorizados(branch_id);
+
 CREATE TABLE IF NOT EXISTS business_hours (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
@@ -420,6 +431,25 @@ CREATE POLICY "Authenticated update delivery zones" ON delivery_zones
 
 GRANT SELECT ON delivery_zones TO public, anon, authenticated;
 GRANT INSERT, UPDATE ON delivery_zones TO authenticated;
+
+-- RLS PARA MOTORIZADOS (directorio de repartidores por sucursal)
+-- Solo se usa dentro del panel admin (autenticado), a diferencia de branches y
+-- delivery_zones no necesita lectura publica/anon.
+ALTER TABLE motorizados ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Authenticated read all motorizados" ON motorizados;
+CREATE POLICY "Authenticated read all motorizados" ON motorizados
+  FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Authenticated insert motorizados" ON motorizados;
+CREATE POLICY "Authenticated insert motorizados" ON motorizados
+  FOR INSERT TO authenticated WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Authenticated update motorizados" ON motorizados;
+CREATE POLICY "Authenticated update motorizados" ON motorizados
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+GRANT SELECT, INSERT, UPDATE ON motorizados TO authenticated;
 
 -- GRANTS FOR PUBLIC & ANON ACCESS
 GRANT SELECT, UPDATE ON orders TO public, anon, authenticated;

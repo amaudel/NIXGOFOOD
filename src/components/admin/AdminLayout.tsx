@@ -21,6 +21,7 @@ import {
   RotateCcw,
   Package,
   Store,
+  Bike,
 } from 'lucide-react';
 import { businessConfig } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
@@ -42,6 +43,7 @@ const navItems = [
   { href: '/admin/menu/categories', label: 'Categorías', icon: Layers },
   { href: '/admin/menu/modifiers', label: 'Modificadores', icon: Sliders },
   { href: '/admin/delivery', label: 'Delivery', icon: Truck },
+  { href: '/admin/motorizados', label: 'Motorizados', icon: Bike },
   { href: '/admin/hours', label: 'Horarios', icon: Clock },
   { href: '/admin/branches', label: 'Sucursales', icon: Store },
   { href: '/admin/settings/business', label: 'Configuración Negocio', icon: Settings },
