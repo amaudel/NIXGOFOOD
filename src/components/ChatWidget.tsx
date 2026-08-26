@@ -118,13 +118,26 @@ export default function ChatWidget() {
         </div>
       )}
 
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-rose-600 text-2xl shadow-lg hover:bg-rose-500"
-        aria-label="Abrir chat"
-      >
-        {open ? '✕' : '🌮'}
-      </button>
+      <div className="flex items-center gap-2">
+        <a
+          href="https://t.me/ELTACANIJOPEDIDOSBOT"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-[#26A5E4] text-2xl text-white shadow-lg hover:bg-[#1e8fc7]"
+          aria-label="Pedir por Telegram"
+          title="Pedir por Telegram"
+        >
+          ✈️
+        </a>
+
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-rose-600 text-2xl shadow-lg hover:bg-rose-500"
+          aria-label={open ? 'Cerrar chat' : 'Abrir chat'}
+        >
+          {open ? '✕' : '🌮'}
+        </button>
+      </div>
     </div>
   );
 }
