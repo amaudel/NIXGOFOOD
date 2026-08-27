@@ -214,247 +214,26 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
--- FUNCIÓN TRANSACCIONAL: create_order
-CREATE OR REPLACE FUNCTION create_order(p_payload JSONB)
-RETURNS JSONB AS $$
-DECLARE
-  v_business_id UUID; v_branch_id UUID; v_business_active BOOLEAN; v_branch_active BOOLEAN; v_timezone TEXT;
-  v_customer_name TEXT; v_customer_phone TEXT; v_customer_id UUID;
-  v_delivery_method TEXT; v_cust_lat NUMERIC(10, 7); v_cust_lng NUMERIC(10, 7);
-  v_branch_lat NUMERIC(10, 7); v_branch_lng NUMERIC(10, 7); v_address TEXT; v_reference TEXT; v_location_type TEXT;
-  v_distance_km NUMERIC(5, 2); v_matched_zone_id UUID := NULL; v_matched_zone_name TEXT := NULL;
-  v_delivery_fee NUMERIC(10, 2) := 0.00; v_estimated_minutes TEXT := '25-35 min';
-  v_subtotal NUMERIC(10, 2) := 0.00; v_total NUMERIC(10, 2) := 0.00;
-  v_order_id UUID; v_order_number INT; v_tracking_token TEXT; v_created_at TIMESTAMPTZ;
-  v_item JSONB; v_product_id UUID; v_prod_name TEXT; v_prod_price NUMERIC(10, 2);
-  v_mod JSONB; v_mod_id UUID; v_mod_name TEXT; v_mod_price NUMERIC(10, 2);
-  v_item_unit_price NUMERIC(10, 2); v_item_qty INT; v_item_line_total NUMERIC(10, 2); v_order_item_id UUID; v_item_notes TEXT;
-  v_payment_method TEXT; v_transfer_details JSONB; v_verification_status TEXT;
-BEGIN
-  v_business_id := (p_payload->>'businessId')::UUID;
-  v_branch_id := (p_payload->>'branchId')::UUID;
+-- FUNCIÓN TRANSACCIONAL: create_order — eliminada de este script.
+-- Esta versión confiaba en el `productName`/`unitPrice` enviados por el
+-- cliente cuando el productId no era un UUID válido o no se encontraba, y no
+-- filtraba `products`/`modifiers` por business_id (permitía inyectar
+-- productos de OTRO negocio o precios arbitrarios en el pedido). La versión
+-- correcta (valida business_id y usa siempre el precio de la base de datos)
+-- vive en supabase/legacy_migrations/20260819_pre_baseline/20260818_order_transition_hardening.sql
+-- y es la que gestionan las migraciones; no se debe redefinir aquí.
 
-  SELECT active, timezone INTO v_business_active, v_timezone FROM businesses WHERE id = v_business_id;
-  IF v_business_active IS NOT TRUE THEN RAISE EXCEPTION 'El negocio no existe o no se encuentra activo.'; END IF;
-
-  SELECT active, latitude, longitude INTO v_branch_active, v_branch_lat, v_branch_lng FROM branches WHERE id = v_branch_id AND business_id = v_business_id;
-  IF v_branch_active IS NOT TRUE THEN RAISE EXCEPTION 'La sucursal seleccionada no se encuentra activa.'; END IF;
-
-  v_customer_name := TRIM(p_payload->'customer'->>'name');
-  v_customer_phone := TRIM(p_payload->'customer'->>'phone');
-  IF LENGTH(v_customer_name) = 0 OR LENGTH(v_customer_phone) < 7 THEN RAISE EXCEPTION 'Ingresa un nombre y teléfono válidos.'; END IF;
-
-  SELECT id INTO v_customer_id FROM customers WHERE business_id = v_business_id AND phone = v_customer_phone LIMIT 1;
-  IF v_customer_id IS NULL THEN
-    INSERT INTO customers (business_id, name, phone) VALUES (v_business_id, v_customer_name, v_customer_phone) RETURNING id INTO v_customer_id;
-  END IF;
-
-  v_delivery_method := p_payload->>'deliveryMethod';
-  IF v_delivery_method = 'delivery' THEN
-    v_cust_lat := (p_payload->'deliveryLocation'->>'latitude')::NUMERIC;
-    v_cust_lng := (p_payload->'deliveryLocation'->>'longitude')::NUMERIC;
-    v_address := p_payload->'deliveryLocation'->>'address';
-    v_reference := p_payload->'deliveryLocation'->>'reference';
-    v_location_type := p_payload->'deliveryLocation'->>'locationType';
-    v_distance_km := calculate_distance_km(v_branch_lat, v_branch_lng, v_cust_lat, v_cust_lng);
-
-    SELECT id, name, fee, (estimated_min_minutes || '-' || estimated_max_minutes || ' min')
-    INTO v_matched_zone_id, v_matched_zone_name, v_delivery_fee, v_estimated_minutes
-    FROM delivery_zones WHERE branch_id = v_branch_id AND active = true AND v_distance_km <= max_distance_km ORDER BY max_distance_km ASC LIMIT 1;
-
-    IF v_matched_zone_id IS NULL THEN
-      RAISE EXCEPTION 'La ubicación seleccionada (%.1f km) se encuentra fuera de nuestra zona de delivery.', v_distance_km;
-    END IF;
-  ELSIF v_delivery_method = 'pickup' THEN
-    v_delivery_fee := 0.00; v_estimated_minutes := '15-25 min';
-  ELSE RAISE EXCEPTION 'Método de entrega no válido.'; END IF;
-
-  IF jsonb_array_length(p_payload->'items') = 0 THEN RAISE EXCEPTION 'El carrito de compras está vacío.'; END IF;
-
-  v_subtotal := 0.00;
-  v_payment_method := COALESCE(p_payload->>'paymentMethod', 'cash');
-  v_transfer_details := p_payload->'transferDetails';
-  IF v_payment_method = 'transfer' THEN v_verification_status := 'pending'; END IF;
-
-  v_tracking_token := encode(gen_random_bytes(16), 'hex');
-
-  INSERT INTO orders (
-    business_id, branch_id, customer_id, tracking_token, status, delivery_method,
-    payment_method, transfer_details, verification_status, subtotal, delivery_fee, total,
-    customer_name, customer_phone, delivery_address, delivery_reference, delivery_location_type,
-    delivery_latitude, delivery_longitude, delivery_zone_id, delivery_zone_name_snapshot, estimated_minutes, notes
-  ) VALUES (
-    v_business_id, v_branch_id, v_customer_id, v_tracking_token, 'new', v_delivery_method,
-    v_payment_method, v_transfer_details, v_verification_status, 0.00, v_delivery_fee, 0.00,
-    v_customer_name, v_customer_phone, v_address, v_reference, v_location_type,
-    v_cust_lat, v_cust_lng, v_matched_zone_id, v_matched_zone_name, v_estimated_minutes, p_payload->>'notes'
-  ) RETURNING id, order_number, created_at INTO v_order_id, v_order_number, v_created_at;
-
-  FOR v_item IN SELECT * FROM jsonb_array_elements(p_payload->'items') LOOP
-    v_item_qty := (v_item->>'quantity')::INT;
-    v_item_notes := v_item->>'notes';
-    IF v_item_qty <= 0 THEN RAISE EXCEPTION 'La cantidad del producto debe ser mayor a 0.'; END IF;
-
-    v_prod_name := v_item->>'productName';
-    v_prod_price := COALESCE((v_item->>'unitPrice')::NUMERIC, 0.00);
-
-    -- Validación segura de UUID para IDs de producto
-    IF (v_item->>'productId') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
-      v_product_id := (v_item->>'productId')::UUID;
-      SELECT name, price INTO v_prod_name, v_prod_price FROM products WHERE id = v_product_id;
-      IF v_prod_name IS NULL THEN
-        v_prod_name := v_item->>'productName';
-        v_prod_price := COALESCE((v_item->>'unitPrice')::NUMERIC, 0.00);
-      END IF;
-    ELSE
-      v_product_id := NULL;
-    END IF;
-
-    v_item_unit_price := v_prod_price;
-
-    INSERT INTO order_items (order_id, product_id, product_name_snapshot, unit_price, quantity, notes, line_total)
-    VALUES (v_order_id, v_product_id, v_prod_name, v_prod_price, v_item_qty, v_item_notes, 0.00) RETURNING id INTO v_order_item_id;
-
-    IF v_item ? 'selectedModifiers' AND jsonb_array_length(v_item->'selectedModifiers') > 0 THEN
-      FOR v_mod IN SELECT * FROM jsonb_array_elements(v_item->'selectedModifiers') LOOP
-        IF (v_mod->>'modifierId') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
-          v_mod_id := (v_mod->>'modifierId')::UUID;
-        ELSE
-          v_mod_id := NULL;
-        END IF;
-
-        v_mod_name := v_mod->>'modifierName';
-        v_mod_price := COALESCE((v_mod->>'price')::NUMERIC, 0.00);
-        v_item_unit_price := v_item_unit_price + v_mod_price;
-
-        INSERT INTO order_item_modifiers (order_item_id, modifier_id, modifier_name_snapshot, price_delta, quantity)
-        VALUES (v_order_item_id, v_mod_id, v_mod_name, v_mod_price, 1);
-      END LOOP;
-    END IF;
-
-    v_item_line_total := v_item_unit_price * v_item_qty;
-    UPDATE order_items SET unit_price = v_item_unit_price, line_total = v_item_line_total WHERE id = v_order_item_id;
-    v_subtotal := v_subtotal + v_item_line_total;
-  END LOOP;
-
-  v_total := v_subtotal + v_delivery_fee;
-  UPDATE orders SET subtotal = v_subtotal, total = v_total WHERE id = v_order_id;
-
-  RETURN jsonb_build_object(
-    'id', v_order_id, 'orderNumber', '#' || v_order_number, 'trackingToken', v_tracking_token,
-    'subtotal', v_subtotal, 'deliveryFee', v_delivery_fee, 'total', v_total,
-    'status', 'new', 'estimatedTime', v_estimated_minutes, 'createdAt', v_created_at,
-    'deliveryMethod', v_delivery_method, 'paymentMethod', v_payment_method,
-    'deliveryLocation', CASE WHEN v_delivery_method = 'delivery' THEN jsonb_build_object(
-      'latitude', v_cust_lat, 'longitude', v_cust_lng, 'address', v_address,
-      'reference', v_reference, 'locationType', v_location_type
-    ) ELSE NULL END
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- RLS READ & UPDATE POLICIES FOR ORDERS & PROFILES
-ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE order_item_modifiers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Public read orders" ON orders;
-CREATE POLICY "Public read orders" ON orders FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Public update orders" ON orders;
-CREATE POLICY "Public update orders" ON orders FOR UPDATE USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Public read order_items" ON order_items;
-CREATE POLICY "Public read order_items" ON order_items FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Public read order_item_modifiers" ON order_item_modifiers;
-CREATE POLICY "Public read order_item_modifiers" ON order_item_modifiers FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
-CREATE POLICY "Users can read own profile"
-ON profiles FOR SELECT
-TO authenticated
-USING (auth.uid() = id);
-
--- STORAGE OBJECTS POLICY FOR SIGNED URL GENERATION
-DROP POLICY IF EXISTS "Allow select payment-proofs" ON storage.objects;
-CREATE POLICY "Allow select payment-proofs"
-ON storage.objects FOR SELECT
-TO public, anon, authenticated
-USING (bucket_id = 'payment-proofs');
-
--- RLS PARA BRANCHES (multi-sucursal)
-ALTER TABLE branches ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Public read active branches" ON branches;
-CREATE POLICY "Public read active branches" ON branches
-  FOR SELECT USING (active = true);
-
-DROP POLICY IF EXISTS "Authenticated read all branches" ON branches;
-CREATE POLICY "Authenticated read all branches" ON branches
-  FOR SELECT TO authenticated USING (true);
-
-DROP POLICY IF EXISTS "Authenticated manage branches" ON branches;
-DROP POLICY IF EXISTS "Authenticated insert branches" ON branches;
-DROP POLICY IF EXISTS "Authenticated update branches" ON branches;
-CREATE POLICY "Authenticated insert branches" ON branches
-  FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Authenticated update branches" ON branches
-  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
-
-GRANT SELECT ON branches TO public, anon, authenticated;
-GRANT INSERT, UPDATE ON branches TO authenticated;
-
--- RLS PARA DELIVERY_ZONES (multi-sucursal)
--- production_baseline.sql ya habia hecho ENABLE ROW LEVEL SECURITY sobre esta
--- tabla sin crear ninguna politica, lo que deniega toda lectura por defecto
--- (anon/public reciben 0 filas). Sin este bloque, aunque el schema este
--- reconciliado arriba, el checkout nunca ve zonas de delivery.
-ALTER TABLE delivery_zones ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Public read active delivery zones" ON delivery_zones;
-CREATE POLICY "Public read active delivery zones" ON delivery_zones
-  FOR SELECT USING (active = true);
-
-DROP POLICY IF EXISTS "Authenticated read all delivery zones" ON delivery_zones;
-CREATE POLICY "Authenticated read all delivery zones" ON delivery_zones
-  FOR SELECT TO authenticated USING (true);
-
-DROP POLICY IF EXISTS "Authenticated manage delivery zones" ON delivery_zones;
-DROP POLICY IF EXISTS "Authenticated insert delivery zones" ON delivery_zones;
-DROP POLICY IF EXISTS "Authenticated update delivery zones" ON delivery_zones;
-CREATE POLICY "Authenticated insert delivery zones" ON delivery_zones
-  FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Authenticated update delivery zones" ON delivery_zones
-  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
-
-GRANT SELECT ON delivery_zones TO public, anon, authenticated;
-GRANT INSERT, UPDATE ON delivery_zones TO authenticated;
-
--- RLS PARA MOTORIZADOS (directorio de repartidores por sucursal)
--- Solo se usa dentro del panel admin (autenticado), a diferencia de branches y
--- delivery_zones no necesita lectura publica/anon.
-ALTER TABLE motorizados ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Authenticated read all motorizados" ON motorizados;
-CREATE POLICY "Authenticated read all motorizados" ON motorizados
-  FOR SELECT TO authenticated USING (true);
-
-DROP POLICY IF EXISTS "Authenticated insert motorizados" ON motorizados;
-CREATE POLICY "Authenticated insert motorizados" ON motorizados
-  FOR INSERT TO authenticated WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Authenticated update motorizados" ON motorizados;
-CREATE POLICY "Authenticated update motorizados" ON motorizados
-  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
-
-GRANT SELECT, INSERT, UPDATE ON motorizados TO authenticated;
-
--- GRANTS FOR PUBLIC & ANON ACCESS
-GRANT SELECT, UPDATE ON orders TO public, anon, authenticated;
-GRANT SELECT ON order_items TO public, anon, authenticated;
-GRANT SELECT ON order_item_modifiers TO public, anon, authenticated;
-GRANT SELECT ON profiles TO authenticated;
-GRANT EXECUTE ON FUNCTION create_order(JSONB) TO public, anon, authenticated;
-GRANT EXECUTE ON FUNCTION calculate_distance_km(NUMERIC, NUMERIC, NUMERIC, NUMERIC) TO public, anon, authenticated;
+-- SEGURIDAD (RLS/GRANTS): eliminado de este script.
+-- El bloque que existía aquí habilitaba políticas "USING (true)" / "WITH CHECK
+-- (true)" sobre orders/branches/delivery_zones/motorizados y un GRANT UPDATE
+-- directo sobre orders a anon/authenticated — es decir, cualquier visitante
+-- anónimo podía leer y modificar los pedidos de CUALQUIER negocio, y cualquier
+-- usuario autenticado podía escribir sucursales/zonas/motorizados de otro
+-- negocio. Este script de SQL Editor no está trackeado por
+-- `supabase db push`, así que esas políticas quedaban fuera de control de
+-- versiones y podían reintroducirse silenciosamente si alguien lo volvía a
+-- ejecutar. RLS/GRANTs correctos y con aislamiento multi-tenant ahora viven
+-- exclusivamente en supabase/migrations/20260827000000_rls_hardening.sql —
+-- ese archivo es la única fuente reproducible de políticas para este proyecto.
+GRANT EXECUTE ON FUNCTION create_order(JSONB) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION calculate_distance_km(NUMERIC, NUMERIC, NUMERIC, NUMERIC) TO anon, authenticated;
