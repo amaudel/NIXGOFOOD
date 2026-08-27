@@ -53,17 +53,10 @@ export async function verifyAdminSession(): Promise<AdminAuthResult> {
       .single();
 
     if (profileError || !profile) {
-      // Fallback: If profiles table record is not found yet for configured business admin,
-      // verify that user email matches registered business admin email or system user.
-      if (user.email) {
-        return {
-          authorized: true,
-          status: 200,
-          user,
-          businessId: CURRENT_BUSINESS_ID,
-        };
-      }
-
+      // Un usuario autenticado sin fila en `profiles` NO tiene permisos admin.
+      // (Antes esto autorizaba a cualquier usuario con email verificado como
+      // admin del negocio configurado — escalación de privilegios trivial vía
+      // registro público. `profiles` solo lo crea un administrador existente.)
       return {
         authorized: false,
         status: 403,

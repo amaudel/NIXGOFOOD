@@ -1,7 +1,38 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+// Origenes propios de la app. NEXT_PUBLIC_SITE_URL debe apuntar al dominio de
+// produccion (ej. https://nixgofood.vercel.app); localhost queda permitido
+// solo para desarrollo.
+function getAllowedOrigins(): string[] {
+  const origins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  // SITE_URL (sin prefijo NEXT_PUBLIC_) a proposito: esta funcion solo corre
+  // server-side en middleware.ts, no necesita exponerse al bundle del cliente.
+  const siteUrl = process.env.SITE_URL;
+  if (siteUrl) origins.push(siteUrl.replace(/\/$/, ''));
+  return origins;
+}
+
+// CORS no detiene curl/Postman/scripts (ignoran el header Origin), pero si
+// bloquea que JS de OTRO sitio web haga peticiones de escritura contra esta
+// API usando la sesion/cookies de un visitante (CSRF cross-site). La defensa
+// real contra llamadas directas sigue siendo RLS + los checks de sesion en
+// cada ruta.
+function isBlockedCrossOriginApiWrite(request: NextRequest): boolean {
+  if (!request.nextUrl.pathname.startsWith('/api/')) return false;
+  if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return false;
+
+  const origin = request.headers.get('origin');
+  if (!origin) return false; // server-to-server / cron / apps nativas: sin Origin, no es un navegador cross-site
+
+  return !getAllowedOrigins().includes(origin.replace(/\/$/, ''));
+}
+
 export async function middleware(request: NextRequest) {
+  if (isBlockedCrossOriginApiWrite(request)) {
+    return NextResponse.json({ error: 'Origen no autorizado.' }, { status: 403 });
+  }
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -73,5 +104,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: ['/admin/:path*', '/api/:path*'],
 };
