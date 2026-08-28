@@ -78,7 +78,10 @@ const DEFAULT_LOCATION: DeliveryLocation = {
   hasSelectedLocation: false,
 };
 
-export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AppProvider: React.FC<{ businessId: string; children: React.ReactNode }> = ({
+  businessId,
+  children,
+}) => {
   const { selectedBranch, autoSelectForLocation, zones, loading: branchLoading } = useBranch();
 
   // State
@@ -106,9 +109,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const loadCatalogAndOrders = async () => {
       try {
         const [catData, prodData, orderData] = await Promise.all([
-          ProductRepository.getCategories(),
-          ProductRepository.getAllProducts(),
-          OrderRepository.getOrders(),
+          ProductRepository.getCategories(businessId),
+          ProductRepository.getAllProducts(businessId),
+          OrderRepository.getOrders(businessId),
         ]);
 
         setCategories(catData);
@@ -127,7 +130,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [businessId]);
 
   useEffect(() => {
     try {

@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { Branch, DeliveryZone } from '@/types';
 import { getBusinessRepository } from '@/repositories/factory';
-import { activeBranch, CURRENT_BUSINESS_ID } from '@/config/business';
+import { activeBranch } from '@/config/business';
 import {
   selectNearestCoveringBranch,
   resolvePersistedBranch,
@@ -28,8 +28,9 @@ const BranchContext = createContext<BranchContextValue | undefined>(undefined);
 
 export const BranchProvider: React.FC<{
   scope: 'customer' | 'admin';
+  businessId: string;
   children: React.ReactNode;
-}> = ({ scope, children }) => {
+}> = ({ scope, businessId, children }) => {
   const storageKey = STORAGE_KEYS[scope];
   const [branches, setBranches] = useState<Branch[]>([activeBranch]);
   const [zones, setZones] = useState<DeliveryZone[]>([]);
@@ -43,7 +44,7 @@ export const BranchProvider: React.FC<{
       try {
         const repo = getBusinessRepository();
         const [branchList, zoneList] = await Promise.all([
-          repo.getBranches(CURRENT_BUSINESS_ID),
+          repo.getBranches(businessId),
           repo.getDeliveryZones(),
         ]);
         if (cancelado) return;
@@ -77,7 +78,7 @@ export const BranchProvider: React.FC<{
     return () => {
       cancelado = true;
     };
-  }, [storageKey]);
+  }, [storageKey, businessId]);
 
   const selectBranch = useCallback(
     (branchId: string) => {
