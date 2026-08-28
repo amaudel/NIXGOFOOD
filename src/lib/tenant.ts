@@ -7,7 +7,7 @@ export type TenantRoute =
   | { kind: 'unknown' };
 
 function stripPort(host: string): string {
-  return host.replace(/:\d+$/, '');
+  return host.toLowerCase().replace(/:\d+$/, '');
 }
 
 /**

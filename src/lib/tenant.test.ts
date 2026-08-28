@@ -31,6 +31,11 @@ describe('classifyHost', () => {
     });
   });
 
+  it('normaliza mayusculas en el host', () => {
+    expect(classifyHost('Admin.Tuapp.Com', root)).toEqual({ kind: 'admin' });
+    expect(classifyHost('Tacos.Tuapp.Com', root)).toEqual({ kind: 'store', slug: 'tacos' });
+  });
+
   it('clasifica un host que no matchea ni raiz ni subdominio propio como unknown', () => {
     expect(classifyHost('otrositio.com', root)).toEqual({ kind: 'unknown' });
   });

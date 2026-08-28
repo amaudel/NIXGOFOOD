@@ -82,13 +82,16 @@ export async function verifyAdminSession(): Promise<AdminAuthResult> {
       };
     }
 
-    // 5. Validate Business ID Alignment
-    const businessId = profile.business_id || CURRENT_BUSINESS_ID;
-    if (businessId !== CURRENT_BUSINESS_ID) {
+    // 5. business_id real del perfil. RLS es la barrera real de aislamiento
+    // por negocio (no un allowlist a nivel de app) -- con subdominios por
+    // negocio, cualquier profile.business_id valido es un negocio legitimo,
+    // no solo el unico negocio que existia cuando la app era single-tenant.
+    const businessId = profile.business_id;
+    if (!businessId) {
       return {
         authorized: false,
         status: 403,
-        error: 'Acceso denegado. No tienes autorización para acceder a este negocio.',
+        error: 'Acceso denegado. Tu perfil no tiene un negocio asignado.',
       };
     }
 
