@@ -4,6 +4,7 @@ import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { DemoOrderRepository } from '@/repositories/demo/DemoOrderRepository';
 import { getClientIp, checkRateLimit } from '@/lib/security/rateLimiter';
+import { getResolvedBusinessId } from '@/lib/tenant';
 
 export async function POST(request: Request) {
   try {
@@ -66,11 +67,17 @@ export async function POST(request: Request) {
     }
 
     // 4. REAL MODE Retrieval via Supabase
+    // El middleware resuelve el business_id por el subdominio desde el que
+    // se hizo esta llamada (Host); CURRENT_BUSINESS_ID solo queda como
+    // fallback si por algun motivo el header no llego (nunca deberia pasar
+    // desde un subdominio de tienda real, pero evita un 500 silencioso).
+    const resolvedBusinessId = (await getResolvedBusinessId()) || CURRENT_BUSINESS_ID;
+
     const supabase = await createClient();
     const { data: matchedOrders, error } = await supabase
       .from('orders')
       .select('id, tracking_token, customer_phone, order_number')
-      .eq('business_id', CURRENT_BUSINESS_ID)
+      .eq('business_id', resolvedBusinessId)
       .eq('order_number', orderNumber);
 
     if (error || !matchedOrders || matchedOrders.length === 0) {

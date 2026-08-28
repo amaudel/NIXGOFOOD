@@ -4,6 +4,7 @@ import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { generateCleanupToken } from '@/lib/security/cleanupToken';
 import { getClientIp, checkRateLimit } from '@/lib/security/rateLimiter';
+import { getResolvedBusinessId } from '@/lib/tenant';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
@@ -99,7 +100,10 @@ export async function POST(request: Request) {
     const safeExt = magicResult.ext || (ALLOWED_EXTENSIONS.includes(originalExt) ? originalExt : 'jpg');
 
     // 5. Server-Side Context & Path Sanitization
-    const businessId = CURRENT_BUSINESS_ID.replace(/[^a-zA-Z0-9_-]/g, '');
+    // El middleware resuelve el business_id por el subdominio de origen;
+    // CURRENT_BUSINESS_ID solo queda como fallback si el header no llego.
+    const resolvedBusinessId = (await getResolvedBusinessId()) || CURRENT_BUSINESS_ID;
+    const businessId = resolvedBusinessId.replace(/[^a-zA-Z0-9_-]/g, '');
     const tempUploadId = `ord_upload_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     const uuid = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 

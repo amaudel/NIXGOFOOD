@@ -15,7 +15,7 @@ import { OrderLookupModal } from '@/components/OrderLookupModal';
 
 export const Header: React.FC = () => {
   const router = useRouter();
-  const { cartTotalCount, cartSubtotal, setIsCartOpen } = useApp();
+  const { cartTotalCount, cartSubtotal, setIsCartOpen, business } = useApp();
   const { selectedBranch, branches } = useBranch();
   const [isOpenStatus, setIsOpenStatus] = useState<boolean>(true);
   const [lastOrder, setLastOrder] = useState<RecentOrder | null>(null);
@@ -25,8 +25,11 @@ export const Header: React.FC = () => {
     async function checkStatus() {
       try {
         const repo = getBusinessRepository();
-        const [todos, biz] = await Promise.all([repo.getBusinessHours(), repo.getBusiness()]);
-        const timezone = biz?.timezone || 'America/Guayaquil';
+        // getBusinessHours() todavia no acepta un businessId (fix de
+        // repositorio pendiente, Fase 3) -- el timezone si viene del
+        // negocio ya resuelto en contexto, sin otro fetch.
+        const todos = await repo.getBusinessHours();
+        const timezone = business?.timezone || 'America/Guayaquil';
         if (selectedBranch) {
           const status = BusinessHoursService.isRestaurantOpen(hoursForBranch(todos, selectedBranch.id), timezone);
           setIsOpenStatus(status.isOpen);
@@ -42,7 +45,7 @@ export const Header: React.FC = () => {
     }
     checkStatus();
     setLastOrder(getLastOrder());
-  }, [selectedBranch, branches]);
+  }, [selectedBranch, branches, business]);
 
   const handleFollowOrderClick = () => {
     const currentLast = getLastOrder();
@@ -67,7 +70,7 @@ export const Header: React.FC = () => {
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <h1 className="font-black text-base sm:text-lg leading-none tracking-tight text-zinc-100 group-hover:text-rose-400 transition-colors whitespace-nowrap">
-                  {businessConfig.name}
+                  {business?.name || businessConfig.name}
                 </h1>
                 <span className="hidden sm:inline-block text-[10px] font-bold px-2 py-0.5 rounded-full border bg-zinc-900 border-zinc-800 shrink-0">
                   {isOpenStatus ? '🟢 Abierto' : '🔴 Cerrado'}

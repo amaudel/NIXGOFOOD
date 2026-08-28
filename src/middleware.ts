@@ -124,9 +124,18 @@ export async function middleware(request: NextRequest) {
 
   // Rutas /api/* y /negocio-no-encontrado nunca se reescriben por tenant: la
   // resolucion de negocio para llamadas de API vive en cada route handler
-  // (via getResolvedBusinessId en las paginas que las invocan), no en el
-  // gateway.
+  // (via getResolvedBusinessId), no en el gateway. Pero SI necesitan el
+  // header resuelto para que getResolvedBusinessId() devuelva algo -- sin
+  // esto, cada API llamada desde un subdominio de negocio quedaba atada a
+  // CURRENT_BUSINESS_ID hardcodeado dentro del propio route handler.
   const skipTenantRewrite = pathname.startsWith('/api/') || pathname.startsWith('/negocio-no-encontrado');
+
+  if (pathname.startsWith('/api/') && route.kind === 'store') {
+    const apiBusinessId = isDemo ? 'demo' : await findActiveBusinessIdBySlug(route.slug);
+    if (apiBusinessId) {
+      request.headers.set('x-business-id', apiBusinessId);
+    }
+  }
 
   if (!skipTenantRewrite) {
     if (route.kind === 'admin') {

@@ -34,7 +34,7 @@ import { useApp } from '@/context/AppContext';
 import { useBranch } from '@/context/BranchContext';
 import { LocationPicker } from '@/components/LocationPicker';
 import { BranchPicker } from '@/components/BranchPicker';
-import { businessConfig, CURRENT_BUSINESS_ID } from '@/config/business';
+import { businessConfig } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { StorageService } from '@/services/StorageService';
 import { DemoStorage } from '@/repositories/demo/DemoStorage';
@@ -45,6 +45,8 @@ import { PaymentMethod, Order } from '@/types';
 export default function CheckoutPage() {
   const router = useRouter();
   const {
+    businessId,
+    business,
     cart,
     clearCart,
     cartSubtotal,
@@ -86,7 +88,12 @@ export default function CheckoutPage() {
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [mostrarSucursales, setMostrarSucursales] = useState(false);
 
-  const bankInfo = businessConfig.paymentConfig?.bankInfo || {
+  // TODO(seguimiento): business.paymentConfig no existe todavia en la tabla
+  // `businesses` (solo en el tipo TS) -- hasta que se agregue esa columna,
+  // CUALQUIER negocio usando pago por transferencia muestra estos mismos
+  // datos bancarios de fallback. No hay forma de arreglarlo sin migracion de
+  // base de datos; queda fuera del alcance de esta fase.
+  const bankInfo = business?.paymentConfig?.bankInfo || businessConfig.paymentConfig?.bankInfo || {
     bankName: 'Banco Pichincha',
     accountType: 'Cuenta de Ahorros',
     accountNumber: '2204567890',
@@ -249,7 +256,7 @@ export default function CheckoutPage() {
       }
 
       const payload = {
-        businessId: CURRENT_BUSINESS_ID,
+        businessId,
         branchId: (selectedBranch || branches[0]).id,
         customer: { name: name.trim(), phone: phone.trim() },
         deliveryMethod,
@@ -1251,7 +1258,7 @@ export default function CheckoutPage() {
                 </p>
               ) : (
                 <p className="text-zinc-400 text-xs sm:text-sm max-w-md mx-auto">
-                  Tu comanda ya se encuentra ingresada en la cocina de <strong>{businessConfig.name}</strong>.
+                  Tu comanda ya se encuentra ingresada en la cocina de <strong>{business?.name || businessConfig.name}</strong>.
                 </p>
               )}
             </div>

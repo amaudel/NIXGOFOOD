@@ -12,6 +12,7 @@ import {
   Order,
   OrderStatus,
   Branch,
+  Business,
 } from '@/types';
 import { initialCategories, initialProducts } from '@/data/mockData';
 import { ProductRepository } from '@/repositories/ProductRepository';
@@ -20,6 +21,7 @@ import { ExecuteActionParams } from '@/repositories/interfaces/IOrderRepository'
 import { DeliveryService } from '@/services/DeliveryService';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { useBranch } from '@/context/BranchContext';
+import { getBusinessRepository } from '@/repositories/factory';
 
 const CART_STORAGE_KEY = 'el_taca_nijo_cart';
 const LOCATION_STORAGE_KEY = 'el_taca_nijo_location';
@@ -27,6 +29,10 @@ const DELIVERY_METHOD_KEY = 'el_taca_nijo_delivery_method';
 const CUSTOMER_STORAGE_KEY = 'el_taca_nijo_customer';
 
 interface AppContextType {
+  // Tenant
+  businessId: string;
+  business: Business | null;
+
   // Catalog
   products: Product[];
   categories: Category[];
@@ -85,6 +91,7 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
   const { selectedBranch, autoSelectForLocation, zones, loading: branchLoading } = useBranch();
 
   // State
+  const [business, setBusiness] = useState<Business | null>(null);
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [selectedProductForModal, setSelectedProductForModal] = useState<Product | null>(null);
@@ -108,15 +115,17 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
   useEffect(() => {
     const loadCatalogAndOrders = async () => {
       try {
-        const [catData, prodData, orderData] = await Promise.all([
+        const [catData, prodData, orderData, businessData] = await Promise.all([
           ProductRepository.getCategories(businessId),
           ProductRepository.getAllProducts(businessId),
           OrderRepository.getOrders(businessId),
+          getBusinessRepository().getBusiness(businessId),
         ]);
 
         setCategories(catData);
         setProducts(prodData);
         setOrders(orderData);
+        setBusiness(businessData);
       } catch (err) {
         console.error('Failed to load initial data:', err);
       }
@@ -329,6 +338,8 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
   return (
     <AppContext.Provider
       value={{
+        businessId,
+        business,
         products,
         categories,
         toggleProductAvailability,
