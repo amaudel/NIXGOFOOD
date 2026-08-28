@@ -72,9 +72,9 @@ export async function middleware(request: NextRequest) {
       if (!pathname.startsWith('/admin')) {
         const url = request.nextUrl.clone();
         url.pathname = '/admin' + pathname;
-        return NextResponse.rewrite(url);
+        return NextResponse.redirect(url);
       }
-      // deja pasar tal cual hacia el bloque de auth de admin, mas abajo
+      // ya empieza con /admin, sigue hacia el bloque de auth mas abajo
     } else if (pathname.startsWith('/admin')) {
       // /admin solo es accesible desde admin.{rootDomain} -- en cualquier
       // otro host (raiz, tienda, desconocido) no existe.
