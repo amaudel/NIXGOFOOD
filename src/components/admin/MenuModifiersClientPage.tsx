@@ -5,9 +5,10 @@ import { Sliders, Plus, Edit, Trash2, Save, X, AlertCircle } from 'lucide-react'
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { ModifierGroup, Modifier } from '@/types';
 import { createClient } from '@/lib/supabase/client';
-import { CURRENT_BUSINESS_ID } from '@/config/business';
+import { useApp } from '@/context/AppContext';
 
 export default function MenuModifiersClientPage() {
+  const { businessId } = useApp();
   const [groups, setGroups] = useState<ModifierGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +72,7 @@ export default function MenuModifiersClientPage() {
           *,
           modifiers (*)
         `)
-        .eq('business_id', CURRENT_BUSINESS_ID)
+        .eq('business_id', businessId)
         .eq('active', true)
         .order('sort_order', { ascending: true });
 
@@ -105,7 +106,7 @@ export default function MenuModifiersClientPage() {
 
   useEffect(() => {
     loadGroups();
-  }, []);
+  }, [businessId]);
 
   const handleOpenCreateGroup = () => {
     setEditingGroupId(null);
@@ -133,7 +134,7 @@ export default function MenuModifiersClientPage() {
       ) {
         const supabase = createClient();
         const payload = {
-          business_id: CURRENT_BUSINESS_ID,
+          business_id: businessId,
           name: groupName.trim(),
           required,
           min_selections: parseInt(minSelect, 10) || 0,
@@ -188,7 +189,7 @@ export default function MenuModifiersClientPage() {
       ) {
         const supabase = createClient();
         const payload = {
-          business_id: CURRENT_BUSINESS_ID,
+          business_id: businessId,
           modifier_group_id: targetGroupId,
           name: modName.trim(),
           price_delta: delta,

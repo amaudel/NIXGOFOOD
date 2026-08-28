@@ -25,8 +25,10 @@ import { createClient } from '@/lib/supabase/client';
 import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { DemoProductRepository } from '@/repositories/demo/DemoProductRepository';
+import { useApp } from '@/context/AppContext';
 
 export default function MenuProductsClientPage() {
+  const { businessId } = useApp();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,8 +64,8 @@ export default function MenuProductsClientPage() {
     try {
       setError(null);
       const [cats, prods] = await Promise.all([
-        ProductRepository.getCategories(CURRENT_BUSINESS_ID),
-        ProductRepository.getAllProducts(CURRENT_BUSINESS_ID),
+        ProductRepository.getCategories(businessId),
+        ProductRepository.getAllProducts(businessId),
       ]);
       setCategories(cats);
       setProducts(prods);
@@ -77,7 +79,7 @@ export default function MenuProductsClientPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [businessId]);
 
   const handleOpenCreate = () => {
     setEditingProductId(null);
@@ -114,7 +116,7 @@ export default function MenuProductsClientPage() {
     setUploadingImage(true);
     setFormError(null);
 
-    const { url, error: uploadErr } = await StorageService.uploadImage(file, CURRENT_BUSINESS_ID, 'products');
+    const { url, error: uploadErr } = await StorageService.uploadImage(file, businessId, 'products');
 
     if (uploadErr) {
       setFormError(uploadErr);
@@ -223,7 +225,7 @@ export default function MenuProductsClientPage() {
       ) {
         const supabase = createClient();
         const productPayload = {
-          business_id: CURRENT_BUSINESS_ID,
+          business_id: businessId,
           category_id: categoryId,
           name: name.trim(),
           description: description.trim(),

@@ -9,8 +9,10 @@ import { createClient } from '@/lib/supabase/client';
 import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { DemoProductRepository } from '@/repositories/demo/DemoProductRepository';
+import { useApp } from '@/context/AppContext';
 
 export default function MenuCategoriesClientPage() {
+  const { businessId } = useApp();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export default function MenuCategoriesClientPage() {
   const loadCategories = async () => {
     try {
       setError(null);
-      const data = await ProductRepository.getCategories(CURRENT_BUSINESS_ID);
+      const data = await ProductRepository.getCategories(businessId);
       setCategories(data);
     } catch (err: any) {
       setError(err.message || 'Error al cargar categorías.');
@@ -39,7 +41,7 @@ export default function MenuCategoriesClientPage() {
 
   useEffect(() => {
     loadCategories();
-  }, []);
+  }, [businessId]);
 
   const handleOpenCreate = () => {
     setEditingCategoryId(null);
@@ -96,7 +98,7 @@ export default function MenuCategoriesClientPage() {
           .replace(/(^-|-$)+/g, '');
 
         const payload = {
-          business_id: CURRENT_BUSINESS_ID,
+          business_id: businessId,
           name: name.trim(),
           slug: slug || 'categoria',
           icon: icon.trim() || '🌮',
