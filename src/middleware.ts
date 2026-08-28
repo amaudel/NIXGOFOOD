@@ -71,8 +71,11 @@ async function findActiveBusinessIdBySlug(slug: string): Promise<string | null> 
 export async function middleware(request: NextRequest) {
   // Ningun codigo debe confiar en un x-business-id mandado por el cliente:
   // se elimina aca, al principio, antes de que cualquier branch lo lea o lo
-  // reenvie -- asi el invariante es estructural (una sola linea) en vez de
-  // depender de que cada branch individual recuerde sobreescribirlo.
+  // reenvie. IMPORTANTE: este delete() por si solo NO alcanza -- Next.js solo
+  // aplica el override de headers cuando la respuesta se construye con
+  // { request: { headers } } explicito. TODO return de esta funcion debe
+  // pasar ese objeto (aunque sea request.headers sin modificar), o el header
+  // "borrado" aca sigue llegando intacto al servidor de origen.
   request.headers.delete('x-business-id');
 
   const rootDomain = process.env.ROOT_DOMAIN || 'localhost:3000';
@@ -97,8 +100,22 @@ export async function middleware(request: NextRequest) {
   // del storefront pasaba por el lookup de negocio en Supabase y despues
   // 404eaba contra /store/demo/... (que no existe), rompiendo cada imagen
   // del sitio y desperdiciando una llamada de red por asset en cada visita.
-  if (/\.[a-zA-Z0-9]+$/.test(pathname)) {
-    return NextResponse.next();
+  //
+  // Excluye explicitamente /store y /admin de este atajo: son rutas dinamicas
+  // (ej. /store/order/[id]) que pueden matchear el regex de extension con
+  // cualquier string que el cliente elija (".../order/x.png"), lo que
+  // esquivaba por completo los candados de mas abajo. Ademas, un
+  // NextResponse.next() sin { request: { headers } } NO propaga el
+  // request.headers.delete('x-business-id') de arriba -- Next solo aplica el
+  // override de headers cuando ese objeto viene explicito -- asi que sin
+  // reenviarlo aca un x-business-id inventado por el cliente sobrevivia
+  // intacto hasta /store/layout.tsx.
+  if (
+    /\.[a-zA-Z0-9]+$/.test(pathname) &&
+    !pathname.startsWith('/store') &&
+    !pathname.startsWith('/admin')
+  ) {
+    return NextResponse.next({ request: { headers: request.headers } });
   }
 
   const isDemo = isDemoMode();
@@ -135,7 +152,7 @@ export async function middleware(request: NextRequest) {
       if (!businessId) {
         const url = request.nextUrl.clone();
         url.pathname = '/negocio-no-encontrado';
-        return NextResponse.rewrite(url);
+        return NextResponse.rewrite(url, { request: { headers: request.headers } });
       }
       const requestHeaders = new Headers(request.headers);
       requestHeaders.set('x-business-id', businessId); // sobreescribe cualquier valor mandado por el cliente
@@ -146,7 +163,7 @@ export async function middleware(request: NextRequest) {
       // Host que no matchea ni la raiz ni un subdominio propio: se sirve la
       // landing en vez de un 404 generico (cubre IP directa, DNS mal
       // apuntado, etc.)
-      return NextResponse.next();
+      return NextResponse.next({ request: { headers: request.headers } });
     }
     // route.kind === 'root': deja pasar, sirve la landing en '/'
   }
