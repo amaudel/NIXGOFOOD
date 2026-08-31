@@ -57,23 +57,21 @@ async function findActiveBusinessIdBySlug(slug: string): Promise<string | null> 
     return null;
   }
 
-  const debugPrefix = `urlJSON=${JSON.stringify(supabaseUrl)} keyLen=${anonKey.length}`;
-
   try {
     const res = await fetch(
       `${supabaseUrl}/rest/v1/businesses?slug=eq.${encodeURIComponent(slug)}&select=id,active&limit=1`,
       { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } }
     );
     if (!res.ok) {
-      lastLookupDebug = `bad-status ${debugPrefix} status=${res.status} body=${(await res.text()).slice(0, 200)}`;
+      lastLookupDebug = `bad-status url=${supabaseUrl} status=${res.status} body=${(await res.text()).slice(0, 200)}`;
       return null;
     }
     const rows: { id: string; active: boolean }[] = await res.json();
     const business = rows[0];
-    lastLookupDebug = `ok ${debugPrefix} slug=${slug} rows=${JSON.stringify(rows)}`;
+    lastLookupDebug = `ok url=${supabaseUrl} slug=${slug} rows=${JSON.stringify(rows)}`;
     return business && business.active ? business.id : null;
   } catch (e) {
-    lastLookupDebug = `exception ${debugPrefix} msg=${e instanceof Error ? e.message : String(e)}`;
+    lastLookupDebug = `exception ${e instanceof Error ? e.message : String(e)}`;
     return null;
   }
 }
