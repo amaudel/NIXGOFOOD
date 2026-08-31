@@ -80,7 +80,7 @@ export const Header: React.FC = () => {
                 <span className={`sm:hidden text-[11px] font-bold ${isOpenStatus ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {isOpenStatus ? '● Abierto' : '● Cerrado'}
                 </span>
-                <span className="hidden sm:inline text-xs text-zinc-400 font-medium truncate">{businessConfig.slogan}</span>
+                <span className="hidden sm:inline text-xs text-zinc-400 font-medium truncate">{business?.slogan || businessConfig.slogan}</span>
               </div>
             </div>
           </Link>

@@ -24,9 +24,12 @@ import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { isDemoMode } from '@/config/demo';
 import { getOrderRepository } from '@/repositories/factory';
 import { OrderLookupModal } from '@/components/OrderLookupModal';
+import { useApp } from '@/context/AppContext';
 
-const statusSteps: { status: OrderStatus; label: string; icon: React.ElementType; description: string }[] = [
-  { status: 'new', label: 'Pedido recibido', icon: Receipt, description: 'Tu pedido ha sido recibido por El Taca Nijo.' },
+const getStatusSteps = (
+  businessName: string
+): { status: OrderStatus; label: string; icon: React.ElementType; description: string }[] => [
+  { status: 'new', label: 'Pedido recibido', icon: Receipt, description: `Tu pedido ha sido recibido por ${businessName}.` },
   { status: 'preparing', label: 'En preparación', icon: ChefHat, description: 'Nuestros taqueros están preparando tus alimentos.' },
   { status: 'ready', label: 'Listo', icon: Store, description: 'Tu pedido está empacado y listo.' },
   { status: 'on_the_way', label: 'En camino', icon: Bike, description: 'El repartidor lleva tu pedido hacia la ubicación.' },
@@ -36,6 +39,9 @@ const statusSteps: { status: OrderStatus; label: string; icon: React.ElementType
 export default function OrderSuccessPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const trackingToken = resolvedParams.id;
+  const { business } = useApp();
+  const businessName = business?.name || businessConfig.name;
+  const statusSteps = getStatusSteps(businessName);
 
   const [order, setOrder] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -218,7 +224,7 @@ export default function OrderSuccessPage({ params }: { params: Promise<{ id: str
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-6">
             <div>
               <span className="text-xs font-extrabold uppercase tracking-widest text-amber-400">
-                {businessConfig.name} · Seguimiento
+                {businessName} · Seguimiento
               </span>
               <h1 className="text-3xl font-black text-white pt-1">Pedido {order.orderNumber}</h1>
               <p className="text-xs text-zinc-400 pt-0.5">

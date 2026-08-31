@@ -15,7 +15,7 @@ export class SupabaseBusinessRepository implements IBusinessRepository {
         slug: data.slug,
         slogan: data.slogan || '',
         logo: data.logo_url || businessConfig.logo,
-        coverImage: data.cover_url || businessConfig.coverImage,
+        coverImage: data.cover_image_url || businessConfig.coverImage,
         description: data.description || '',
         phone: data.phone || '',
         whatsapp: data.whatsapp || '',
