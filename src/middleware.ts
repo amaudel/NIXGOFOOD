@@ -63,13 +63,10 @@ async function findActiveBusinessIdBySlug(slug: string): Promise<string | null> 
     const rows: { id: string; active: boolean }[] = await res.json();
     const business = rows[0];
     return business && business.active ? business.id : null;
-  } catch (e) {
-    lastLookupDebug2 = `urlJSON=${JSON.stringify(supabaseUrl)} keyLen=${anonKey.length} msg=${e instanceof Error ? e.message : String(e)}`;
+  } catch {
     return null;
   }
 }
-
-let lastLookupDebug2 = '';
 
 export async function middleware(request: NextRequest) {
   // Ningun codigo debe confiar en un x-business-id mandado por el cliente:
@@ -164,9 +161,7 @@ export async function middleware(request: NextRequest) {
       if (!businessId) {
         const url = request.nextUrl.clone();
         url.pathname = '/negocio-no-encontrado';
-        const debugResponse = NextResponse.rewrite(url, { request: { headers: request.headers } });
-        debugResponse.headers.set('x-debug-lookup2', lastLookupDebug2 || 'unset (no exception thrown)');
-        return debugResponse;
+        return NextResponse.rewrite(url, { request: { headers: request.headers } });
       }
       const requestHeaders = new Headers(request.headers);
       requestHeaders.set('x-business-id', businessId); // sobreescribe cualquier valor mandado por el cliente
