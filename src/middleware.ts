@@ -52,31 +52,21 @@ function isBlockedCrossOriginApiWrite(request: NextRequest, rootDomain: string):
 async function findActiveBusinessIdBySlug(slug: string): Promise<string | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !anonKey) {
-    lastLookupDebug = `no-env-vars url=${!!supabaseUrl} key=${!!anonKey}`;
-    return null;
-  }
+  if (!supabaseUrl || !anonKey) return null;
 
   try {
     const res = await fetch(
       `${supabaseUrl}/rest/v1/businesses?slug=eq.${encodeURIComponent(slug)}&select=id,active&limit=1`,
       { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } }
     );
-    if (!res.ok) {
-      lastLookupDebug = `bad-status url=${supabaseUrl} status=${res.status} body=${(await res.text()).slice(0, 200)}`;
-      return null;
-    }
+    if (!res.ok) return null;
     const rows: { id: string; active: boolean }[] = await res.json();
     const business = rows[0];
-    lastLookupDebug = `ok url=${supabaseUrl} slug=${slug} rows=${JSON.stringify(rows)}`;
     return business && business.active ? business.id : null;
-  } catch (e) {
-    lastLookupDebug = `exception ${e instanceof Error ? e.message : String(e)}`;
+  } catch {
     return null;
   }
 }
-
-let lastLookupDebug = '';
 
 export async function middleware(request: NextRequest) {
   // Ningun codigo debe confiar en un x-business-id mandado por el cliente:
@@ -171,10 +161,7 @@ export async function middleware(request: NextRequest) {
       if (!businessId) {
         const url = request.nextUrl.clone();
         url.pathname = '/negocio-no-encontrado';
-        const debugResponse = NextResponse.rewrite(url, { request: { headers: request.headers } });
-        debugResponse.headers.set('x-debug-lookup', lastLookupDebug || 'unset');
-        debugResponse.headers.set('x-debug-isdemo', String(isDemo));
-        return debugResponse;
+        return NextResponse.rewrite(url, { request: { headers: request.headers } });
       }
       const requestHeaders = new Headers(request.headers);
       requestHeaders.set('x-business-id', businessId); // sobreescribe cualquier valor mandado por el cliente
