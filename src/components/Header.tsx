@@ -15,7 +15,7 @@ import { OrderLookupModal } from '@/components/OrderLookupModal';
 
 export const Header: React.FC = () => {
   const router = useRouter();
-  const { cartTotalCount, cartSubtotal, setIsCartOpen, business } = useApp();
+  const { cartTotalCount, cartSubtotal, setIsCartOpen, business, catalogLoading } = useApp();
   const { selectedBranch, branches } = useBranch();
   const [isOpenStatus, setIsOpenStatus] = useState<boolean>(true);
   const [lastOrder, setLastOrder] = useState<RecentOrder | null>(null);
@@ -85,7 +85,11 @@ export const Header: React.FC = () => {
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <h1 className="font-black text-base sm:text-lg leading-none tracking-tight text-zinc-100 group-hover:text-rose-400 transition-colors whitespace-nowrap">
-                  {business?.name || businessConfig.name}
+                  {catalogLoading ? (
+                    <span className="inline-block h-4 w-24 rounded bg-zinc-800 animate-pulse align-middle" />
+                  ) : (
+                    business?.name || businessConfig.name
+                  )}
                 </h1>
                 <span className="hidden sm:inline-block text-[10px] font-bold px-2 py-0.5 rounded-full border bg-zinc-900 border-zinc-800 shrink-0">
                   {isOpenStatus ? '🟢 Abierto' : '🔴 Cerrado'}
@@ -95,7 +99,9 @@ export const Header: React.FC = () => {
                 <span className={`sm:hidden text-[11px] font-bold ${isOpenStatus ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {isOpenStatus ? '● Abierto' : '● Cerrado'}
                 </span>
-                <span className="hidden sm:inline text-xs text-zinc-400 font-medium truncate">{business?.slogan || businessConfig.slogan}</span>
+                {!catalogLoading && (
+                  <span className="hidden sm:inline text-xs text-zinc-400 font-medium truncate">{business?.slogan || businessConfig.slogan}</span>
+                )}
               </div>
             </div>
           </Link>

@@ -6,7 +6,7 @@ import { useApp } from '@/context/AppContext';
 import { demoBusiness } from '@/data/demoSeed';
 
 export const Hero: React.FC = () => {
-  const { products, business } = useApp();
+  const { products, business, catalogLoading } = useApp();
 
   const scrollToMenu = () => {
     const el = document.getElementById('menu-section');
@@ -24,6 +24,25 @@ export const Hero: React.FC = () => {
   const reviewCount = business?.reviewCount ?? demoBusiness.reviewCount;
   const description = business?.description || demoBusiness.description;
   const openingHours = business?.openingHours || demoBusiness.openingHours;
+
+  // Mientras el fetch real esta en vuelo, no pintar nada de El Taca Nijo
+  // (nombre, foto, descripcion) como si fuera el negocio real -- ver el
+  // comentario en AppContext.tsx sobre el estado inicial vacio.
+  if (catalogLoading) {
+    return (
+      <section className="relative bg-zinc-950 border-b border-zinc-800/80">
+        <div className="max-w-6xl mx-auto px-4 py-7 sm:py-16 md:py-20 flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8 animate-pulse">
+          <div className="w-full md:w-1/2 space-y-4">
+            <div className="h-6 w-40 rounded-full bg-zinc-900" />
+            <div className="h-10 w-3/4 rounded bg-zinc-900" />
+            <div className="h-4 w-full rounded bg-zinc-900" />
+            <div className="h-4 w-2/3 rounded bg-zinc-900" />
+          </div>
+          <div className="w-full md:w-1/2 aspect-[4/3] rounded-3xl bg-zinc-900" />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="relative bg-zinc-950 text-white overflow-hidden border-b border-zinc-800/80">

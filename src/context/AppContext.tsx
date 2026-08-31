@@ -14,7 +14,6 @@ import {
   Branch,
   Business,
 } from '@/types';
-import { initialCategories, initialProducts } from '@/data/mockData';
 import { ProductRepository } from '@/repositories/ProductRepository';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { ExecuteActionParams } from '@/repositories/interfaces/IOrderRepository';
@@ -36,6 +35,7 @@ interface AppContextType {
   // Catalog
   products: Product[];
   categories: Category[];
+  catalogLoading: boolean;
   toggleProductAvailability: (productId: string, isAvailable: boolean) => Promise<void>;
   
   // Modal
@@ -91,9 +91,15 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
   const { selectedBranch, autoSelectForLocation, zones, loading: branchLoading } = useBranch();
 
   // State
+  // Arrancan vacios/null (no en los datos mock de El Taca Nijo): mientras el
+  // fetch real esta en vuelo, cualquier negocio mostraba brevemente el
+  // catalogo y nombre de El Taca Nijo -- si el visitante navegaba fuera en
+  // ese instante (ej. al panel admin), el "atras" del navegador restauraba
+  // ese frame congelado desde bfcache con la marca equivocada.
   const [business, setBusiness] = useState<Business | null>(null);
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
-  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
   const [selectedProductForModal, setSelectedProductForModal] = useState<Product | null>(null);
   
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -140,6 +146,8 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
 
       if (businessResult.status === 'fulfilled') setBusiness(businessResult.value);
       else console.error('Failed to load business:', businessResult.reason);
+
+      setCatalogLoading(false);
     };
 
     loadCatalogAndOrders();
@@ -353,6 +361,7 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
         business,
         products,
         categories,
+        catalogLoading,
         toggleProductAvailability,
         selectedProductForModal,
         openProductModal,
