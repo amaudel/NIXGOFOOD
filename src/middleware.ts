@@ -167,10 +167,7 @@ export async function middleware(request: NextRequest) {
       requestHeaders.set('x-business-id', businessId); // sobreescribe cualquier valor mandado por el cliente
       const url = request.nextUrl.clone();
       url.pathname = '/store' + pathname;
-      const storeResponse = NextResponse.rewrite(url, { request: { headers: requestHeaders } });
-      storeResponse.headers.set('x-debug-slug', route.slug);
-      storeResponse.headers.set('x-debug-businessid', businessId);
-      return storeResponse;
+      return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
     } else if (route.kind === 'unknown') {
       // Host que no matchea ni la raiz ni un subdominio propio: se sirve la
       // landing en vez de un 404 generico (cubre IP directa, DNS mal
