@@ -114,21 +114,32 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
   // Initialize from Repositories & LocalStorage on Client Hydration
   useEffect(() => {
     const loadCatalogAndOrders = async () => {
-      try {
-        const [catData, prodData, orderData, businessData] = await Promise.all([
-          ProductRepository.getCategories(businessId),
-          ProductRepository.getAllProducts(businessId),
-          OrderRepository.getOrders(businessId),
-          getBusinessRepository().getBusiness(businessId),
-        ]);
+      // Promise.allSettled en vez de Promise.all: en el storefront publico
+      // (visitante anonimo) el SELECT sobre "orders" es rechazado por RLS a
+      // proposito (un cliente no debe poder listar los pedidos de otros).
+      // Con Promise.all, ese unico rechazo tiraba abajo TODA la carga -- el
+      // catch nunca llamaba a los setState y la tienda quedaba pegada en los
+      // datos mock iniciales (initialCategories/initialProducts) para
+      // cualquier negocio, sin importar que su propio fetch si hubiera
+      // funcionado. Cada pieza ahora se aplica de forma independiente.
+      const [catResult, prodResult, orderResult, businessResult] = await Promise.allSettled([
+        ProductRepository.getCategories(businessId),
+        ProductRepository.getAllProducts(businessId),
+        OrderRepository.getOrders(businessId),
+        getBusinessRepository().getBusiness(businessId),
+      ]);
 
-        setCategories(catData);
-        setProducts(prodData);
-        setOrders(orderData);
-        setBusiness(businessData);
-      } catch (err) {
-        console.error('Failed to load initial data:', err);
-      }
+      if (catResult.status === 'fulfilled') setCategories(catResult.value);
+      else console.error('Failed to load categories:', catResult.reason);
+
+      if (prodResult.status === 'fulfilled') setProducts(prodResult.value);
+      else console.error('Failed to load products:', prodResult.reason);
+
+      if (orderResult.status === 'fulfilled') setOrders(orderResult.value);
+      else console.error('Failed to load orders:', orderResult.reason);
+
+      if (businessResult.status === 'fulfilled') setBusiness(businessResult.value);
+      else console.error('Failed to load business:', businessResult.reason);
     };
 
     loadCatalogAndOrders();
