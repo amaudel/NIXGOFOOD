@@ -131,7 +131,7 @@ export async function middleware(request: NextRequest) {
   const skipTenantRewrite = pathname.startsWith('/api/') || pathname.startsWith('/negocio-no-encontrado');
 
   if (pathname.startsWith('/api/') && route.kind === 'store') {
-    const apiBusinessId = isDemo ? 'demo' : await findActiveBusinessIdBySlug(route.slug);
+    const apiBusinessId = isDemo ? CURRENT_BUSINESS_ID : await findActiveBusinessIdBySlug(route.slug);
     if (apiBusinessId) {
       request.headers.set('x-business-id', apiBusinessId);
     }
@@ -157,7 +157,7 @@ export async function middleware(request: NextRequest) {
       // dominio raiz.
       return new NextResponse('Not Found', { status: 404 });
     } else if (route.kind === 'store') {
-      const businessId = isDemo ? 'demo' : await findActiveBusinessIdBySlug(route.slug);
+      const businessId = isDemo ? CURRENT_BUSINESS_ID : await findActiveBusinessIdBySlug(route.slug);
       if (!businessId) {
         const url = request.nextUrl.clone();
         url.pathname = '/negocio-no-encontrado';
