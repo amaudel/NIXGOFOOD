@@ -20,6 +20,21 @@ export const Header: React.FC = () => {
   const [isOpenStatus, setIsOpenStatus] = useState<boolean>(true);
   const [lastOrder, setLastOrder] = useState<RecentOrder | null>(null);
   const [isLookupModalOpen, setIsLookupModalOpen] = useState<boolean>(false);
+  const [adminHref, setAdminHref] = useState('/admin');
+
+  // "/admin" solo existe bajo el host admin.{rootDomain} -- en un subdominio
+  // de tienda (ej. burger-house.food.tudominio.com) esa ruta relativa
+  // apuntaba al mismo host y el middleware la bloqueaba con 404. El
+  // storefront siempre vive en {slug}.{rootDomain}, asi que basta con
+  // reemplazar el primer label del host actual por "admin".
+  useEffect(() => {
+    const host = window.location.host;
+    const parts = host.split('.');
+    if (parts.length > 1) {
+      const rootDomain = parts.slice(1).join('.');
+      setAdminHref(`${window.location.protocol}//admin.${rootDomain}/admin`);
+    }
+  }, []);
 
   useEffect(() => {
     async function checkStatus() {
@@ -112,7 +127,7 @@ export const Header: React.FC = () => {
 
             {/* Admin Panel Link (Desktop) */}
             <Link
-              href="/admin"
+              href={adminHref}
               className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-zinc-900 border border-zinc-700/60 text-zinc-300 hover:text-white hover:border-rose-500/50 transition-all min-h-[44px]"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
