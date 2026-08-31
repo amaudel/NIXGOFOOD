@@ -29,6 +29,7 @@ import { createClient } from '@/lib/supabase/client';
 import { DemoStorage } from '@/repositories/demo/DemoStorage';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 
+import { useApp } from '@/context/AppContext';
 import { useNewOrderAlerts } from '@/context/NewOrderAlertContext';
 import { AudioAlertToggle } from '@/components/admin/AudioAlertToggle';
 import { NewOrderEmergencyModal } from '@/components/admin/NewOrderEmergencyModal';
@@ -55,6 +56,7 @@ const AdminLayoutInner: React.FC<{ children: React.ReactNode }> = ({ children })
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const { unreviewedOrders } = useNewOrderAlerts();
+  const { business } = useApp();
 
   const isDemo = isDemoMode();
 
@@ -87,7 +89,7 @@ const AdminLayoutInner: React.FC<{ children: React.ReactNode }> = ({ children })
       <div className="md:hidden sticky top-0 z-40 bg-zinc-900 border-b border-zinc-800 p-4 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-6 h-6 text-amber-400" />
-          <span className="font-extrabold text-sm text-white">{businessConfig.name}</span>
+          <span className="font-extrabold text-sm text-white">{business?.name || businessConfig.name}</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -117,7 +119,7 @@ const AdminLayoutInner: React.FC<{ children: React.ReactNode }> = ({ children })
               </div>
             </div>
             <div>
-              <h2 className="font-extrabold text-sm text-white">{businessConfig.name}</h2>
+              <h2 className="font-extrabold text-sm text-white">{business?.name || businessConfig.name}</h2>
               <div className="flex items-center gap-1.5 pt-0.5">
                 <span className="text-[10px] uppercase font-bold text-rose-400 bg-rose-950 px-2 py-0.5 rounded-full border border-rose-800">
                   Administración
