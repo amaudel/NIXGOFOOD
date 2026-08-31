@@ -32,7 +32,7 @@ export class SupabaseBusinessRepository implements IBusinessRepository {
     }
   }
 
-  async saveBusiness(business: Partial<Business>): Promise<Business> {
+  async saveBusiness(business: Partial<Business>, businessId: string = CURRENT_BUSINESS_ID): Promise<Business> {
     const supabase = createClient();
     const { error } = await supabase
       .from('businesses')
@@ -45,10 +45,10 @@ export class SupabaseBusinessRepository implements IBusinessRepository {
         primary_color: business.primaryColor,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', CURRENT_BUSINESS_ID);
+      .eq('id', businessId);
 
     if (error) throw new Error(`Error Supabase: ${error.message}`);
-    return (await this.getBusiness())!;
+    return (await this.getBusiness(businessId))!;
   }
 
   private mapBranch(data: any): Branch {
@@ -94,10 +94,10 @@ export class SupabaseBusinessRepository implements IBusinessRepository {
     }
   }
 
-  async saveBranch(branch: Partial<Branch>): Promise<Branch> {
+  async saveBranch(branch: Partial<Branch>, businessId: string = CURRENT_BUSINESS_ID): Promise<Branch> {
     const supabase = createClient();
     const payload = {
-      business_id: CURRENT_BUSINESS_ID,
+      business_id: businessId,
       name: branch.name,
       address: branch.address,
       latitude: branch.latitude,
@@ -123,13 +123,13 @@ export class SupabaseBusinessRepository implements IBusinessRepository {
     return this.mapBranch(data);
   }
 
-  async getDeliveryZones(branchId?: string): Promise<DeliveryZone[]> {
+  async getDeliveryZones(branchId?: string, businessId: string = CURRENT_BUSINESS_ID): Promise<DeliveryZone[]> {
     try {
       const supabase = createClient();
       let query = supabase
         .from('delivery_zones')
         .select('*')
-        .eq('business_id', CURRENT_BUSINESS_ID)
+        .eq('business_id', businessId)
         .eq('active', true);
       if (branchId) query = query.eq('branch_id', branchId);
       const { data } = await query;
@@ -152,10 +152,10 @@ export class SupabaseBusinessRepository implements IBusinessRepository {
     // Handled in specific UI route if needed
   }
 
-  async getBusinessHours(branchId?: string): Promise<BusinessHours[]> {
+  async getBusinessHours(branchId?: string, businessId: string = CURRENT_BUSINESS_ID): Promise<BusinessHours[]> {
     try {
       const supabase = createClient();
-      let query = supabase.from('business_hours').select('*').eq('business_id', CURRENT_BUSINESS_ID);
+      let query = supabase.from('business_hours').select('*').eq('business_id', businessId);
       if (branchId) query = query.eq('branch_id', branchId);
       const { data } = await query;
       return (data || []).map((h: any) => ({
@@ -187,13 +187,13 @@ export class SupabaseBusinessRepository implements IBusinessRepository {
     };
   }
 
-  async getMotorizados(branchId?: string): Promise<Motorizado[]> {
+  async getMotorizados(branchId?: string, businessId: string = CURRENT_BUSINESS_ID): Promise<Motorizado[]> {
     try {
       const supabase = createClient();
       let query = supabase
         .from('motorizados')
         .select('*')
-        .eq('business_id', CURRENT_BUSINESS_ID)
+        .eq('business_id', businessId)
         .eq('active', true)
         .order('name', { ascending: true });
       if (branchId) query = query.eq('branch_id', branchId);
@@ -205,10 +205,10 @@ export class SupabaseBusinessRepository implements IBusinessRepository {
     }
   }
 
-  async saveMotorizado(motorizado: Partial<Motorizado>): Promise<Motorizado> {
+  async saveMotorizado(motorizado: Partial<Motorizado>, businessId: string = CURRENT_BUSINESS_ID): Promise<Motorizado> {
     const supabase = createClient();
     const payload = {
-      business_id: CURRENT_BUSINESS_ID,
+      business_id: businessId,
       branch_id: motorizado.branchId,
       name: motorizado.name,
       whatsapp: motorizado.whatsapp,

@@ -9,8 +9,10 @@ import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { DemoBusinessRepository } from '@/repositories/demo/DemoBusinessRepository';
 import { useBranch } from '@/context/BranchContext';
+import { useApp } from '@/context/AppContext';
 
 export default function DeliveryClientPage() {
+  const { businessId } = useApp();
   const [zones, setZones] = useState<DeliveryZone[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +54,7 @@ export default function DeliveryClientPage() {
       let query = supabase
         .from('delivery_zones')
         .select('*')
-        .eq('business_id', CURRENT_BUSINESS_ID)
+        .eq('business_id', businessId)
         .eq('active', true)
         .order('max_distance_km', { ascending: true });
       if (selectedBranch) query = query.eq('branch_id', selectedBranch.id);
@@ -81,7 +83,7 @@ export default function DeliveryClientPage() {
   useEffect(() => {
     if (branchLoading) return;
     loadZones();
-  }, [isDemo, selectedBranch?.id, branchLoading]);
+  }, [isDemo, selectedBranch?.id, branchLoading, businessId]);
 
   const handleOpenCreate = () => {
     setEditingZoneId(null);
@@ -175,7 +177,7 @@ export default function DeliveryClientPage() {
       ) {
         const supabase = createClient();
         const payload = {
-          business_id: CURRENT_BUSINESS_ID,
+          business_id: businessId,
           branch_id: selectedBranch!.id,
           name: name.trim(),
           max_distance_km: dist,

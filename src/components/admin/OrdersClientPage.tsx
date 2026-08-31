@@ -22,7 +22,6 @@ import { Order, OrderStatus, AdminRole, OrderStatusHistoryItem, Motorizado } fro
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { getBusinessRepository } from '@/repositories/factory';
 import { createClient } from '@/lib/supabase/client';
-import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { OrderItemsList } from '@/components/admin/OrderItemsList';
@@ -81,7 +80,7 @@ const formatDayLabel = (dayKey: string): string => {
 };
 
 function OrdersPageContent() {
-  const { executeOrderAction } = useApp();
+  const { executeOrderAction, businessId } = useApp();
   const { selectedBranch, loading: branchLoading } = useBranch();
   const now = useOperationalClock();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -121,15 +120,15 @@ function OrdersPageContent() {
   useEffect(() => {
     if (branchLoading || !selectedBranch) return;
     getBusinessRepository()
-      .getMotorizados(selectedBranch.id)
+      .getMotorizados(selectedBranch.id, businessId)
       .then(setMotorizados)
       .catch(() => setMotorizados([]));
-  }, [selectedBranch?.id, branchLoading]);
+  }, [selectedBranch?.id, branchLoading, businessId]);
 
   const loadOrders = async () => {
     try {
       setError(null);
-      const data = await OrderRepository.getOrders(CURRENT_BUSINESS_ID, selectedBranch?.id);
+      const data = await OrderRepository.getOrders(businessId, selectedBranch?.id);
       // Commercial Orders Sorting: NEWEST FIRST (created_at DESC)
       const sorted = [...data].sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -242,7 +241,7 @@ function OrdersPageContent() {
         supabase.removeChannel(channel);
       };
     }
-  }, [isDemo, triggerNewOrderAlert, selectedBranch?.id, branchLoading]);
+  }, [isDemo, triggerNewOrderAlert, selectedBranch?.id, branchLoading, businessId]);
 
   const handleCancelOrder = async (order: Order, reason: string) => {
     if (!reason.trim()) {

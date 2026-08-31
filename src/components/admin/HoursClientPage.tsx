@@ -9,6 +9,7 @@ import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { DemoBusinessRepository } from '@/repositories/demo/DemoBusinessRepository';
 import { useBranch } from '@/context/BranchContext';
+import { useApp } from '@/context/AppContext';
 
 const daysOfWeekNames = [
   'Domingo',
@@ -21,6 +22,7 @@ const daysOfWeekNames = [
 ];
 
 export default function HoursClientPage() {
+  const { businessId } = useApp();
   const [hours, setHours] = useState<BusinessHours[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -53,7 +55,7 @@ export default function HoursClientPage() {
       let query = supabase
         .from('business_hours')
         .select('*')
-        .eq('business_id', CURRENT_BUSINESS_ID)
+        .eq('business_id', businessId)
         .order('day_of_week', { ascending: true });
       if (selectedBranch) query = query.eq('branch_id', selectedBranch.id);
       const { data, error: err } = await query;
@@ -74,7 +76,7 @@ export default function HoursClientPage() {
         );
       } else {
         const defaultHours: BusinessHours[] = daysOfWeekNames.map((_, idx) => ({
-          businessId: CURRENT_BUSINESS_ID,
+          businessId,
           branchId: selectedBranch!.id,
           dayOfWeek: idx,
           openTime: '09:00:00',
@@ -93,7 +95,7 @@ export default function HoursClientPage() {
   useEffect(() => {
     if (branchLoading) return;
     loadHours();
-  }, [isDemo, selectedBranch?.id, branchLoading]);
+  }, [isDemo, selectedBranch?.id, branchLoading, businessId]);
 
   const handleHourChange = (dayOfWeek: number, field: keyof BusinessHours, value: any) => {
     setHours((prev) =>
@@ -127,7 +129,7 @@ export default function HoursClientPage() {
 
         for (const h of hours) {
           const payload = {
-            business_id: CURRENT_BUSINESS_ID,
+            business_id: businessId,
             branch_id: selectedBranch!.id,
             day_of_week: h.dayOfWeek,
             open_time: h.openTime,

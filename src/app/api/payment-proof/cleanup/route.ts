@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { verifyCleanupToken } from '@/lib/security/cleanupToken';
+import { getResolvedBusinessId } from '@/lib/tenant';
 
 export async function POST(request: Request) {
   try {
@@ -44,9 +45,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Path no válido.' }, { status: 400 });
     }
 
-    // 3. Verify proofPath belongs strictly to CURRENT_BUSINESS_ID
-    const expectedPrefix = `${CURRENT_BUSINESS_ID}/`;
-    if (!proofPath.startsWith(expectedPrefix) || businessId !== CURRENT_BUSINESS_ID) {
+    // 3. Verify proofPath belongs strictly to the resolved tenant (el mismo
+    // que uso el upload al firmar el cleanupToken -- CURRENT_BUSINESS_ID solo
+    // como fallback si el header no llego).
+    const resolvedBusinessId = (await getResolvedBusinessId()) || CURRENT_BUSINESS_ID;
+    const expectedPrefix = `${resolvedBusinessId}/`;
+    if (!proofPath.startsWith(expectedPrefix) || businessId !== resolvedBusinessId) {
       return NextResponse.json({ error: 'Acceso no autorizado al path.' }, { status: 403 });
     }
 

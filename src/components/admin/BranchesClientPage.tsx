@@ -6,9 +6,10 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { BranchMapPicker } from '@/components/admin/BranchMapPicker';
 import { Branch } from '@/types';
 import { getBusinessRepository } from '@/repositories/factory';
-import { CURRENT_BUSINESS_ID } from '@/config/business';
+import { useApp } from '@/context/AppContext';
 
 export default function BranchesClientPage() {
+  const { businessId } = useApp();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +29,7 @@ export default function BranchesClientPage() {
     try {
       setError(null);
       const repo = getBusinessRepository();
-      const data = await repo.getBranches(CURRENT_BUSINESS_ID);
+      const data = await repo.getBranches(businessId);
       setBranches(data);
     } catch (err: any) {
       setError(err.message || 'Error al cargar las sucursales.');
@@ -39,7 +40,7 @@ export default function BranchesClientPage() {
 
   useEffect(() => {
     loadBranches();
-  }, []);
+  }, [businessId]);
 
   const handleOpenCreate = () => {
     setEditingBranchId(null);
@@ -85,16 +86,19 @@ export default function BranchesClientPage() {
 
     try {
       const repo = getBusinessRepository();
-      await repo.saveBranch({
-        id: editingBranchId || undefined,
-        businessId: CURRENT_BUSINESS_ID,
-        name: name.trim(),
-        address: address.trim(),
-        phone: phone.trim() || undefined,
-        latitude: lat,
-        longitude: lng,
-        active,
-      });
+      await repo.saveBranch(
+        {
+          id: editingBranchId || undefined,
+          businessId,
+          name: name.trim(),
+          address: address.trim(),
+          phone: phone.trim() || undefined,
+          latitude: lat,
+          longitude: lng,
+          active,
+        },
+        businessId
+      );
 
       await loadBranches();
       setIsModalOpen(false);

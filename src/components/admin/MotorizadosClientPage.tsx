@@ -6,8 +6,10 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Motorizado } from '@/types';
 import { getBusinessRepository } from '@/repositories/factory';
 import { useBranch } from '@/context/BranchContext';
+import { useApp } from '@/context/AppContext';
 
 export default function MotorizadosClientPage() {
+  const { businessId } = useApp();
   const [motorizados, setMotorizados] = useState<Motorizado[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +27,7 @@ export default function MotorizadosClientPage() {
   const loadMotorizados = async () => {
     try {
       setError(null);
-      const data = await repo.getMotorizados(selectedBranch?.id);
+      const data = await repo.getMotorizados(selectedBranch?.id, businessId);
       setMotorizados(data);
     } catch (err: any) {
       setError(err.message || 'Error al cargar los motorizados.');
@@ -39,7 +41,7 @@ export default function MotorizadosClientPage() {
     setLoading(true);
     loadMotorizados();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBranch?.id, branchLoading]);
+  }, [selectedBranch?.id, branchLoading, businessId]);
 
   const handleOpenCreate = () => {
     setEditingId(null);
@@ -72,12 +74,15 @@ export default function MotorizadosClientPage() {
 
     setSaving(true);
     try {
-      await repo.saveMotorizado({
-        id: editingId || undefined,
-        branchId: selectedBranch!.id,
-        name: name.trim(),
-        whatsapp: whatsapp.trim(),
-      });
+      await repo.saveMotorizado(
+        {
+          id: editingId || undefined,
+          branchId: selectedBranch!.id,
+          name: name.trim(),
+          whatsapp: whatsapp.trim(),
+        },
+        businessId
+      );
       await loadMotorizados();
       setIsModalOpen(false);
     } catch (err: any) {

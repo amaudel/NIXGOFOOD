@@ -45,7 +45,7 @@ export const BranchProvider: React.FC<{
         const repo = getBusinessRepository();
         const [branchList, zoneList] = await Promise.all([
           repo.getBranches(businessId),
-          repo.getDeliveryZones(),
+          repo.getDeliveryZones(undefined, businessId),
         ]);
         if (cancelado) return;
 

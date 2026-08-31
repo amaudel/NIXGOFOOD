@@ -24,7 +24,6 @@ import { OrderRepository } from '@/repositories/OrderRepository';
 import { DispatchCheckRepository } from '@/repositories/DispatchCheckRepository';
 import { getBusinessRepository } from '@/repositories/factory';
 import { createClient } from '@/lib/supabase/client';
-import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { KdsOrderElapsedTime } from '@/components/admin/KdsOrderElapsedTime';
@@ -38,7 +37,7 @@ import {
 } from '@/components/admin/DispatchChecklist';
 
 export default function DispatchClientPage() {
-  const { executeOrderAction } = useApp();
+  const { executeOrderAction, businessId } = useApp();
   const { selectedBranch, loading: branchLoading } = useBranch();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,17 +62,17 @@ export default function DispatchClientPage() {
   useEffect(() => {
     if (branchLoading || !selectedBranch) return;
     getBusinessRepository()
-      .getMotorizados(selectedBranch.id)
+      .getMotorizados(selectedBranch.id, businessId)
       .then(setMotorizados)
       .catch(() => setMotorizados([]));
-  }, [selectedBranch?.id, branchLoading]);
+  }, [selectedBranch?.id, branchLoading, businessId]);
 
   const loadData = async () => {
     try {
       setError(null);
       const [fetchedOrders, fetchedChecks] = await Promise.all([
-        OrderRepository.getOrders(CURRENT_BUSINESS_ID, selectedBranch?.id),
-        DispatchCheckRepository.getChecks(CURRENT_BUSINESS_ID),
+        OrderRepository.getOrders(businessId, selectedBranch?.id),
+        DispatchCheckRepository.getChecks(businessId),
       ]);
 
       // Dispatch Sorting: OLDEST FIRST (created_at ASC) for priority departure
@@ -173,7 +172,7 @@ export default function DispatchClientPage() {
         supabase.removeChannel(ordersChannel);
       };
     }
-  }, [isDemo, selectedBranch?.id, branchLoading]);
+  }, [isDemo, selectedBranch?.id, branchLoading, businessId]);
 
   const handleToggleChecklist = async (orderId: string, key: keyof ChecklistState) => {
     const current = checklists[orderId] || { complete: false, packaging: false };
@@ -181,7 +180,7 @@ export default function DispatchClientPage() {
     setChecklists((prev) => ({ ...prev, [orderId]: nextChecks }));
 
     await DispatchCheckRepository.toggleCheck(
-      CURRENT_BUSINESS_ID,
+      businessId,
       orderId,
       key,
       current

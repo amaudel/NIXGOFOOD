@@ -18,7 +18,6 @@ import { useBranch } from '@/context/BranchContext';
 import { Order, OrderStatus } from '@/types';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { createClient } from '@/lib/supabase/client';
-import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { KdsOrderElapsedTime } from '@/components/admin/KdsOrderElapsedTime';
@@ -28,7 +27,7 @@ import { UndoToastNotification, ActiveUndoToast } from '@/components/admin/UndoT
 import { useNewOrderAlerts } from '@/context/NewOrderAlertContext';
 
 export default function KitchenClientPage() {
-  const { executeOrderAction } = useApp();
+  const { executeOrderAction, businessId } = useApp();
   const { selectedBranch, loading: branchLoading } = useBranch();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +53,7 @@ export default function KitchenClientPage() {
   const loadOrders = async () => {
     try {
       setError(null);
-      const fetched = await OrderRepository.getOrders(CURRENT_BUSINESS_ID, selectedBranch?.id);
+      const fetched = await OrderRepository.getOrders(businessId, selectedBranch?.id);
 
       // KDS Sorting: OLDEST FIRST (created_at ASC)
       const sorted = [...fetched].sort(
@@ -120,7 +119,7 @@ export default function KitchenClientPage() {
         supabase.removeChannel(channel);
       };
     }
-  }, [isDemo, selectedBranch?.id, branchLoading]);
+  }, [isDemo, selectedBranch?.id, branchLoading, businessId]);
 
   // Operational action transitions strictly for Kitchen
   const handleKitchenAction = async (

@@ -8,8 +8,10 @@ import { createClient } from '@/lib/supabase/client';
 import { CURRENT_BUSINESS_ID } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { DemoBusinessRepository } from '@/repositories/demo/DemoBusinessRepository';
+import { useApp } from '@/context/AppContext';
 
 export default function SettingsBusinessClientPage() {
+  const { businessId } = useApp();
   const [name, setName] = useState('El Taca Nijo');
   const [description, setDescription] = useState('Sabor que provoca volver.');
   const [phone, setPhone] = useState('0991234567');
@@ -52,7 +54,7 @@ export default function SettingsBusinessClientPage() {
         const { data: biz } = await supabase
           .from('businesses')
           .select('*')
-          .eq('id', CURRENT_BUSINESS_ID)
+          .eq('id', businessId)
           .single();
 
         if (biz) {
@@ -69,7 +71,7 @@ export default function SettingsBusinessClientPage() {
     }
 
     loadData();
-  }, [isDemo]);
+  }, [isDemo, businessId]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,7 +117,7 @@ export default function SettingsBusinessClientPage() {
           primary_color: primaryColor,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', CURRENT_BUSINESS_ID);
+        .eq('id', businessId);
 
       if (bizErr) throw new Error(bizErr.message);
 
