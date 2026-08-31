@@ -19,6 +19,7 @@ import { OrderRepository } from '@/repositories/OrderRepository';
 import { ExecuteActionParams } from '@/repositories/interfaces/IOrderRepository';
 import { DeliveryService } from '@/services/DeliveryService';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
+import { isDemoMode } from '@/config/demo';
 import { useBranch } from '@/context/BranchContext';
 import { getBusinessRepository } from '@/repositories/factory';
 
@@ -157,7 +158,28 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
       loadCatalogAndOrders();
     });
 
-    return () => unsubscribe();
+    // DemoBroadcastService (BroadcastChannel/localStorage) solo sincroniza
+    // pestanas del MISMO origen. La tienda vive en {slug}.{root} y el admin
+    // en admin.{root} -- origenes distintos -- asi que un pedido creado en
+    // la tienda nunca llegaba a la pantalla de Cocina/Despacho sin recargar
+    // a mano. En modo demo, se hace polling de pedidos cada pocos segundos
+    // como sustituto de tiempo real entre subdominios.
+    let pollInterval: ReturnType<typeof setInterval> | undefined;
+    if (isDemoMode()) {
+      pollInterval = setInterval(async () => {
+        try {
+          const fresh = await OrderRepository.getOrders(businessId);
+          setOrders(fresh);
+        } catch (err) {
+          console.error('Failed to poll demo orders:', err);
+        }
+      }, 4000);
+    }
+
+    return () => {
+      unsubscribe();
+      if (pollInterval) clearInterval(pollInterval);
+    };
   }, [businessId]);
 
   useEffect(() => {

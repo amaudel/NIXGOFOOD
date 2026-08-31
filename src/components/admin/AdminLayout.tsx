@@ -27,6 +27,7 @@ import { businessConfig } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 import { createClient } from '@/lib/supabase/client';
 import { DemoStorage } from '@/repositories/demo/DemoStorage';
+import { DemoOrderRepository } from '@/repositories/demo/DemoOrderRepository';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 
 import { useApp } from '@/context/AppContext';
@@ -56,7 +57,7 @@ const AdminLayoutInner: React.FC<{ children: React.ReactNode }> = ({ children })
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const { unreviewedOrders } = useNewOrderAlerts();
-  const { business, catalogLoading } = useApp();
+  const { business, catalogLoading, businessId } = useApp();
 
   const isDemo = isDemoMode();
 
@@ -73,8 +74,16 @@ const AdminLayoutInner: React.FC<{ children: React.ReactNode }> = ({ children })
     }
   };
 
-  const handleResetDemo = () => {
+  const handleResetDemo = async () => {
     DemoStorage.resetDemoData();
+    // Los pedidos demo viven en KV (compartidos entre subdominios), no en
+    // este localStorage -- hay que limpiarlos aparte, solo los de este
+    // negocio (no afecta la demo de otros negocios en curso).
+    try {
+      await DemoOrderRepository.resetForBusiness(businessId);
+    } catch (e) {
+      console.error('Failed to reset demo orders:', e);
+    }
     DemoBroadcastService.notify('DEMO_RESET');
     setShowResetModal(false);
     window.location.reload();
