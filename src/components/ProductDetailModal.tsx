@@ -92,7 +92,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
         {/* Header Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 z-20 bg-zinc-950/80 text-zinc-300 hover:text-white p-2 rounded-full border border-zinc-700/60 backdrop-blur-md transition-all hover:scale-105"
+          aria-label="Cerrar"
+          className="absolute top-3 right-3 z-20 w-11 h-11 flex items-center justify-center bg-zinc-950/80 text-zinc-300 hover:text-white rounded-full border border-zinc-700/60 backdrop-blur-md transition-all hover:scale-105"
         >
           <X className="w-5 h-5" />
         </button>
@@ -218,14 +219,16 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
             <button
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
               disabled={quantity <= 1}
-              className="p-2 text-zinc-400 hover:text-white disabled:opacity-30 transition-colors"
+              aria-label="Quitar una unidad"
+              className="w-11 h-11 flex items-center justify-center text-zinc-400 hover:text-white disabled:opacity-30 transition-colors"
             >
               <Minus className="w-4 h-4" />
             </button>
             <span className="w-8 text-center font-bold text-sm text-white">{quantity}</span>
             <button
               onClick={() => setQuantity((q) => q + 1)}
-              className="p-2 text-zinc-400 hover:text-white transition-colors"
+              aria-label="Agregar una unidad"
+              className="w-11 h-11 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
             >
               <Plus className="w-4 h-4" />
             </button>

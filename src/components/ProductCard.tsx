@@ -81,7 +81,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
               e.stopPropagation();
               onSelect(product);
             }}
-            className="w-full inline-flex items-center justify-center gap-1.5 bg-zinc-800 hover:bg-rose-600 text-zinc-200 hover:text-white py-2 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all border border-zinc-700 hover:border-rose-500 shadow-md active:scale-95"
+            className="w-full min-h-[44px] inline-flex items-center justify-center gap-1.5 bg-zinc-800 hover:bg-rose-600 text-zinc-200 hover:text-white py-2.5 px-3 rounded-xl font-bold text-sm transition-all border border-zinc-700 hover:border-rose-500 shadow-md active:scale-95"
           >
             <Plus className="w-4 h-4 text-rose-400 group-hover:text-white" />
             <span>Agregar</span>

@@ -40,7 +40,8 @@ export const CartDrawer: React.FC = () => {
           </div>
           <button
             onClick={() => setIsCartOpen(false)}
-            className="p-2 rounded-full text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-all"
+            aria-label="Cerrar carrito"
+            className="w-11 h-11 flex items-center justify-center rounded-full text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-all"
           >
             <X className="w-5 h-5" />
           </button>
@@ -146,14 +147,16 @@ export const CartDrawer: React.FC = () => {
                         <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg">
                           <button
                             onClick={() => updateCartItemQuantity(item.id, -1)}
-                            className="p-1.5 text-zinc-400 hover:text-white"
+                            aria-label="Quitar una unidad"
+                            className="w-11 h-11 flex items-center justify-center text-zinc-400 hover:text-white"
                           >
                             <Minus className="w-3.5 h-3.5" />
                           </button>
                           <span className="w-6 text-center text-xs font-bold text-white">{item.quantity}</span>
                           <button
                             onClick={() => updateCartItemQuantity(item.id, 1)}
-                            className="p-1.5 text-zinc-400 hover:text-white"
+                            aria-label="Agregar una unidad"
+                            className="w-11 h-11 flex items-center justify-center text-zinc-400 hover:text-white"
                           >
                             <Plus className="w-3.5 h-3.5" />
                           </button>
