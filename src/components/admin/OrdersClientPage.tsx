@@ -771,7 +771,7 @@ function OrdersPageContent() {
           <button
             onClick={() => setSelectedStatusFilter('attention')}
             aria-label={`Filtrar pedidos que requieren atención: ${attentionList.length}`}
-            className={`h-10 px-4 rounded-xl font-extrabold text-xs whitespace-nowrap transition-all flex items-center gap-2 border ${
+            className={`h-11 px-4 rounded-xl font-extrabold text-xs whitespace-nowrap transition-all flex items-center gap-2 border ${
               selectedStatusFilter === 'attention'
                 ? 'bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-950/40'
                 : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:bg-zinc-800'
