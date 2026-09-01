@@ -96,14 +96,16 @@ const AdminLayoutInner: React.FC<{ children: React.ReactNode }> = ({ children })
 
       {/* Mobile Header Bar */}
       <div className="md:hidden sticky top-0 z-40 bg-zinc-900 border-b border-zinc-800 p-4 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-6 h-6 text-amber-400" />
-          <span className="font-extrabold text-sm text-white">{catalogLoading ? '···' : business?.name || businessConfig.name}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <ShieldCheck className="w-6 h-6 text-amber-400 shrink-0" />
+          <span className="font-extrabold text-sm text-white truncate">{catalogLoading ? '···' : business?.name || businessConfig.name}</span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <BranchSwitcher />
-          <AudioAlertToggle />
+        {/* El selector de sucursal vive en el menu lateral en movil: aqui
+            arriba sumaba ~200px y sacaba de pantalla a este boton y a la
+            hamburguesa, obligando a arrastrar la barra para alcanzarlos. */}
+        <div className="flex items-center gap-2 shrink-0">
+          <AudioAlertToggle compact />
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="p-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-300 min-h-[44px] min-w-[44px] flex items-center justify-center"
@@ -142,8 +144,10 @@ const AdminLayoutInner: React.FC<{ children: React.ReactNode }> = ({ children })
             </div>
           </div>
 
-          {/* Branch Switcher in Desktop Sidebar */}
-          <div className="hidden md:block">
+          {/* Selector de sucursal: visible tambien en movil, porque se quito
+              de la barra superior (ahi no cabia). Aqui dentro del menu hay
+              espacio de sobra. */}
+          <div>
             <BranchSwitcher />
           </div>
 

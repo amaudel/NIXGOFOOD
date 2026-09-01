@@ -4,7 +4,13 @@ import React from 'react';
 import { Volume2, VolumeX, Sparkles, AlertTriangle } from 'lucide-react';
 import { useNewOrderAlerts } from '@/context/NewOrderAlertContext';
 
-export const AudioAlertToggle: React.FC = () => {
+/**
+ * `compact` lo usa la barra superior en movil: ahi el texto completo
+ * ("⚠️ Activar alertas") hacia que la barra midiera 478px en una pantalla de
+ * 375px, empujando este boton y la hamburguesa fuera de la pantalla. En
+ * compacto queda solo el icono, que es lo unico que hace falta para tocarlo.
+ */
+export const AudioAlertToggle: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
   const { isAudioMuted, isAudioUnlocked, toggleAudioMute, unlockAudioContext, playTestChime } =
     useNewOrderAlerts();
 
@@ -21,7 +27,9 @@ export const AudioAlertToggle: React.FC = () => {
       <button
         type="button"
         onClick={handleToggleOrUnlock}
-        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all border ${
+        className={`inline-flex items-center justify-center gap-2 rounded-xl text-xs font-extrabold transition-all border ${
+          compact ? 'w-11 h-11 shrink-0' : 'px-3 py-1.5'
+        } ${
           !isAudioUnlocked
             ? 'bg-amber-950/80 text-amber-300 border-amber-700/80 animate-pulse'
             : isAudioMuted
@@ -44,16 +52,18 @@ export const AudioAlertToggle: React.FC = () => {
           <Volume2 className="w-4 h-4 text-emerald-400 shrink-0" />
         )}
 
-        <span>
-          {!isAudioUnlocked
-            ? '⚠️ Activar alertas'
-            : isAudioMuted
-            ? '🔇 Alertas silenciadas'
-            : '🔊 Alertas activas'}
-        </span>
+        {!compact && (
+          <span>
+            {!isAudioUnlocked
+              ? '⚠️ Activar alertas'
+              : isAudioMuted
+              ? '🔇 Alertas silenciadas'
+              : '🔊 Alertas activas'}
+          </span>
+        )}
       </button>
 
-      {isAudioUnlocked && !isAudioMuted && (
+      {!compact && isAudioUnlocked && !isAudioMuted && (
         <button
           type="button"
           onClick={playTestChime}
