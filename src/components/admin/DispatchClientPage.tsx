@@ -19,6 +19,7 @@ import {
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useApp } from '@/context/AppContext';
 import { useBranch } from '@/context/BranchContext';
+import { useKdsFullscreen } from '@/hooks/useKdsFullscreen';
 import { Order, OrderStatus, Motorizado } from '@/types';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { DispatchCheckRepository } from '@/repositories/DispatchCheckRepository';
@@ -42,7 +43,7 @@ export default function DispatchClientPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const { isFullscreen, toggleFullscreen } = useKdsFullscreen();
   const [activeTab, setActiveTab] = useState<'ready' | 'on_the_way'>('ready');
   const [activeUndoToast, setActiveUndoToast] = useState<ActiveUndoToast | null>(null);
 
@@ -460,7 +461,15 @@ export default function DispatchClientPage() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      {/* Modo Monitor: capa fija que tapa el sidebar para usar esta pantalla
+          colgada en la estacion de despacho (ver useKdsFullscreen). */}
+      <div
+        className={
+          isFullscreen
+            ? 'fixed inset-0 z-50 bg-zinc-950 p-4 sm:p-6 overflow-y-auto space-y-6'
+            : 'space-y-6'
+        }
+      >
         <UndoToastNotification
           toast={activeUndoToast}
           onUndo={handleUndo}
@@ -550,7 +559,7 @@ export default function DispatchClientPage() {
             </button>
 
             <button
-              onClick={() => setIsFullscreen(!isFullscreen)}
+              onClick={toggleFullscreen}
               className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-extrabold text-xs flex items-center justify-center gap-2 transition-all"
             >
               {isFullscreen ? (
