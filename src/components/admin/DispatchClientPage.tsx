@@ -578,10 +578,10 @@ export default function DispatchClientPage() {
         </div>
 
         {/* Tab Selection Bar */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+        <div className="flex flex-wrap items-center gap-2 pb-2">
           <button
             onClick={() => setActiveTab('ready')}
-            className={`h-10 px-4 rounded-xl font-extrabold text-xs whitespace-nowrap transition-all flex items-center gap-2 border ${
+            className={`h-11 px-4 rounded-xl font-extrabold text-xs whitespace-nowrap transition-all flex items-center gap-2 border ${
               activeTab === 'ready'
                 ? 'bg-amber-500 text-zinc-950 border-amber-400 shadow-md shadow-amber-950/40'
                 : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:bg-zinc-800'
@@ -597,7 +597,7 @@ export default function DispatchClientPage() {
 
           <button
             onClick={() => setActiveTab('on_the_way')}
-            className={`h-10 px-4 rounded-xl font-extrabold text-xs whitespace-nowrap transition-all flex items-center gap-2 border ${
+            className={`h-11 px-4 rounded-xl font-extrabold text-xs whitespace-nowrap transition-all flex items-center gap-2 border ${
               activeTab === 'on_the_way'
                 ? 'bg-amber-500 text-zinc-950 border-amber-400 shadow-md shadow-amber-950/40'
                 : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:bg-zinc-800'
