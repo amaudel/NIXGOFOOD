@@ -459,8 +459,9 @@ export default function CheckoutPage() {
                             <h3 className="font-black text-sm text-zinc-100 truncate">{item.product.name}</h3>
                             <button
                               onClick={() => removeFromCart(item.id)}
-                              className="text-zinc-500 hover:text-rose-400 p-1 rounded-lg transition-colors"
+                              className="w-11 h-11 shrink-0 flex items-center justify-center text-zinc-500 hover:text-rose-400 rounded-lg transition-colors"
                               title="Eliminar producto"
+                              aria-label={`Quitar ${item.product.name} del pedido`}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
