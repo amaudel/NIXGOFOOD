@@ -116,7 +116,8 @@ export const CartDrawer: React.FC = () => {
                         <h4 className="font-bold text-sm text-zinc-100 truncate">{item.product.name}</h4>
                         <button
                           onClick={() => removeFromCart(item.id)}
-                          className="text-zinc-500 hover:text-rose-400 p-1 transition-colors"
+                          aria-label={`Quitar ${item.product.name} del pedido`}
+                          className="w-11 h-11 -mr-2 -mt-2 shrink-0 flex items-center justify-center text-zinc-500 hover:text-rose-400 transition-colors"
                           title="Eliminar producto"
                         >
                           <Trash2 className="w-4 h-4" />
