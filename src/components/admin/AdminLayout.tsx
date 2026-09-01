@@ -108,6 +108,8 @@ const AdminLayoutInner: React.FC<{ children: React.ReactNode }> = ({ children })
           <AudioAlertToggle compact />
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
+            aria-expanded={mobileOpen}
             className="p-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-300 min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <MenuIcon className="w-5 h-5" />}
