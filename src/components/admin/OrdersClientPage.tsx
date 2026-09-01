@@ -542,7 +542,7 @@ function OrdersPageContent() {
                 e.stopPropagation();
                 setRollbackModalOrder(ord);
               }}
-              className="px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs flex items-center gap-1.5 transition-all"
+              className="min-h-[44px] px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs flex items-center gap-1.5 transition-all"
               title="Corrección administrativa de estado"
             >
               <Undo2 className="w-3.5 h-3.5 text-amber-400" />
@@ -557,7 +557,7 @@ function OrdersPageContent() {
                 e.stopPropagation();
                 setCancelModalOrder(ord);
               }}
-              className="ml-auto px-3.5 py-2 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-800/80 text-rose-300 font-extrabold text-xs flex items-center gap-1.5 transition-all"
+              className="ml-auto min-h-[44px] px-3.5 py-2 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-800/80 text-rose-300 font-extrabold text-xs flex items-center gap-1.5 transition-all"
             >
               <Ban className="w-3.5 h-3.5 text-rose-400" />
               Cancelar Pedido
