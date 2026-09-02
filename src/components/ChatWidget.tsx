@@ -46,7 +46,7 @@ export default function ChatWidget() {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch(`${AGENT_URL}/web-chat`, {
+      const res = await fetch('/api/agent-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, ...payload }),
