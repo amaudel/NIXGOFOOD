@@ -119,8 +119,11 @@ export const Header: React.FC = () => {
             </Link>
 
             {/* Cart Button */}
+            {/* Directo a /checkout, no abre el drawer: esa pagina ya
+                muestra el mismo carrito editable, asi que el drawer aca
+                solo agregaba un paso intermedio identico. */}
             <button
-              onClick={() => setIsCartOpen(true)}
+              onClick={() => router.push('/checkout')}
               className="relative flex items-center justify-center gap-2 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white px-3.5 sm:px-4 py-2 rounded-xl font-medium shadow-lg shadow-rose-900/30 active:scale-95 transition-all min-h-[44px] min-w-[44px]"
               aria-label="Ver carrito"
             >
