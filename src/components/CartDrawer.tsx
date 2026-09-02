@@ -31,7 +31,12 @@ export const CartDrawer: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-end animate-fadeIn">
-      <div className="relative w-full max-w-md bg-zinc-900 text-zinc-100 h-full flex flex-col border-l border-zinc-800 shadow-2xl">
+      {/* h-[100dvh] en vez de h-full: en movil real, la barra de
+          direcciones del navegador se expande/colapsa DESPUES de que la
+          pagina ya calculo su layout -- dvh (dynamic viewport height) es la
+          unidad pensada para eso, a diferencia de vh/% que puede quedar
+          calculado contra una altura mas grande de la que en realidad se ve. */}
+      <div className="relative w-full max-w-md bg-zinc-900 text-zinc-100 h-[100dvh] flex flex-col border-l border-zinc-800 shadow-2xl">
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950">
           <div className="flex items-center gap-2.5">
@@ -48,7 +53,11 @@ export const CartDrawer: React.FC = () => {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5 no-scrollbar">
+        {/* min-h-0: sin esto, un hijo flex con overflow-y-auto puede crecer
+            para ajustarse a su contenido en vez de scrollear dentro del
+            espacio que le toca -- con varios productos, eso empuja el
+            resumen y el boton de abajo fuera de la pantalla visible. */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-5 no-scrollbar">
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-4 py-12">
               <div className="w-20 h-20 rounded-full bg-zinc-950 border border-zinc-800 flex items-center justify-center text-zinc-600">

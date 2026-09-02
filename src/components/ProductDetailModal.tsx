@@ -99,7 +99,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
         </button>
 
         {/* Scrollable Container */}
-        <div className="overflow-y-auto flex-1 p-0 pb-6 no-scrollbar">
+        {/* min-h-0: sin esto, este contenido puede crecer para ajustarse a
+            si mismo en vez de scrollear dentro del alto que le toca --
+            con varios grupos de modificadores, eso empuja el boton de
+            "Agregar al pedido" de mas abajo fuera de la pantalla visible. */}
+        <div className="overflow-y-auto flex-1 min-h-0 p-0 pb-6 no-scrollbar">
           {/* Hero Modal Image */}
           <div className="relative aspect-[16/9] w-full bg-zinc-950">
             <img

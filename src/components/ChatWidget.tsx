@@ -95,7 +95,7 @@ export default function ChatWidget() {
             </button>
           </div>
 
-          <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+          <div ref={scrollRef} className="flex-1 min-h-0 space-y-3 overflow-y-auto px-4 py-3">
             {entries.length === 0 && (
               <p className="text-sm text-zinc-400">¡Hola! Pregúntame por el menú o pide directo aquí 🌮</p>
             )}
