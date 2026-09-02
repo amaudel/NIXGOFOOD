@@ -8,6 +8,9 @@
  * - El header calculaba el horario y mostraba "Cerrado", pero nada en el
  *   checkout consultaba ese estado: el cliente podia pagar y quedarse
  *   esperando una comanda que nadie iba a ver hasta el dia siguiente.
+ *
+ * Checkout de una sola pantalla: toda la validacion corre de una vez al
+ * tocar "Confirmar pedido", no hay pasos que avanzar.
  */
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -82,8 +85,7 @@ function montarCheckout() {
   );
 }
 
-async function irAEntrega() {
-  fireEvent.click(await screen.findByRole('button', { name: /Continuar con la entrega/i }));
+async function esperarCotizacion() {
   await screen.findByText(/Ubicación encontrada/i);
 }
 
@@ -94,6 +96,14 @@ function llenarContacto() {
   fireEvent.change(screen.getByPlaceholderText(/0991234567/i), {
     target: { value: '0991112222' },
   });
+}
+
+// Hay un boton por breakpoint (escritorio y barra fija de movil); ambos
+// disparan el mismo envio, asi que cualquiera sirve para la prueba.
+function confirmarPedido() {
+  const boton = screen.getAllByRole('button', { name: /Confirmar pedido|Local cerrado/i })[0];
+  fireEvent.click(boton);
+  return boton as HTMLButtonElement;
 }
 
 function sembrarPedido(address: string) {
@@ -120,27 +130,36 @@ afterEach(() => {
 });
 
 describe('Dirección de entrega obligatoria', () => {
-  it('no deja pasar al pago con la dirección en blanco', async () => {
+  it('no crea el pedido con la dirección en blanco', async () => {
+    const crearPedido = vi
+      .spyOn(OrderRepository, 'createOrderTransactional')
+      .mockResolvedValue({ id: 'o_1', orderNumber: '#1050', trackingToken: 'trk', total: 3.5 });
+
     sembrarPedido('');
     montarCheckout();
-    await irAEntrega();
+    await esperarCotizacion();
     llenarContacto();
 
-    fireEvent.click(screen.getByRole('button', { name: /Continuar al pago/i }));
+    confirmarPedido();
 
     expect(await screen.findByText(/Escribe la dirección de entrega/i)).toBeTruthy();
-    expect(screen.queryByText(/Selecciona tu Método de Pago/i)).toBeNull();
+    expect(crearPedido).not.toHaveBeenCalled();
   });
 
   it('deja pasar cuando la dirección está completa', async () => {
+    const crearPedido = vi
+      .spyOn(OrderRepository, 'createOrderTransactional')
+      .mockResolvedValue({ id: 'o_1', orderNumber: '#1050', trackingToken: 'trk', total: 3.5 });
+
     sembrarPedido('Av. Fray Vicente Solano 5-30');
     montarCheckout();
-    await irAEntrega();
+    await esperarCotizacion();
     llenarContacto();
 
-    fireEvent.click(screen.getByRole('button', { name: /Continuar al pago/i }));
+    confirmarPedido();
 
-    expect(await screen.findByText(/Selecciona tu Método de Pago/i)).toBeTruthy();
+    await waitFor(() => expect(crearPedido).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(/Escribe la dirección de entrega/i)).toBeNull();
   });
 });
 
@@ -163,16 +182,13 @@ describe('Local cerrado', () => {
 
     sembrarPedido('Av. Fray Vicente Solano 5-30');
     montarCheckout();
-    await irAEntrega();
+    await esperarCotizacion();
     llenarContacto();
 
-    fireEvent.click(screen.getByRole('button', { name: /Continuar al pago/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /Revisar pedido/i }));
+    const boton = (await screen.findAllByRole('button', { name: /Local cerrado/i })) as HTMLButtonElement[];
+    expect(boton[0].disabled).toBe(true);
 
-    const confirmar = await screen.findByRole('button', { name: /Local cerrado/i });
-    expect((confirmar as HTMLButtonElement).disabled).toBe(true);
-
-    fireEvent.click(confirmar);
+    confirmarPedido();
 
     await waitFor(() =>
       expect(screen.getByText(/Ahora mismo el local está cerrado/i)).toBeTruthy()

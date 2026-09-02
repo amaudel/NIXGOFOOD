@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 /**
- * El paso de entrega pedia la referencia del domicilio dos veces: una dentro
- * del selector de ubicacion y otra mas abajo en el propio checkout. Solo la
- * segunda viajaba con el pedido, asi que quien llenaba la primera perdia su
- * indicacion sin ningun aviso.
+ * El checkout pedia la referencia del domicilio dos veces: una dentro del
+ * selector de ubicacion y otra mas abajo. Solo la segunda viajaba con el
+ * pedido, asi que quien llenaba la primera perdia su indicacion sin ningun
+ * aviso. Ahora es checkout de una sola pantalla: no hay pasos que avanzar.
  */
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -65,11 +65,15 @@ function montarCheckout() {
   );
 }
 
-async function avanzarHastaEntrega() {
-  fireEvent.click(await screen.findByRole('button', { name: /Continuar con la entrega/i }));
-  // El costo de envio se cotiza cuando BranchContext termina de cargar zonas;
-  // sin cotizacion disponible el paso de entrega no deja avanzar.
+// El costo de envio se cotiza cuando BranchContext termina de cargar zonas.
+async function esperarCotizacion() {
   await screen.findByText(/Ubicación encontrada/i);
+}
+
+// Hay un boton "Confirmar pedido" para escritorio y otro para la barra fija
+// de movil; cualquiera de los dos dispara el mismo envio.
+function confirmarPedido() {
+  fireEvent.click(screen.getAllByRole('button', { name: /Confirmar pedido/i })[0]);
 }
 
 describe('Referencia del domicilio en el checkout', () => {
@@ -96,7 +100,7 @@ describe('Referencia del domicilio en el checkout', () => {
 
   it('pide la referencia del domicilio una sola vez', async () => {
     montarCheckout();
-    await avanzarHastaEntrega();
+    await esperarCotizacion();
 
     const camposReferencia = screen.getAllByPlaceholderText(/Casa blanca/i);
 
@@ -109,7 +113,7 @@ describe('Referencia del domicilio en el checkout', () => {
       .mockResolvedValue({ id: 'o_1', orderNumber: '#1050', trackingToken: 'trk_test', total: 3.5 });
 
     montarCheckout();
-    await avanzarHastaEntrega();
+    await esperarCotizacion();
 
     fireEvent.change(screen.getByPlaceholderText(/Casa blanca/i), {
       target: { value: REFERENCIA },
@@ -121,9 +125,7 @@ describe('Referencia del domicilio en el checkout', () => {
       target: { value: '0991112222' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Continuar al pago/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /Revisar pedido/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /Confirmar pedido/i }));
+    confirmarPedido();
 
     await waitFor(() => expect(crearPedido).toHaveBeenCalledTimes(1));
 
