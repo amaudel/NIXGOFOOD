@@ -26,6 +26,7 @@ import { isDemoMode } from '@/config/demo';
 import { useBranch } from '@/context/BranchContext';
 import { getBusinessRepository } from '@/repositories/factory';
 import { mergeCartItem } from '@/lib/cart';
+import { resolveDeliveryQuote } from '@/lib/deliveryQuote';
 
 const CART_STORAGE_KEY = 'el_taca_nijo_cart';
 const LOCATION_STORAGE_KEY = 'el_taca_nijo_location';
@@ -105,7 +106,14 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
   businessId,
   children,
 }) => {
-  const { selectedBranch, branches, autoSelectForLocation, zones, loading: branchLoading } = useBranch();
+  const {
+    selectedBranch,
+    manuallySelected: sucursalElegidaAMano,
+    branches,
+    autoSelectForLocation,
+    zones,
+    loading: branchLoading,
+  } = useBranch();
 
   // State
   // Arrancan vacios/null (no en los datos mock de El Taca Nijo): mientras el
@@ -359,18 +367,27 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
     );
   };
 
-  const cotizarPara = (lat: number, lng: number): DeliveryQuote => {
-    const cobertura = autoSelectForLocation(lat, lng);
+  // Cotiza respetando una sucursal elegida a mano mientras siga cubriendo el
+  // punto; si no hay eleccion manual, o la que hay ya no llega hasta ahi,
+  // recien entonces auto-selecciona la mas cercana. Sincroniza BranchContext
+  // (autoSelectForLocation) solo cuando de verdad hace falta cambiar de
+  // sucursal -- no en cada recotizacion -- para no pisar en silencio una
+  // eleccion que el cliente hizo a proposito.
+  const cotizarRespetandoEleccion = (lat: number, lng: number): DeliveryQuote => {
+    const sucursalManual = sucursalElegidaAMano ? selectedBranch : null;
+    const resultado = resolveDeliveryQuote({
+      lat,
+      lng,
+      branches,
+      zones,
+      manuallySelectedBranch: sucursalManual,
+    });
 
-    if (!cobertura || !cobertura.zone) {
-      return {
-        available: false,
-        fee: 0,
-        reason: 'Ninguna de nuestras sucursales llega a esta dirección. Puedes elegir retiro en local.',
-      };
+    if (!sucursalManual || resultado.branch?.id !== sucursalManual.id) {
+      autoSelectForLocation(lat, lng);
     }
 
-    return cotizarParaSucursal(cobertura.branch, lat, lng);
+    return resultado.quote;
   };
 
   // Este setter lo usan dos cosas distintas: elegir un punto (GPS, clic o pin
@@ -383,24 +400,11 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
   const setDeliveryLocation = (loc: DeliveryLocation) => {
     const yaEligioPunto = loc.hasSelectedLocation ?? deliveryLocation.hasSelectedLocation ?? false;
     const updatedLoc = { ...loc, hasSelectedLocation: yaEligioPunto };
-    const cambioDePosicion =
-      updatedLoc.latitude !== deliveryLocation.latitude ||
-      updatedLoc.longitude !== deliveryLocation.longitude;
 
     setDeliveryLocationState(updatedLoc);
 
     if (yaEligioPunto) {
-      // cotizarPara auto-selecciona la sucursal mas cercana, y eso solo
-      // corresponde cuando el punto cambia. Si el cliente solo edito la
-      // direccion, la referencia o el tipo de lugar, auto-seleccionar pisaba
-      // (y persistia) la sucursal que habia elegido a mano en BranchPicker,
-      // cambiandole ademas el costo de envio.
-      const usarSucursalElegida = !cambioDePosicion && selectedBranch;
-      setDeliveryFeeResult(
-        usarSucursalElegida
-          ? cotizarParaSucursal(selectedBranch, updatedLoc.latitude, updatedLoc.longitude)
-          : cotizarPara(updatedLoc.latitude, updatedLoc.longitude)
-      );
+      setDeliveryFeeResult(cotizarRespetandoEleccion(updatedLoc.latitude, updatedLoc.longitude));
     }
     try {
       localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(updatedLoc));
@@ -413,7 +417,7 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
   // sucursales y zonas, para no cotizar contra un array de zonas todavia vacio.
   useEffect(() => {
     if (!branchLoading && deliveryLocation.hasSelectedLocation) {
-      setDeliveryFeeResult(cotizarPara(deliveryLocation.latitude, deliveryLocation.longitude));
+      setDeliveryFeeResult(cotizarRespetandoEleccion(deliveryLocation.latitude, deliveryLocation.longitude));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchLoading]);

@@ -196,3 +196,42 @@ describe('Local cerrado', () => {
     expect(crearPedido).not.toHaveBeenCalled();
   });
 });
+
+describe('Horario todavia cargando', () => {
+  it('no crea el pedido mientras el horario real no ha resuelto, aunque el local este cerrado', async () => {
+    // El fetch de horarios queda pendiente a proposito: simula la ventana
+    // entre el montaje del checkout y que Promise.allSettled resuelva.
+    // storeStatus por defecto es "abierto" en ese hueco (sin horas
+    // cargadas todavia no hay forma de saber lo contrario) -- un cliente
+    // recurrente con nombre/telefono/direccion ya guardados podia tocar
+    // "Confirmar pedido" dentro de esa ventana y el pedido se creaba igual,
+    // aunque el local estuviera cerrado.
+    let resolverHorario: (value: any) => void = () => {};
+    vi.spyOn(DemoBusinessRepository, 'getBusinessHours').mockReturnValue(
+      new Promise((resolve) => {
+        resolverHorario = resolve;
+      })
+    );
+    const crearPedido = vi
+      .spyOn(OrderRepository, 'createOrderTransactional')
+      .mockResolvedValue({ id: 'o_1', orderNumber: '#1050', trackingToken: 'trk', total: 3.5 });
+
+    sembrarPedido('Av. Fray Vicente Solano 5-30');
+    montarCheckout();
+    await esperarCotizacion();
+    llenarContacto();
+
+    confirmarPedido();
+
+    // Le da tiempo a cualquier promesa ya resuelta de asentarse, sin
+    // resolver todavia la de horarios.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(crearPedido).not.toHaveBeenCalled();
+
+    resolverHorario(cerradoSiempre);
+    await waitFor(() =>
+      expect(screen.getByText(/Ahora mismo el local está cerrado/i)).toBeTruthy()
+    );
+    expect(crearPedido).not.toHaveBeenCalled();
+  });
+});

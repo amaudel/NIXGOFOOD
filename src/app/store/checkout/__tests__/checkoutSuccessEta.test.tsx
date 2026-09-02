@@ -86,6 +86,9 @@ beforeEach(() => {
     orderNumber: '#1050',
     trackingToken: 'trk_test',
     total: 3.5,
+    // El backend (demo o Supabase) ya calcula un tiempo de preparacion
+    // propio para retiro; el checkout no deberia inventar el suyo aparte.
+    estimatedTime: '15-20 min',
   });
 });
 
@@ -112,13 +115,22 @@ it('muestra el tiempo estimado de la zona en la pantalla de éxito (delivery)', 
   expect(screen.getByText(/20-30 min/i)).toBeTruthy();
 });
 
-it('muestra el tiempo de preparación en la pantalla de éxito (retiro)', async () => {
+it('para retiro, usa el tiempo que calculo el pedido creado, no el de una cotizacion de delivery vieja', async () => {
+  // deliveryFeeResult puede seguir teniendo la cotizacion de una zona de
+  // delivery de un intento anterior (el cliente probo delivery, vio el
+  // tiempo de esa zona, y despues cambio a retiro) -- eso no debe filtrarse
+  // al tiempo estimado de un pedido para retiro.
+  localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(puntoEnZona1));
   localStorage.setItem(DELIVERY_METHOD_KEY, 'pickup');
 
   montarCheckout();
+  // Le da tiempo a la carga inicial (categorias, horarios, etc.) de
+  // asentarse antes de confirmar -- el checkout bloquea el envio mientras
+  // esos datos siguen en vuelo, para no cotizar "abierto" a ciegas.
+  await new Promise((r) => setTimeout(r, 0));
   llenarContacto();
   confirmarPedido();
 
   await screen.findByText(/¡Pedido Recibido!/i);
-  expect(screen.getByText(/15 - 25 min/i)).toBeTruthy();
+  expect(screen.getByText(/15-20 min/i)).toBeTruthy();
 });

@@ -19,6 +19,9 @@ export interface BranchContextValue {
   branches: Branch[];
   zones: DeliveryZone[];
   selectedBranch: Branch | null;
+  /** Si selectedBranch viene de una eleccion explicita del cliente (BranchPicker
+   * o restaurada de una sesion anterior) en vez de la auto-seleccion por cercania. */
+  manuallySelected: boolean;
   selectBranch: (branchId: string) => void;
   autoSelectForLocation: (lat: number, lng: number) => BranchCoverage | null;
   loading: boolean;
@@ -35,6 +38,7 @@ export const BranchProvider: React.FC<{
   const [branches, setBranches] = useState<Branch[]>([activeBranch]);
   const [zones, setZones] = useState<DeliveryZone[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+  const [manuallySelected, setManuallySelected] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -63,6 +67,11 @@ export const BranchProvider: React.FC<{
         }
         const resuelta = resolvePersistedBranch(efectivas, persistida);
         setSelectedBranchId(resuelta ? resuelta.id : null);
+        // Si habia una sucursal guardada y sigue siendo valida, es la misma
+        // eleccion explicita de una sesion anterior -- no un default del
+        // sistema -- asi que cuenta como manual igual que un clic en
+        // BranchPicker.
+        setManuallySelected(!!persistida && resuelta?.id === persistida);
       } catch {
         if (!cancelado) {
           // Fallback de una sucursal: la app sigue operando en modo local unico.
@@ -80,9 +89,14 @@ export const BranchProvider: React.FC<{
     };
   }, [storageKey, businessId]);
 
-  const selectBranch = useCallback(
-    (branchId: string) => {
+  // `manual` distingue quien elige la sucursal: true cuando el cliente la
+  // clickeo a mano (BranchPicker) o la traia guardada de una sesion
+  // anterior, false cuando la elige el sistema por cercania. AppContext usa
+  // ese flag para saber si debe respetar la eleccion actual al recotizar.
+  const applyBranchSelection = useCallback(
+    (branchId: string, manual: boolean) => {
       setSelectedBranchId(branchId);
+      setManuallySelected(manual);
       try {
         localStorage.setItem(storageKey, branchId);
       } catch (e) {
@@ -92,13 +106,18 @@ export const BranchProvider: React.FC<{
     [storageKey]
   );
 
+  const selectBranch = useCallback(
+    (branchId: string) => applyBranchSelection(branchId, true),
+    [applyBranchSelection]
+  );
+
   const autoSelectForLocation = useCallback(
     (lat: number, lng: number): BranchCoverage | null => {
       const cobertura = selectNearestCoveringBranch(branches, zones, lat, lng);
-      if (cobertura) selectBranch(cobertura.branch.id);
+      if (cobertura) applyBranchSelection(cobertura.branch.id, false);
       return cobertura;
     },
-    [branches, zones, selectBranch]
+    [branches, zones, applyBranchSelection]
   );
 
   const selectedBranch = useMemo(
@@ -111,11 +130,12 @@ export const BranchProvider: React.FC<{
       branches,
       zones,
       selectedBranch,
+      manuallySelected,
       selectBranch,
       autoSelectForLocation,
       loading,
     }),
-    [branches, zones, selectedBranch, selectBranch, autoSelectForLocation, loading]
+    [branches, zones, selectedBranch, manuallySelected, selectBranch, autoSelectForLocation, loading]
   );
 
   return <BranchContext.Provider value={value}>{children}</BranchContext.Provider>;

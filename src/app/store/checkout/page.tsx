@@ -58,6 +58,7 @@ export default function CheckoutPage() {
     deliveryLocation,
     deliveryFeeResult,
     storeStatus,
+    catalogLoading,
     customerInfo,
     setCustomerInfo,
     updateCartItemQuantity,
@@ -95,6 +96,7 @@ export default function CheckoutPage() {
   // hooks than during the previous render", y como el commit no completaba, la
   // escritura que devolvia el carrito a localStorage nunca corria.
   const isSubmittingRef = useRef<boolean>(false);
+  const entregaRef = useRef<HTMLDivElement>(null);
 
   // TODO(seguimiento): business.paymentConfig no existe todavia en la tabla
   // `businesses` (solo en el tipo TS) -- hasta que se agregue esa columna,
@@ -220,12 +222,34 @@ export default function CheckoutPage() {
     return null;
   };
 
+  // El banner de error vive arriba de todo, pero "Confirmar pedido" se toca
+  // desde el fondo de la pantalla (la barra fija en movil, o el panel
+  // lateral). Sin este scroll, el cliente tocaba confirmar, nada parecia
+  // pasar, y el mensaje de por que quedaba fuera de vista.
+  const mostrarError = (mensaje: string) => {
+    setFormError(mensaje);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   // Final Order Submission
   const handleConfirmOrder = async () => {
     if (isSubmittingRef.current || isSubmitting) return;
 
+    // storeStatus arranca en "abierto" mientras el horario real todavia no
+    // termina de cargar (sin horas cargadas no hay forma de saber lo
+    // contrario) -- un cliente recurrente con nombre, telefono y direccion
+    // ya guardados de una sesion anterior podia tocar "Confirmar pedido"
+    // dentro de esa ventana y el pedido se creaba igual, aunque el local
+    // estuviera cerrado de verdad.
+    if (catalogLoading) {
+      mostrarError('Estamos cargando los datos del negocio. Intenta de nuevo en un momento.');
+      return;
+    }
+
     if (!storeStatus.isOpen) {
-      setFormError(
+      mostrarError(
         storeStatus.reason || 'El local está cerrado en este momento y no puede recibir tu pedido.'
       );
       return;
@@ -233,7 +257,7 @@ export default function CheckoutPage() {
 
     const validationError = validateOrder();
     if (validationError) {
-      setFormError(validationError);
+      mostrarError(validationError);
       return;
     }
 
@@ -334,12 +358,20 @@ export default function CheckoutPage() {
               ? { ...deliveryLocation, reference: (deliveryLocation.reference || '').trim() }
               : undefined,
           // Es el momento de mas ansiedad del cliente y lo unico que quiere
-          // saber; el dato ya existia (la cotizacion de la zona, o el tiempo
-          // fijo de retiro) pero la pantalla de exito no lo repetia.
+          // saber; el dato ya existia pero la pantalla de exito no lo
+          // repetia. Para delivery se prefiere la cotizacion de la zona (mas
+          // fresca que lo que haya calculado el backend). Para retiro cae
+          // directo al estimatedTime del pedido creado -- nunca a
+          // deliveryFeeResult, que puede seguir cargado con la cotizacion de
+          // una zona de un intento anterior si el cliente probo delivery
+          // antes de cambiarse a retiro; e inventar un valor propio aca
+          // (como hacia PICKUP_PREP_TIME, pensado solo para el texto antes
+          // de pedir) se desincroniza en cuanto el tiempo real de
+          // preparacion cambie.
           estimatedTime:
             deliveryMethod === 'delivery'
               ? deliveryFeeResult.estimatedMinutes || result.estimatedTime || ''
-              : PICKUP_PREP_TIME,
+              : result.estimatedTime || '',
         });
       } else {
         throw new Error('No se pudo generar el código de seguimiento del pedido.');
@@ -353,9 +385,13 @@ export default function CheckoutPage() {
       if (msg.includes('sucursal')) {
         setFormError('La sucursal seleccionada ya no está disponible. Elige otra para continuar.');
         setMostrarSucursales(true);
+        // Este error si tiene una accion concreta mas abajo (elegir otra
+        // sucursal en BranchPicker): llevar al banner del tope no serviria
+        // de nada si el cliente no ve donde hacer el cambio.
+        entregaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         return;
       }
-      setFormError(err.message || 'Error al procesar el pedido. Intenta nuevamente.');
+      mostrarError(err.message || 'Error al procesar el pedido. Intenta nuevamente.');
     } finally {
       isSubmittingRef.current = false;
       setIsSubmitting(false);
@@ -397,6 +433,18 @@ export default function CheckoutPage() {
               Tu pedido queda guardado en el carrito.
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Al colapsar el checkout a una sola pantalla, este banner quedo
+          anidado al fondo de la seccion de pago -- un error sobre el
+          nombre o la direccion (secciones de mas arriba) aparecia fuera de
+          vista, y el cliente no entendia por que "Confirmar pedido" no
+          avanzaba. Ahora es uno solo, siempre arriba de todo. */}
+      {!createdOrder && formError && (
+        <div className="bg-rose-950/60 border border-rose-800 p-4 rounded-2xl flex items-center gap-3 text-xs sm:text-sm text-rose-300 shadow-xl">
+          <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+          <span>{formError}</span>
         </div>
       )}
 
@@ -510,7 +558,7 @@ export default function CheckoutPage() {
             {/* STEP 2: ENTREGA (DELIVERY vs RETIRO)                                      */}
             {/* ========================================================================= */}
             {(
-              <div className="space-y-6">
+              <div className="space-y-6" ref={entregaRef}>
                 {/* Method Selector Cards */}
                 <div className="bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-zinc-800 space-y-4 shadow-2xl">
                   <h2 className="font-extrabold text-base sm:text-lg text-white border-b border-zinc-800 pb-3">
@@ -892,14 +940,6 @@ export default function CheckoutPage() {
                   </div>
 
                 </div>
-
-                {/* Form Error Banner */}
-                {formError && (
-                  <div className="bg-rose-950/60 border border-rose-800 p-4 rounded-2xl flex items-center gap-3 text-xs sm:text-sm text-rose-300 shadow-xl">
-                    <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-                    <span>{formError}</span>
-                  </div>
-                )}
 
               </div>
             )}

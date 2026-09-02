@@ -42,22 +42,40 @@ export const LocationPicker: React.FC = () => {
   // exactamente el problema que traia el boton de GPS.
   const direccionEsAutomatica = useRef(!deliveryLocation.address);
 
+  // Ultimo deliveryLocation conocido, para que completarDireccion pueda leer
+  // el estado mas fresco cuando su fetch resuelve en vez de un valor
+  // capturado por closure en el momento en que empezo la busqueda -- sin
+  // esto, si el cliente escribia la referencia mientras la geocodificacion
+  // seguia en curso, la respuesta la pisaba con el valor vacio de antes.
+  const deliveryLocationRef = useRef(deliveryLocation);
+  deliveryLocationRef.current = deliveryLocation;
+
+  // Se incrementa en cada posicion nueva. completarDireccion guarda el
+  // numero vigente al arrancar y lo compara al terminar: si el cliente ya
+  // movio el pin de nuevo mientras la respuesta viajaba, esta quedo vieja y
+  // se descarta -- sin esto, dos posiciones seguidas con respuestas fuera de
+  // orden dejaban el pin visualmente en la mas nueva pero la direccion (y la
+  // cotizacion) de la mas vieja.
+  const generacionPosicion = useRef(0);
+
   // Unico camino que marca la ubicacion como elegida: GPS, clic en el mapa o
   // pin arrastrado. setDeliveryLocation se encarga de cotizar y de persistir.
   const updatePosition = (newLat: number, newLng: number) => {
     setGeoError(null);
+    generacionPosicion.current += 1;
+    const miGeneracion = generacionPosicion.current;
 
-    const base = {
+    setDeliveryLocation({
       latitude: newLat,
       longitude: newLng,
+      address,
       reference,
       locationType,
       hasSelectedLocation: true,
-    };
-    setDeliveryLocation({ ...base, address });
+    });
 
     if (!direccionEsAutomatica.current) return;
-    void completarDireccion(newLat, newLng, base);
+    void completarDireccion(newLat, newLng, miGeneracion);
   };
 
   // Geocodificacion inversa via ruta propia (ver src/app/api/geocode/reverse).
@@ -65,23 +83,25 @@ export const LocationPicker: React.FC = () => {
   // del checkout le pide la direccion al cliente. Antes se guardaba
   // "Ubicacion GPS (-2.9050, -79.0120)", que es lo que terminaba leyendo el
   // repartidor.
-  const completarDireccion = async (
-    lat: number,
-    lng: number,
-    base: { latitude: number; longitude: number; reference: string; locationType: LocationType; hasSelectedLocation: boolean }
-  ) => {
+  const completarDireccion = async (lat: number, lng: number, miGeneracion: number) => {
     setBuscandoDireccion(true);
     try {
       const res = await fetch(`/api/geocode/reverse?lat=${lat}&lng=${lng}`);
       if (!res.ok) return;
       const data = await res.json();
-      if (!data.address || !direccionEsAutomatica.current) return;
+      if (
+        !data.address ||
+        !direccionEsAutomatica.current ||
+        miGeneracion !== generacionPosicion.current
+      ) {
+        return;
+      }
       setAddress(data.address);
-      setDeliveryLocation({ ...base, address: data.address });
+      setDeliveryLocation({ ...deliveryLocationRef.current, address: data.address });
     } catch {
       // Sin direccion automatica; el cliente la escribe a mano.
     } finally {
-      setBuscandoDireccion(false);
+      if (miGeneracion === generacionPosicion.current) setBuscandoDireccion(false);
     }
   };
 
