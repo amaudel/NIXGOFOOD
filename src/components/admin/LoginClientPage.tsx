@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShieldCheck, Mail, Lock, AlertCircle, ArrowRight, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { businessConfig } from '@/config/business';
 import { isDemoMode } from '@/config/demo';
 
 export default function LoginClientPage() {
@@ -68,7 +67,13 @@ export default function LoginClientPage() {
           </div>
 
           <h1 className="text-2xl font-black text-white">Acceso Administrativo</h1>
-          <p className="text-xs text-zinc-400">{businessConfig.name} · Panel Operativo</p>
+          {/* Este login es multi-negocio: business_id recien se resuelve
+              despues de autenticar (via profiles.business_id, en el
+              middleware). Mostrar aca el nombre de un negocio especifico
+              -- antes hardcodeado a businessConfig.name -- le mostraba a
+              CUALQUIER staff, de CUALQUIER negocio, la marca de otro
+              restaurante antes de iniciar sesion. */}
+          <p className="text-xs text-zinc-400">NIXGOFOOD · Panel Administrativo</p>
 
           {isDemo && (
             <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-widest bg-amber-950/80 text-amber-300 border border-amber-800 px-3 py-1 rounded-full">
