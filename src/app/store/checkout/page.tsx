@@ -41,6 +41,10 @@ import { saveRecentOrder } from '@/utils/recentOrders';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { PaymentMethod, Order } from '@/types';
 
+// Tiempo fijo de preparacion para retiro en local; se usa tanto en el
+// formulario como en la pantalla de exito.
+const PICKUP_PREP_TIME = '15 - 25 min';
+
 export default function CheckoutPage() {
   const router = useRouter();
   const {
@@ -151,7 +155,7 @@ export default function CheckoutPage() {
         <div className="space-y-2">
           <h2 className="text-2xl font-black text-white">Tu carrito está vacío</h2>
           <p className="text-zinc-400 text-xs sm:text-sm max-w-md mx-auto">
-            Agrega deliciosos tacos, smash burgers o combos artesanales desde nuestro menú para iniciar tu pedido.
+            Descubre el menú de <strong>{business?.name || businessConfig.name}</strong> y agrega algo delicioso para iniciar tu pedido.
           </p>
         </div>
         <Link
@@ -329,6 +333,13 @@ export default function CheckoutPage() {
             deliveryMethod === 'delivery'
               ? { ...deliveryLocation, reference: (deliveryLocation.reference || '').trim() }
               : undefined,
+          // Es el momento de mas ansiedad del cliente y lo unico que quiere
+          // saber; el dato ya existia (la cotizacion de la zona, o el tiempo
+          // fijo de retiro) pero la pantalla de exito no lo repetia.
+          estimatedTime:
+            deliveryMethod === 'delivery'
+              ? deliveryFeeResult.estimatedMinutes || result.estimatedTime || ''
+              : PICKUP_PREP_TIME,
         });
       } else {
         throw new Error('No se pudo generar el código de seguimiento del pedido.');
@@ -599,7 +610,7 @@ export default function CheckoutPage() {
 
                     <div className="flex items-center gap-1.5 text-zinc-400 text-xs pt-1">
                       <Clock className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Preparación: <strong>15 - 25 min</strong></span>
+                      <span>Preparación: <strong>{PICKUP_PREP_TIME}</strong></span>
                     </div>
                   </div>
                 )}
@@ -880,25 +891,6 @@ export default function CheckoutPage() {
                     )}
                   </div>
 
-                  {/* Option 3: Pago en Línea (Disabled / Prepared) */}
-                  <div className="p-4 rounded-2xl border border-zinc-850 bg-zinc-950/40 opacity-60 cursor-not-allowed">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-zinc-900 text-zinc-500 border border-zinc-800 flex items-center justify-center shrink-0">
-                          <CreditCard className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-black text-sm text-zinc-400">💳 Pago en Línea con Tarjeta</span>
-                            <span className="bg-zinc-800 text-zinc-400 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
-                              Próximamente
-                            </span>
-                          </div>
-                          <span className="text-xs text-zinc-600 block">Integración de pasarela de pago en progreso</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Form Error Banner */}
@@ -1047,6 +1039,13 @@ export default function CheckoutPage() {
                   {createdOrder.deliveryMethod === 'delivery' ? '🛵 Delivery a Domicilio' : '🏪 Retiro en Local'}
                 </span>
               </div>
+
+              {createdOrder.estimatedTime && (
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-400">Tiempo estimado:</span>
+                  <span className="font-bold text-white">{createdOrder.estimatedTime}</span>
+                </div>
+              )}
 
               {createdOrder.deliveryLocation && (
                 <div className="flex items-center justify-between">
