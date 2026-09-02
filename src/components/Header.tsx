@@ -5,19 +5,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ShoppingBag, UtensilsCrossed, ShieldCheck, MapPin, Search } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { useBranch } from '@/context/BranchContext';
 import { businessConfig } from '@/config/business';
-import { BusinessHoursService } from '@/services/BusinessHoursService';
-import { getBusinessRepository } from '@/repositories/factory';
-import { hoursForBranch } from '@/lib/branchSelection';
 import { getLastOrder, RecentOrder } from '@/utils/recentOrders';
 import { OrderLookupModal } from '@/components/OrderLookupModal';
 
 export const Header: React.FC = () => {
   const router = useRouter();
-  const { cartTotalCount, cartSubtotal, setIsCartOpen, business, catalogLoading } = useApp();
-  const { selectedBranch, branches } = useBranch();
-  const [isOpenStatus, setIsOpenStatus] = useState<boolean>(true);
+  const { cartTotalCount, cartSubtotal, setIsCartOpen, business, catalogLoading, storeStatus } =
+    useApp();
+  // El horario lo resuelve AppContext (misma fuente que usa el checkout para
+  // bloquear el pedido). Antes el Header lo calculaba aparte, con su propio
+  // fetch y sin businessId, asi que en multi-negocio podia mostrar el horario
+  // de otro y contradecir al checkout.
+  const isOpenStatus = storeStatus.isOpen;
   const [lastOrder, setLastOrder] = useState<RecentOrder | null>(null);
   const [isLookupModalOpen, setIsLookupModalOpen] = useState<boolean>(false);
   const [adminHref, setAdminHref] = useState('/admin');
@@ -37,30 +37,8 @@ export const Header: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    async function checkStatus() {
-      try {
-        const repo = getBusinessRepository();
-        // getBusinessHours() todavia no acepta un businessId (fix de
-        // repositorio pendiente, Fase 3) -- el timezone si viene del
-        // negocio ya resuelto en contexto, sin otro fetch.
-        const todos = await repo.getBusinessHours();
-        const timezone = business?.timezone || 'America/Guayaquil';
-        if (selectedBranch) {
-          const status = BusinessHoursService.isRestaurantOpen(hoursForBranch(todos, selectedBranch.id), timezone);
-          setIsOpenStatus(status.isOpen);
-        } else {
-          const algunaAbierta = branches.some(
-            (b) => BusinessHoursService.isRestaurantOpen(hoursForBranch(todos, b.id), timezone).isOpen
-          );
-          setIsOpenStatus(algunaAbierta);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    checkStatus();
     setLastOrder(getLastOrder());
-  }, [selectedBranch, branches, business]);
+  }, []);
 
   const handleFollowOrderClick = () => {
     const currentLast = getLastOrder();

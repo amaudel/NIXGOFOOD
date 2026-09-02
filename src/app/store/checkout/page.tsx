@@ -54,6 +54,7 @@ export default function CheckoutPage() {
     setDeliveryMethod,
     deliveryLocation,
     deliveryFeeResult,
+    storeStatus,
     customerInfo,
     setCustomerInfo,
     updateCartItemQuantity,
@@ -208,6 +209,12 @@ export default function CheckoutPage() {
         setFormError('La ubicación seleccionada está fuera de nuestra zona de delivery.');
         return;
       }
+      // El pin solo dice donde caer; sin calle escrita el repartidor llega
+      // con coordenadas y nada mas.
+      if (!deliveryLocation.address?.trim()) {
+        setFormError('Escribe la dirección de entrega para que el repartidor pueda llegar.');
+        return;
+      }
     }
 
     setCustomerInfo({ name: name.trim(), phone: phone.trim() });
@@ -241,6 +248,13 @@ export default function CheckoutPage() {
   // Final Order Submission
   const handleConfirmOrder = async () => {
     if (isSubmittingRef.current || isSubmitting) return;
+
+    if (!storeStatus.isOpen) {
+      setFormError(
+        storeStatus.reason || 'El local está cerrado en este momento y no puede recibir tu pedido.'
+      );
+      return;
+    }
 
     isSubmittingRef.current = true;
     setFormError(null);
@@ -425,6 +439,23 @@ export default function CheckoutPage() {
                 </button>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Aviso de local cerrado: arriba de todo y en cada paso, para que el
+          cliente no llene el formulario entero antes de enterarse. */}
+      {step !== 5 && !storeStatus.isOpen && (
+        <div className="bg-amber-950/50 border border-amber-700 p-4 rounded-2xl flex items-start gap-3 shadow-xl">
+          <Clock className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <p className="font-extrabold text-sm text-amber-200">
+              Ahora mismo el local está cerrado
+            </p>
+            <p className="text-xs text-amber-300/90">
+              {storeStatus.reason || 'Vuelve durante el horario de atención para hacer tu pedido.'}{' '}
+              Tu pedido queda guardado en el carrito.
+            </p>
           </div>
         </div>
       )}
@@ -1154,11 +1185,17 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={handleConfirmOrder}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !storeStatus.isOpen}
                     className="w-2/3 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black py-4 px-6 rounded-2xl shadow-xl shadow-rose-950/80 active:scale-95 disabled:opacity-50 transition-all text-xs sm:text-base"
                   >
                     <CheckCircle2 className="w-5 h-5" />
-                    <span>{isSubmitting ? 'Procesando comanda...' : 'Confirmar pedido'}</span>
+                    <span>
+                      {!storeStatus.isOpen
+                        ? 'Local cerrado'
+                        : isSubmitting
+                        ? 'Procesando comanda...'
+                        : 'Confirmar pedido'}
+                    </span>
                   </button>
                 </div>
               </div>

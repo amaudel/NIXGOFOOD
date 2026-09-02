@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import {
   Product,
   Category,
@@ -13,11 +13,14 @@ import {
   OrderStatus,
   Branch,
   Business,
+  BusinessHours,
 } from '@/types';
 import { ProductRepository } from '@/repositories/ProductRepository';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { ExecuteActionParams } from '@/repositories/interfaces/IOrderRepository';
 import { DeliveryService } from '@/services/DeliveryService';
+import { BusinessHoursService } from '@/services/BusinessHoursService';
+import { hoursForBranch } from '@/lib/branchSelection';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { isDemoMode } from '@/config/demo';
 import { useBranch } from '@/context/BranchContext';
@@ -56,6 +59,12 @@ interface AppContextType {
   cartSubtotal: number;
   cartTotalCount: number;
 
+  // Horario
+  // Fuente unica de si el negocio esta atendiendo. Antes solo el Header lo
+  // calculaba, con su propio fetch, y el checkout no lo consultaba: se podia
+  // pagar un pedido que nadie iba a ver hasta el dia siguiente.
+  storeStatus: { isOpen: boolean; reason?: string };
+
   // Delivery & Location
   deliveryMethod: DeliveryMethod;
   setDeliveryMethod: (method: DeliveryMethod) => void;
@@ -88,7 +97,7 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
   businessId,
   children,
 }) => {
-  const { selectedBranch, autoSelectForLocation, zones, loading: branchLoading } = useBranch();
+  const { selectedBranch, branches, autoSelectForLocation, zones, loading: branchLoading } = useBranch();
 
   // State
   // Arrancan vacios/null (no en los datos mock de El Taca Nijo): mientras el
@@ -116,6 +125,7 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
 
   const [customerInfo, setCustomerInfoState] = useState<Customer>({ name: '', phone: '' });
   const [orders, setOrders] = useState<Order[]>([]);
+  const [businessHours, setBusinessHours] = useState<BusinessHours[]>([]);
 
   // Marca que localStorage ya fue leido. Sin esto, el efecto que persiste el
   // carrito corria tambien en el primer commit -- con el carrito todavia
@@ -136,12 +146,14 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
       // datos mock iniciales (initialCategories/initialProducts) para
       // cualquier negocio, sin importar que su propio fetch si hubiera
       // funcionado. Cada pieza ahora se aplica de forma independiente.
-      const [catResult, prodResult, orderResult, businessResult] = await Promise.allSettled([
-        ProductRepository.getCategories(businessId),
-        ProductRepository.getAllProducts(businessId),
-        OrderRepository.getOrders(businessId),
-        getBusinessRepository().getBusiness(businessId),
-      ]);
+      const [catResult, prodResult, orderResult, businessResult, hoursResult] =
+        await Promise.allSettled([
+          ProductRepository.getCategories(businessId),
+          ProductRepository.getAllProducts(businessId),
+          OrderRepository.getOrders(businessId),
+          getBusinessRepository().getBusiness(businessId),
+          getBusinessRepository().getBusinessHours(undefined, businessId),
+        ]);
 
       if (catResult.status === 'fulfilled') setCategories(catResult.value);
       else console.error('Failed to load categories:', catResult.reason);
@@ -154,6 +166,9 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
 
       if (businessResult.status === 'fulfilled') setBusiness(businessResult.value);
       else console.error('Failed to load business:', businessResult.reason);
+
+      if (hoursResult.status === 'fulfilled') setBusinessHours(hoursResult.value);
+      else console.error('Failed to load business hours:', hoursResult.reason);
 
       setCatalogLoading(false);
     };
@@ -222,6 +237,26 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
       console.error(e);
     }
   }, [cart, hydrated]);
+
+  // Si el negocio no cargo horarios, isRestaurantOpen devuelve "abierto": se
+  // prefiere dejar comprar antes que bloquear una tienda mal configurada.
+  const storeStatus = useMemo(() => {
+    const timezone = business?.timezone || 'America/Guayaquil';
+    if (selectedBranch) {
+      return BusinessHoursService.isRestaurantOpen(
+        hoursForBranch(businessHours, selectedBranch.id),
+        timezone
+      );
+    }
+    // Sin sucursal elegida todavia, alcanza con que alguna este atendiendo.
+    const abierta = branches.find(
+      (b) => BusinessHoursService.isRestaurantOpen(hoursForBranch(businessHours, b.id), timezone).isOpen
+    );
+    if (abierta) return { isOpen: true };
+    return branches[0]
+      ? BusinessHoursService.isRestaurantOpen(hoursForBranch(businessHours, branches[0].id), timezone)
+      : { isOpen: true };
+  }, [businessHours, business?.timezone, selectedBranch, branches]);
 
   // Catalog Handlers
   const toggleProductAvailability = async (productId: string, isAvailable: boolean) => {
@@ -422,6 +457,7 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
         clearCart,
         cartSubtotal,
         cartTotalCount,
+        storeStatus,
         deliveryMethod,
         setDeliveryMethod,
         deliveryLocation,

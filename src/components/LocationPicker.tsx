@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   MapPin,
   Navigation,
@@ -34,19 +34,55 @@ export const LocationPicker: React.FC = () => {
 
   const [geoError, setGeoError] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [buscandoDireccion, setBuscandoDireccion] = useState(false);
+
+  // Solo se autocompleta la direccion mientras el cliente no haya escrito la
+  // suya. Una direccion escrita a mano ("Casa de mi mama, junto a la tienda")
+  // suele guiar mejor al repartidor que la calle formal, y pisarla seria
+  // exactamente el problema que traia el boton de GPS.
+  const direccionEsAutomatica = useRef(!deliveryLocation.address);
 
   // Unico camino que marca la ubicacion como elegida: GPS, clic en el mapa o
   // pin arrastrado. setDeliveryLocation se encarga de cotizar y de persistir.
-  const updatePosition = (newLat: number, newLng: number, customAddr?: string) => {
+  const updatePosition = (newLat: number, newLng: number) => {
     setGeoError(null);
-    setDeliveryLocation({
+
+    const base = {
       latitude: newLat,
       longitude: newLng,
-      address: customAddr || address,
       reference,
       locationType,
       hasSelectedLocation: true,
-    });
+    };
+    setDeliveryLocation({ ...base, address });
+
+    if (!direccionEsAutomatica.current) return;
+    void completarDireccion(newLat, newLng, base);
+  };
+
+  // Geocodificacion inversa via ruta propia (ver src/app/api/geocode/reverse).
+  // Si falla o no hay calle, el campo queda vacio a proposito: la validacion
+  // del checkout le pide la direccion al cliente. Antes se guardaba
+  // "Ubicacion GPS (-2.9050, -79.0120)", que es lo que terminaba leyendo el
+  // repartidor.
+  const completarDireccion = async (
+    lat: number,
+    lng: number,
+    base: { latitude: number; longitude: number; reference: string; locationType: LocationType; hasSelectedLocation: boolean }
+  ) => {
+    setBuscandoDireccion(true);
+    try {
+      const res = await fetch(`/api/geocode/reverse?lat=${lat}&lng=${lng}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.address || !direccionEsAutomatica.current) return;
+      setAddress(data.address);
+      setDeliveryLocation({ ...base, address: data.address });
+    } catch {
+      // Sin direccion automatica; el cliente la escribe a mano.
+    } finally {
+      setBuscandoDireccion(false);
+    }
   };
 
   // Real Geolocation using navigator.geolocation
@@ -65,9 +101,7 @@ export const LocationPicker: React.FC = () => {
       (position) => {
         setIsLocating(false);
         const { latitude, longitude } = position.coords;
-        const autoAddress = `Ubicación GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
-        setAddress(autoAddress);
-        updatePosition(latitude, longitude, autoAddress);
+        updatePosition(latitude, longitude);
       },
       (error) => {
         setIsLocating(false);
@@ -95,6 +129,7 @@ export const LocationPicker: React.FC = () => {
   };
 
   const handleAddressChange = (newAddr: string) => {
+    direccionEsAutomatica.current = false;
     setAddress(newAddr);
     setDeliveryLocation({
       ...deliveryLocation,
@@ -256,6 +291,11 @@ export const LocationPicker: React.FC = () => {
         <div className="space-y-1.5">
           <label htmlFor="input-address" className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
             Dirección principal *
+            {buscandoDireccion && (
+              <span className="ml-2 normal-case font-medium text-amber-400">
+                buscando tu calle...
+              </span>
+            )}
           </label>
           <input
             id="input-address"
