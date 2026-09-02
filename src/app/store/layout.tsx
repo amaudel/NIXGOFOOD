@@ -5,6 +5,7 @@ import { ActiveOrderBar } from '@/components/ActiveOrderBar';
 import { CartDrawer } from '@/components/CartDrawer';
 import { StickyCartBar } from '@/components/StickyCartBar';
 import { ModalWrapper } from '@/components/ModalWrapper';
+import { AddedToCartToast } from '@/components/AddedToCartToast';
 import ChatWidget from '@/components/ChatWidget';
 import { getResolvedBusinessId } from '@/lib/tenant';
 
@@ -28,6 +29,7 @@ export default async function StoreLayout({
         <main className="flex-1 pb-20 sm:pb-8">{children}</main>
         <CartDrawer />
         <StickyCartBar />
+        <AddedToCartToast />
         <ModalWrapper />
         <ChatWidget />
       </AppProvider>

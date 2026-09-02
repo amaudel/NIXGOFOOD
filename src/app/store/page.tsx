@@ -8,7 +8,7 @@ import { useApp } from '@/context/AppContext';
 import { Product } from '@/types';
 
 export default function Home() {
-  const { categories, products, openProductModal } = useApp();
+  const { categories, products, openProductModal, addToCart } = useApp();
   const [activeCategoryId, setActiveCategoryId] = useState<string>('cat_tacos');
 
   const handleSelectCategory = (categoryId: string) => {
@@ -68,6 +68,16 @@ export default function Home() {
                     key={prod.id}
                     product={prod}
                     onSelect={(p) => openProductModal(p)}
+                    onQuickAdd={(p) =>
+                      addToCart({
+                        product: p,
+                        quantity: 1,
+                        selectedModifiers: [],
+                        notes: '',
+                        unitPrice: p.price,
+                        totalPrice: p.price,
+                      })
+                    }
                   />
                 ))}
               </div>

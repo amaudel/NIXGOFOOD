@@ -25,6 +25,7 @@ import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { isDemoMode } from '@/config/demo';
 import { useBranch } from '@/context/BranchContext';
 import { getBusinessRepository } from '@/repositories/factory';
+import { mergeCartItem } from '@/lib/cart';
 
 const CART_STORAGE_KEY = 'el_taca_nijo_cart';
 const LOCATION_STORAGE_KEY = 'el_taca_nijo_location';
@@ -52,6 +53,8 @@ interface AppContextType {
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
   addToCart: (item: Omit<CartItem, 'id'>) => void;
+  cartNotice: CartNotice | null;
+  dismissCartNotice: () => void;
   updateCartItemQuantity: (id: string, delta: number) => void;
   updateItemNotes: (id: string, notes: string) => void;
   removeFromCart: (id: string) => void;
@@ -83,7 +86,12 @@ interface AppContextType {
   refreshOrders: () => Promise<void>;
 }
 
-const AppContext = createContext<AppContextType | undefined>(undefined);
+export interface CartNotice {
+  productName: string;
+  quantity: number;
+}
+
+export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const DEFAULT_LOCATION: DeliveryLocation = {
   latitude: 0,
@@ -113,6 +121,7 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
   
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartNotice, setCartNotice] = useState<CartNotice | null>(null);
 
   const [deliveryMethod, setDeliveryMethodState] = useState<DeliveryMethod>('delivery');
   const [deliveryLocation, setDeliveryLocationState] = useState<DeliveryLocation>(DEFAULT_LOCATION);
@@ -270,14 +279,23 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
   const closeProductModal = () => setSelectedProductForModal(null);
 
   // Cart Handlers
+  //
+  // Cada toque en "Agregar" tapaba el menu abriendo el panel del carrito: si
+  // el cliente queria pedir cuatro tacos, tenia que cerrarlo y volver a
+  // buscar donde estaba cada vez. Ahora el carrito se queda cerrado y en su
+  // lugar se enciende cartNotice, un aviso breve que un toast puede leer sin
+  // interrumpir la navegacion.
+  //
+  // mergeCartItem tambien evita que dos toques sobre el mismo producto (con
+  // las mismas opciones) generen dos lineas separadas -- antes "1 x Gaseosa"
+  // aparecia repetido en el carrito, en la confirmacion y en la comanda de
+  // cocina, en vez de un solo "2 x Gaseosa".
   const addToCart = (item: Omit<CartItem, 'id'>) => {
-    const newItem: CartItem = {
-      ...item,
-      id: `${item.product.id}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-    };
-    setCart((prev) => [...prev, newItem]);
-    setIsCartOpen(true);
+    setCart((prev) => mergeCartItem(prev, item));
+    setCartNotice({ productName: item.product.name, quantity: item.quantity });
   };
+
+  const dismissCartNotice = () => setCartNotice(null);
 
   const updateCartItemQuantity = (id: string, delta: number) => {
     setCart((prev) =>
@@ -451,6 +469,8 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
         isCartOpen,
         setIsCartOpen,
         addToCart,
+        cartNotice,
+        dismissCartNotice,
         updateCartItemQuantity,
         updateItemNotes,
         removeFromCart,
