@@ -149,7 +149,12 @@ export const LocationPicker: React.FC = () => {
   };
 
   const handleAddressChange = (newAddr: string) => {
-    direccionEsAutomatica.current = false;
+    // Solo se apaga el autocompletado mientras el campo tenga texto propio
+    // del cliente. Si escribe algo y se arrepiente (o borra sin querer) y
+    // el campo vuelve a quedar vacio, el autocompletado tiene que poder
+    // volver a activarse en el siguiente movimiento del pin -- si no, el
+    // campo queda vacio para siempre en esa sesion, sin ningun aviso.
+    direccionEsAutomatica.current = newAddr.trim() === '';
     setAddress(newAddr);
     setDeliveryLocation({
       ...deliveryLocation,

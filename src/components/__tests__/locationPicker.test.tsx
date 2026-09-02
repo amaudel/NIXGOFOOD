@@ -312,3 +312,68 @@ describe('LocationPicker, carreras de la geocodificacion inversa', () => {
     ).toBe('Calle Nueva');
   });
 });
+
+/**
+ * "no pisa la direccion que el cliente escribio a mano" (arriba) prueba que
+ * el autocompletado respeta una direccion que sigue teniendo texto. Pero si
+ * el campo llega a recibir CUALQUIER cambio -- una tecla que se borra al
+ * toque, un intento fallido, lo que sea -- y queda vacio de nuevo, el
+ * autocompletado se apagaba para siempre en esa sesion: mover el pin
+ * despues ya no rellenaba nada, sin ningun aviso de por que.
+ */
+describe('LocationPicker, direccion que vuelve a quedar vacia', () => {
+  function stubGeolocation(secuenciaDeCoordenadas: Array<{ lat: number; lng: number }>) {
+    let llamada = 0;
+    vi.stubGlobal('navigator', {
+      ...window.navigator,
+      geolocation: {
+        getCurrentPosition: (ok: PositionCallback) => {
+          const { lat, lng } = secuenciaDeCoordenadas[llamada] || secuenciaDeCoordenadas[0];
+          llamada += 1;
+          ok({ coords: { latitude: lat, longitude: lng } } as GeolocationPosition);
+        },
+      },
+    });
+  }
+
+  function stubFetch(address: string | null) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: any) => {
+        const url = String(input);
+        if (url.includes('/api/geocode/reverse')) {
+          return new Response(JSON.stringify({ address }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+      })
+    );
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    cleanup();
+    localStorage.clear();
+    vi.unstubAllGlobals();
+  });
+
+  it('vuelve a autocompletar si el cliente borra lo que habia escrito', async () => {
+    stubFetch('Avenida 10 de Agosto');
+    stubGeolocation([{ lat: -2.908, lng: -79.026 }]);
+    montarPicker();
+
+    // El cliente escribe un caracter y se arrepiente, borra todo.
+    const direccion = screen.getByLabelText(/Direcci[oó]n principal/i) as HTMLInputElement;
+    fireEvent.change(direccion, { target: { value: 'x' } });
+    fireEvent.change(direccion, { target: { value: '' } });
+
+    fireEvent.click(screen.getByText(/Usar mi ubicación/i));
+
+    await waitFor(() => expect(direccion.value).toBe('Avenida 10 de Agosto'));
+  });
+});
