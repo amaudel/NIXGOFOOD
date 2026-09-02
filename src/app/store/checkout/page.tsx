@@ -69,7 +69,6 @@ export default function CheckoutPage() {
   // Form State
   const [name, setName] = useState(customerInfo.name || '');
   const [phone, setPhone] = useState(customerInfo.phone || '');
-  const [reference, setReference] = useState(deliveryLocation?.reference || '');
 
   // Payment State
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
@@ -87,6 +86,15 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [mostrarSucursales, setMostrarSucursales] = useState(false);
+
+  // Tiene que quedar junto al resto de los hooks, ARRIBA del early return del
+  // carrito vacio. El carrito se restaura desde localStorage en un efecto, o
+  // sea despues del primer render: al entrar directo a /checkout el primer
+  // render cortaba en ese return (sin llegar a este useRef) y el segundo, ya
+  // con productos, si lo ejecutaba -- React tiraba el arbol con "Rendered more
+  // hooks than during the previous render", y como el commit no completaba, la
+  // escritura que devolvia el carrito a localStorage nunca corria.
+  const isSubmittingRef = useRef<boolean>(false);
 
   // TODO(seguimiento): business.paymentConfig no existe todavia en la tabla
   // `businesses` (solo en el tipo TS) -- hasta que se agregue esa columna,
@@ -230,8 +238,6 @@ export default function CheckoutPage() {
     setStep(4);
   };
 
-  const isSubmittingRef = useRef<boolean>(false);
-
   // Final Order Submission
   const handleConfirmOrder = async () => {
     if (isSubmittingRef.current || isSubmitting) return;
@@ -262,7 +268,7 @@ export default function CheckoutPage() {
         deliveryMethod,
         deliveryLocation:
           deliveryMethod === 'delivery'
-            ? { ...deliveryLocation, reference: reference.trim() }
+            ? { ...deliveryLocation, reference: (deliveryLocation.reference || '').trim() }
             : null,
         paymentMethod,
         cashChange:
@@ -328,7 +334,7 @@ export default function CheckoutPage() {
           paymentMethod,
           deliveryLocation:
             deliveryMethod === 'delivery'
-              ? { ...deliveryLocation, reference: reference.trim() }
+              ? { ...deliveryLocation, reference: (deliveryLocation.reference || '').trim() }
               : undefined,
         });
         setStep(5);
@@ -624,20 +630,6 @@ export default function CheckoutPage() {
                       </div>
                     )}
                     {mostrarSucursales && deliveryMethod === 'delivery' && <BranchPicker mode="delivery" />}
-
-                    {/* Reference Input */}
-                    <div className="space-y-1.5 pt-2">
-                      <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
-                        Referencia del Domicilio (Opcional)
-                      </label>
-                      <input
-                        type="text"
-                        value={reference}
-                        onChange={(e) => setReference(e.target.value)}
-                        placeholder="Ej: Casa blanca de dos pisos, frente al parque, junto al banco..."
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition-colors"
-                      />
-                    </div>
                   </div>
                 ) : (
                   /* Pickup Branch Picker Card */
@@ -1083,7 +1075,9 @@ export default function CheckoutPage() {
                     {deliveryMethod === 'delivery' ? (
                       <>
                         <p><strong>Dirección:</strong> {deliveryLocation?.address}</p>
-                        {reference && <p><strong>Referencia:</strong> {reference}</p>}
+                        {deliveryLocation?.reference?.trim() && (
+                          <p><strong>Referencia:</strong> {deliveryLocation.reference.trim()}</p>
+                        )}
                         <p><strong>Costo de Envío:</strong> ${currentDeliveryFee.toFixed(2)}</p>
                       </>
                     ) : (

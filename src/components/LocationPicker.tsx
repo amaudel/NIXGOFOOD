@@ -23,7 +23,6 @@ export const LocationPicker: React.FC = () => {
     deliveryLocation,
     setDeliveryLocation,
     deliveryFeeResult,
-    calculateDelivery,
     setDeliveryMethod,
   } = useApp();
   const { selectedBranch, branches } = useBranch();
@@ -36,17 +35,18 @@ export const LocationPicker: React.FC = () => {
   const [geoError, setGeoError] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
 
+  // Unico camino que marca la ubicacion como elegida: GPS, clic en el mapa o
+  // pin arrastrado. setDeliveryLocation se encarga de cotizar y de persistir.
   const updatePosition = (newLat: number, newLng: number, customAddr?: string) => {
     setGeoError(null);
-    const updatedLoc = {
+    setDeliveryLocation({
       latitude: newLat,
       longitude: newLng,
       address: customAddr || address,
       reference,
       locationType,
-    };
-    setDeliveryLocation(updatedLoc);
-    calculateDelivery(newLat, newLng);
+      hasSelectedLocation: true,
+    });
   };
 
   // Real Geolocation using navigator.geolocation
@@ -147,7 +147,9 @@ export const LocationPicker: React.FC = () => {
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-zinc-400 font-semibold">
           <span>Mapa interactivo real (OpenStreetMap)</span>
-          <span className="text-rose-400 font-bold">Pin arrastrable</span>
+          <span className="text-rose-400 font-bold">
+            {deliveryLocation.hasSelectedLocation ? 'Pin arrastrable' : 'Toca para marcar'}
+          </span>
         </div>
 
         <div className="relative w-full h-72 sm:h-80 rounded-3xl overflow-hidden border-2 border-zinc-800 shadow-2xl bg-zinc-950">
@@ -157,18 +159,25 @@ export const LocationPicker: React.FC = () => {
             branchLat={sucursalMapa.latitude}
             branchLng={sucursalMapa.longitude}
             branchName={sucursalMapa.name}
+            hasSelectedLocation={!!deliveryLocation.hasSelectedLocation}
             onPositionChange={(lat, lng) => updatePosition(lat, lng)}
           />
 
           {/* Map Overlay Coordinates Indicator */}
           <div className="absolute bottom-2 left-2 z-10 bg-zinc-950/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-zinc-800 text-[11px] text-zinc-300 flex items-center gap-1.5 shadow">
             <Compass className="w-3.5 h-3.5 text-amber-400" />
-            <span>Coordenadas: {deliveryLocation.latitude.toFixed(4)}, {deliveryLocation.longitude.toFixed(4)}</span>
+            <span>
+              {deliveryLocation.hasSelectedLocation
+                ? `Coordenadas: ${deliveryLocation.latitude.toFixed(4)}, ${deliveryLocation.longitude.toFixed(4)}`
+                : 'Toca el mapa para marcar tu domicilio'}
+            </span>
           </div>
         </div>
 
         <p className="text-[11px] text-zinc-400 text-center italic font-medium">
-          Mueve el pin hasta la entrada exacta de tu domicilio.
+          {deliveryLocation.hasSelectedLocation
+            ? 'Mueve el pin hasta la entrada exacta de tu domicilio.'
+            : 'Toca el mapa en tu domicilio para calcular el envío.'}
         </p>
       </div>
 

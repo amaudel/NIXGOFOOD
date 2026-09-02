@@ -10,6 +10,7 @@ interface RealMapWrapperProps {
   branchLat: number;
   branchLng: number;
   branchName: string;
+  hasSelectedLocation: boolean;
   onPositionChange: (lat: number, lng: number) => void;
 }
 

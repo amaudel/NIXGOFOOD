@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { resolveMapCenter, shouldShowCustomerPin } from '@/lib/mapView';
 
 interface RealMapProps {
   customerLat: number;
@@ -11,15 +12,36 @@ interface RealMapProps {
   branchLat: number;
   branchLng: number;
   branchName: string;
+  hasSelectedLocation: boolean;
   onPositionChange: (lat: number, lng: number) => void;
 }
 
 // Component to dynamically re-center map view when coordinates change
-function RecenterMap({ lat, lng }: { lat: number; lng: number }) {
+//
+// `forzar` distingue dos motivos para mover la vista. Cuando el centro es el
+// punto del cliente (GPS, clic o pin arrastrado) siempre se sigue: es una
+// accion deliberada suya. Cuando el centro es solo el encuadre de la
+// sucursal, se respeta el paneo: la sucursal se resuelve unos cientos de ms
+// despues de montar el mapa y, sin este corte, ese cambio tardio arrastraba
+// la vista mientras el cliente estaba buscando su calle.
+function RecenterMap({ lat, lng, forzar }: { lat: number; lng: number; forzar: boolean }) {
   const map = useMap();
+  const clienteMovioElMapa = useRef(false);
+
+  useMapEvents({
+    dragstart() {
+      clienteMovioElMapa.current = true;
+    },
+    zoomstart() {
+      clienteMovioElMapa.current = true;
+    },
+  });
+
   useEffect(() => {
+    if (!forzar && clienteMovioElMapa.current) return;
     map.setView([lat, lng], map.getZoom());
-  }, [lat, lng, map]);
+  }, [lat, lng, forzar, map]);
+
   return null;
 }
 
@@ -39,8 +61,19 @@ export const RealMap: React.FC<RealMapProps> = ({
   branchLat,
   branchLng,
   branchName,
+  hasSelectedLocation,
   onPositionChange,
 }) => {
+  const center = resolveMapCenter(
+    { latitude: customerLat, longitude: customerLng },
+    { latitude: branchLat, longitude: branchLng },
+    hasSelectedLocation
+  );
+  const mostrarPinCliente = shouldShowCustomerPin(
+    { latitude: customerLat, longitude: customerLng },
+    hasSelectedLocation
+  );
+
   // Custom styled Leaflet DivIcons to avoid broken asset URL issues in Next.js bundler
   const restaurantIcon = useMemo(
     () =>
@@ -89,7 +122,7 @@ export const RealMap: React.FC<RealMapProps> = ({
   return (
     <div className="w-full h-full relative z-0">
       <MapContainer
-        center={[customerLat, customerLng]}
+        center={[center.latitude, center.longitude]}
         zoom={14}
         scrollWheelZoom={false}
         className="w-full h-full rounded-2xl overflow-hidden"
@@ -100,7 +133,11 @@ export const RealMap: React.FC<RealMapProps> = ({
         />
 
         {/* Recenter Map when customer location updates */}
-        <RecenterMap lat={customerLat} lng={customerLng} />
+        <RecenterMap
+          lat={center.latitude}
+          lng={center.longitude}
+          forzar={mostrarPinCliente}
+        />
 
         {/* Map Click Listener */}
         <MapClickListener onPositionChange={onPositionChange} />
@@ -113,16 +150,18 @@ export const RealMap: React.FC<RealMapProps> = ({
         </Marker>
 
         {/* Customer Target Marker (Draggable) */}
-        <Marker
-          position={[customerLat, customerLng]}
-          icon={customerPinIcon}
-          draggable={true}
-          eventHandlers={eventHandlers}
-        >
-          <Popup className="font-semibold text-xs text-zinc-900">
-            📍 Tu entrada de domicilio
-          </Popup>
-        </Marker>
+        {mostrarPinCliente && (
+          <Marker
+            position={[customerLat, customerLng]}
+            icon={customerPinIcon}
+            draggable={true}
+            eventHandlers={eventHandlers}
+          >
+            <Popup className="font-semibold text-xs text-zinc-900">
+              📍 Tu entrada de domicilio
+            </Popup>
+          </Marker>
+        )}
       </MapContainer>
     </div>
   );

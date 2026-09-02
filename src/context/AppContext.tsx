@@ -62,7 +62,6 @@ interface AppContextType {
   deliveryLocation: DeliveryLocation;
   setDeliveryLocation: (loc: DeliveryLocation) => void;
   deliveryFeeResult: DeliveryQuote;
-  calculateDelivery: (lat: number, lng: number) => DeliveryQuote;
 
   // Customer
   customerInfo: Customer;
@@ -117,6 +116,14 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
 
   const [customerInfo, setCustomerInfoState] = useState<Customer>({ name: '', phone: '' });
   const [orders, setOrders] = useState<Order[]>([]);
+
+  // Marca que localStorage ya fue leido. Sin esto, el efecto que persiste el
+  // carrito corria tambien en el primer commit -- con el carrito todavia
+  // vacio -- y pisaba lo guardado con "[]" antes de restaurarlo. Con un solo
+  // montaje el commit siguiente lo reescribia y no se notaba; con dos
+  // montajes (StrictMode en desarrollo, o cualquier remount) la segunda
+  // lectura ya encontraba "[]" y el pedido del cliente desaparecia.
+  const [hydrated, setHydrated] = useState(false);
 
   // Initialize from Repositories & LocalStorage on Client Hydration
   useEffect(() => {
@@ -200,17 +207,21 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
       if (storedCust) setCustomerInfoState(JSON.parse(storedCust));
     } catch (e) {
       console.error('Failed to load state from localStorage:', e);
+    } finally {
+      setHydrated(true);
     }
   }, []);
 
   // Sync Cart to LocalStorage
   useEffect(() => {
+    // Nunca escribir antes de haber leido: ver el comentario de `hydrated`.
+    if (!hydrated) return;
     try {
       localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
     } catch (e) {
       console.error(e);
     }
-  }, [cart]);
+  }, [cart, hydrated]);
 
   // Catalog Handlers
   const toggleProductAvailability = async (productId: string, isAvailable: boolean) => {
@@ -309,27 +320,40 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
     return cotizarParaSucursal(cobertura.branch, lat, lng);
   };
 
+  // Este setter lo usan dos cosas distintas: elegir un punto (GPS, clic o pin
+  // arrastrado) y editar metadata del domicilio (direccion, referencia, tipo
+  // de lugar). Forzar hasSelectedLocation: true servia para lo primero y
+  // rompia lo segundo: escribir la primera letra de la direccion marcaba la
+  // ubicacion como elegida y cotizaba contra (0, 0), asi que el cliente veia
+  // "fuera de nuestra zona de delivery" antes de haber tocado el mapa. Ahora
+  // el flag lo decide quien llama, y solo se cotiza si de verdad hay punto.
   const setDeliveryLocation = (loc: DeliveryLocation) => {
-    const updatedLoc = { ...loc, hasSelectedLocation: true };
+    const yaEligioPunto = loc.hasSelectedLocation ?? deliveryLocation.hasSelectedLocation ?? false;
+    const updatedLoc = { ...loc, hasSelectedLocation: yaEligioPunto };
+    const cambioDePosicion =
+      updatedLoc.latitude !== deliveryLocation.latitude ||
+      updatedLoc.longitude !== deliveryLocation.longitude;
+
     setDeliveryLocationState(updatedLoc);
-    setDeliveryFeeResult(cotizarPara(loc.latitude, loc.longitude));
+
+    if (yaEligioPunto) {
+      // cotizarPara auto-selecciona la sucursal mas cercana, y eso solo
+      // corresponde cuando el punto cambia. Si el cliente solo edito la
+      // direccion, la referencia o el tipo de lugar, auto-seleccionar pisaba
+      // (y persistia) la sucursal que habia elegido a mano en BranchPicker,
+      // cambiandole ademas el costo de envio.
+      const usarSucursalElegida = !cambioDePosicion && selectedBranch;
+      setDeliveryFeeResult(
+        usarSucursalElegida
+          ? cotizarParaSucursal(selectedBranch, updatedLoc.latitude, updatedLoc.longitude)
+          : cotizarPara(updatedLoc.latitude, updatedLoc.longitude)
+      );
+    }
     try {
       localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(updatedLoc));
     } catch (e) {
       console.error(e);
     }
-  };
-
-  const calculateDelivery = (lat: number, lng: number): DeliveryQuote => {
-    setDeliveryLocationState((prev) => ({
-      ...prev,
-      latitude: lat,
-      longitude: lng,
-      hasSelectedLocation: true,
-    }));
-    const quote = cotizarPara(lat, lng);
-    setDeliveryFeeResult(quote);
-    return quote;
   };
 
   // Recalcula la cotizacion de delivery una vez que BranchContext termina de cargar
@@ -403,7 +427,6 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
         deliveryLocation,
         setDeliveryLocation,
         deliveryFeeResult,
-        calculateDelivery,
         customerInfo,
         setCustomerInfo,
         orders,
