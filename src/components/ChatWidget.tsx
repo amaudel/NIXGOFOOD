@@ -78,7 +78,14 @@ export default function ChatWidget() {
   if (!AGENT_URL) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    // z-30 y no z-50: a esa altura el carrito, los modales y la barra fija
+    // de "Confirmar pedido" del checkout (z-40/z-50) siguen tapando estos
+    // botones cuando corresponde, en vez de flotar siempre por encima. Y en
+    // movil/tablet (donde ademas viven StickyCartBar y la barra de
+    // confirmar, ambas fijas al fondo) se sube a bottom-24 para no quedar
+    // superpuesto justo con el boton que el cliente necesita tocar para
+    // pagar -- bottom-4 solo en escritorio, donde ninguna de esas barras existe.
+    <div className="fixed bottom-24 right-4 z-30 lg:bottom-4">
       {open && (
         <div className="mb-3 flex h-[28rem] w-80 flex-col rounded-xl border border-zinc-800 bg-zinc-900 shadow-xl">
           <div className="flex items-center justify-between rounded-t-xl bg-zinc-800 px-4 py-3">
