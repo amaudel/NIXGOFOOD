@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import {
   Product,
   Category,
@@ -13,15 +13,20 @@ import {
   OrderStatus,
   Branch,
   Business,
+  BusinessHours,
 } from '@/types';
 import { ProductRepository } from '@/repositories/ProductRepository';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { ExecuteActionParams } from '@/repositories/interfaces/IOrderRepository';
 import { DeliveryService } from '@/services/DeliveryService';
+import { BusinessHoursService } from '@/services/BusinessHoursService';
+import { hoursForBranch } from '@/lib/branchSelection';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { isDemoMode } from '@/config/demo';
 import { useBranch } from '@/context/BranchContext';
 import { getBusinessRepository } from '@/repositories/factory';
+import { mergeCartItem } from '@/lib/cart';
+import { resolveDeliveryQuote } from '@/lib/deliveryQuote';
 
 const CART_STORAGE_KEY = 'el_taca_nijo_cart';
 const LOCATION_STORAGE_KEY = 'el_taca_nijo_location';
@@ -49,6 +54,8 @@ interface AppContextType {
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
   addToCart: (item: Omit<CartItem, 'id'>) => void;
+  cartNotice: CartNotice | null;
+  dismissCartNotice: () => void;
   updateCartItemQuantity: (id: string, delta: number) => void;
   updateItemNotes: (id: string, notes: string) => void;
   removeFromCart: (id: string) => void;
@@ -56,13 +63,18 @@ interface AppContextType {
   cartSubtotal: number;
   cartTotalCount: number;
 
+  // Horario
+  // Fuente unica de si el negocio esta atendiendo. Antes solo el Header lo
+  // calculaba, con su propio fetch, y el checkout no lo consultaba: se podia
+  // pagar un pedido que nadie iba a ver hasta el dia siguiente.
+  storeStatus: { isOpen: boolean; reason?: string };
+
   // Delivery & Location
   deliveryMethod: DeliveryMethod;
   setDeliveryMethod: (method: DeliveryMethod) => void;
   deliveryLocation: DeliveryLocation;
   setDeliveryLocation: (loc: DeliveryLocation) => void;
   deliveryFeeResult: DeliveryQuote;
-  calculateDelivery: (lat: number, lng: number) => DeliveryQuote;
 
   // Customer
   customerInfo: Customer;
@@ -75,7 +87,12 @@ interface AppContextType {
   refreshOrders: () => Promise<void>;
 }
 
-const AppContext = createContext<AppContextType | undefined>(undefined);
+export interface CartNotice {
+  productName: string;
+  quantity: number;
+}
+
+export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const DEFAULT_LOCATION: DeliveryLocation = {
   latitude: 0,
@@ -89,7 +106,14 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
   businessId,
   children,
 }) => {
-  const { selectedBranch, autoSelectForLocation, zones, loading: branchLoading } = useBranch();
+  const {
+    selectedBranch,
+    manuallySelected: sucursalElegidaAMano,
+    branches,
+    autoSelectForLocation,
+    zones,
+    loading: branchLoading,
+  } = useBranch();
 
   // State
   // Arrancan vacios/null (no en los datos mock de El Taca Nijo): mientras el
@@ -105,6 +129,7 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
   
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartNotice, setCartNotice] = useState<CartNotice | null>(null);
 
   const [deliveryMethod, setDeliveryMethodState] = useState<DeliveryMethod>('delivery');
   const [deliveryLocation, setDeliveryLocationState] = useState<DeliveryLocation>(DEFAULT_LOCATION);
@@ -117,6 +142,15 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
 
   const [customerInfo, setCustomerInfoState] = useState<Customer>({ name: '', phone: '' });
   const [orders, setOrders] = useState<Order[]>([]);
+  const [businessHours, setBusinessHours] = useState<BusinessHours[]>([]);
+
+  // Marca que localStorage ya fue leido. Sin esto, el efecto que persiste el
+  // carrito corria tambien en el primer commit -- con el carrito todavia
+  // vacio -- y pisaba lo guardado con "[]" antes de restaurarlo. Con un solo
+  // montaje el commit siguiente lo reescribia y no se notaba; con dos
+  // montajes (StrictMode en desarrollo, o cualquier remount) la segunda
+  // lectura ya encontraba "[]" y el pedido del cliente desaparecia.
+  const [hydrated, setHydrated] = useState(false);
 
   // Initialize from Repositories & LocalStorage on Client Hydration
   useEffect(() => {
@@ -129,12 +163,14 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
       // datos mock iniciales (initialCategories/initialProducts) para
       // cualquier negocio, sin importar que su propio fetch si hubiera
       // funcionado. Cada pieza ahora se aplica de forma independiente.
-      const [catResult, prodResult, orderResult, businessResult] = await Promise.allSettled([
-        ProductRepository.getCategories(businessId),
-        ProductRepository.getAllProducts(businessId),
-        OrderRepository.getOrders(businessId),
-        getBusinessRepository().getBusiness(businessId),
-      ]);
+      const [catResult, prodResult, orderResult, businessResult, hoursResult] =
+        await Promise.allSettled([
+          ProductRepository.getCategories(businessId),
+          ProductRepository.getAllProducts(businessId),
+          OrderRepository.getOrders(businessId),
+          getBusinessRepository().getBusiness(businessId),
+          getBusinessRepository().getBusinessHours(undefined, businessId),
+        ]);
 
       if (catResult.status === 'fulfilled') setCategories(catResult.value);
       else console.error('Failed to load categories:', catResult.reason);
@@ -147,6 +183,9 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
 
       if (businessResult.status === 'fulfilled') setBusiness(businessResult.value);
       else console.error('Failed to load business:', businessResult.reason);
+
+      if (hoursResult.status === 'fulfilled') setBusinessHours(hoursResult.value);
+      else console.error('Failed to load business hours:', hoursResult.reason);
 
       setCatalogLoading(false);
     };
@@ -200,17 +239,41 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
       if (storedCust) setCustomerInfoState(JSON.parse(storedCust));
     } catch (e) {
       console.error('Failed to load state from localStorage:', e);
+    } finally {
+      setHydrated(true);
     }
   }, []);
 
   // Sync Cart to LocalStorage
   useEffect(() => {
+    // Nunca escribir antes de haber leido: ver el comentario de `hydrated`.
+    if (!hydrated) return;
     try {
       localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
     } catch (e) {
       console.error(e);
     }
-  }, [cart]);
+  }, [cart, hydrated]);
+
+  // Si el negocio no cargo horarios, isRestaurantOpen devuelve "abierto": se
+  // prefiere dejar comprar antes que bloquear una tienda mal configurada.
+  const storeStatus = useMemo(() => {
+    const timezone = business?.timezone || 'America/Guayaquil';
+    if (selectedBranch) {
+      return BusinessHoursService.isRestaurantOpen(
+        hoursForBranch(businessHours, selectedBranch.id),
+        timezone
+      );
+    }
+    // Sin sucursal elegida todavia, alcanza con que alguna este atendiendo.
+    const abierta = branches.find(
+      (b) => BusinessHoursService.isRestaurantOpen(hoursForBranch(businessHours, b.id), timezone).isOpen
+    );
+    if (abierta) return { isOpen: true };
+    return branches[0]
+      ? BusinessHoursService.isRestaurantOpen(hoursForBranch(businessHours, branches[0].id), timezone)
+      : { isOpen: true };
+  }, [businessHours, business?.timezone, selectedBranch, branches]);
 
   // Catalog Handlers
   const toggleProductAvailability = async (productId: string, isAvailable: boolean) => {
@@ -224,14 +287,23 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
   const closeProductModal = () => setSelectedProductForModal(null);
 
   // Cart Handlers
+  //
+  // Cada toque en "Agregar" tapaba el menu abriendo el panel del carrito: si
+  // el cliente queria pedir cuatro tacos, tenia que cerrarlo y volver a
+  // buscar donde estaba cada vez. Ahora el carrito se queda cerrado y en su
+  // lugar se enciende cartNotice, un aviso breve que un toast puede leer sin
+  // interrumpir la navegacion.
+  //
+  // mergeCartItem tambien evita que dos toques sobre el mismo producto (con
+  // las mismas opciones) generen dos lineas separadas -- antes "1 x Gaseosa"
+  // aparecia repetido en el carrito, en la confirmacion y en la comanda de
+  // cocina, en vez de un solo "2 x Gaseosa".
   const addToCart = (item: Omit<CartItem, 'id'>) => {
-    const newItem: CartItem = {
-      ...item,
-      id: `${item.product.id}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-    };
-    setCart((prev) => [...prev, newItem]);
-    setIsCartOpen(true);
+    setCart((prev) => mergeCartItem(prev, item));
+    setCartNotice({ productName: item.product.name, quantity: item.quantity });
   };
+
+  const dismissCartNotice = () => setCartNotice(null);
 
   const updateCartItemQuantity = (id: string, delta: number) => {
     setCart((prev) =>
@@ -295,24 +367,45 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
     );
   };
 
-  const cotizarPara = (lat: number, lng: number): DeliveryQuote => {
-    const cobertura = autoSelectForLocation(lat, lng);
+  // Cotiza respetando una sucursal elegida a mano mientras siga cubriendo el
+  // punto; si no hay eleccion manual, o la que hay ya no llega hasta ahi,
+  // recien entonces auto-selecciona la mas cercana. Sincroniza BranchContext
+  // (autoSelectForLocation) solo cuando de verdad hace falta cambiar de
+  // sucursal -- no en cada recotizacion -- para no pisar en silencio una
+  // eleccion que el cliente hizo a proposito.
+  const cotizarRespetandoEleccion = (lat: number, lng: number): DeliveryQuote => {
+    const sucursalManual = sucursalElegidaAMano ? selectedBranch : null;
+    const resultado = resolveDeliveryQuote({
+      lat,
+      lng,
+      branches,
+      zones,
+      manuallySelectedBranch: sucursalManual,
+    });
 
-    if (!cobertura || !cobertura.zone) {
-      return {
-        available: false,
-        fee: 0,
-        reason: 'Ninguna de nuestras sucursales llega a esta dirección. Puedes elegir retiro en local.',
-      };
+    if (!sucursalManual || resultado.branch?.id !== sucursalManual.id) {
+      autoSelectForLocation(lat, lng);
     }
 
-    return cotizarParaSucursal(cobertura.branch, lat, lng);
+    return resultado.quote;
   };
 
+  // Este setter lo usan dos cosas distintas: elegir un punto (GPS, clic o pin
+  // arrastrado) y editar metadata del domicilio (direccion, referencia, tipo
+  // de lugar). Forzar hasSelectedLocation: true servia para lo primero y
+  // rompia lo segundo: escribir la primera letra de la direccion marcaba la
+  // ubicacion como elegida y cotizaba contra (0, 0), asi que el cliente veia
+  // "fuera de nuestra zona de delivery" antes de haber tocado el mapa. Ahora
+  // el flag lo decide quien llama, y solo se cotiza si de verdad hay punto.
   const setDeliveryLocation = (loc: DeliveryLocation) => {
-    const updatedLoc = { ...loc, hasSelectedLocation: true };
+    const yaEligioPunto = loc.hasSelectedLocation ?? deliveryLocation.hasSelectedLocation ?? false;
+    const updatedLoc = { ...loc, hasSelectedLocation: yaEligioPunto };
+
     setDeliveryLocationState(updatedLoc);
-    setDeliveryFeeResult(cotizarPara(loc.latitude, loc.longitude));
+
+    if (yaEligioPunto) {
+      setDeliveryFeeResult(cotizarRespetandoEleccion(updatedLoc.latitude, updatedLoc.longitude));
+    }
     try {
       localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(updatedLoc));
     } catch (e) {
@@ -320,23 +413,11 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
     }
   };
 
-  const calculateDelivery = (lat: number, lng: number): DeliveryQuote => {
-    setDeliveryLocationState((prev) => ({
-      ...prev,
-      latitude: lat,
-      longitude: lng,
-      hasSelectedLocation: true,
-    }));
-    const quote = cotizarPara(lat, lng);
-    setDeliveryFeeResult(quote);
-    return quote;
-  };
-
   // Recalcula la cotizacion de delivery una vez que BranchContext termina de cargar
   // sucursales y zonas, para no cotizar contra un array de zonas todavia vacio.
   useEffect(() => {
     if (!branchLoading && deliveryLocation.hasSelectedLocation) {
-      setDeliveryFeeResult(cotizarPara(deliveryLocation.latitude, deliveryLocation.longitude));
+      setDeliveryFeeResult(cotizarRespetandoEleccion(deliveryLocation.latitude, deliveryLocation.longitude));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchLoading]);
@@ -392,18 +473,20 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
         isCartOpen,
         setIsCartOpen,
         addToCart,
+        cartNotice,
+        dismissCartNotice,
         updateCartItemQuantity,
         updateItemNotes,
         removeFromCart,
         clearCart,
         cartSubtotal,
         cartTotalCount,
+        storeStatus,
         deliveryMethod,
         setDeliveryMethod,
         deliveryLocation,
         setDeliveryLocation,
         deliveryFeeResult,
-        calculateDelivery,
         customerInfo,
         setCustomerInfo,
         orders,

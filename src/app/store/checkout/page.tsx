@@ -18,7 +18,6 @@ import {
   Copy,
   Check,
   ChevronRight,
-  Edit3,
   Trash2,
   MessageSquare,
   Sparkles,
@@ -42,6 +41,10 @@ import { saveRecentOrder } from '@/utils/recentOrders';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { PaymentMethod, Order } from '@/types';
 
+// Tiempo fijo de preparacion para retiro en local; se usa tanto en el
+// formulario como en la pantalla de exito.
+const PICKUP_PREP_TIME = '15 - 25 min';
+
 export default function CheckoutPage() {
   const router = useRouter();
   const {
@@ -54,6 +57,8 @@ export default function CheckoutPage() {
     setDeliveryMethod,
     deliveryLocation,
     deliveryFeeResult,
+    storeStatus,
+    catalogLoading,
     customerInfo,
     setCustomerInfo,
     updateCartItemQuantity,
@@ -61,15 +66,10 @@ export default function CheckoutPage() {
     updateItemNotes,
   } = useApp();
   const { selectedBranch, branches } = useBranch();
-  const sucursalActual = selectedBranch || branches[0];
-
-  // Stepper Stage: 1 = Carrito, 2 = Entrega, 3 = Pago, 4 = Confirmación, 5 = Éxito
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
 
   // Form State
   const [name, setName] = useState(customerInfo.name || '');
   const [phone, setPhone] = useState(customerInfo.phone || '');
-  const [reference, setReference] = useState(deliveryLocation?.reference || '');
 
   // Payment State
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
@@ -87,6 +87,16 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [mostrarSucursales, setMostrarSucursales] = useState(false);
+
+  // Tiene que quedar junto al resto de los hooks, ARRIBA del early return del
+  // carrito vacio. El carrito se restaura desde localStorage en un efecto, o
+  // sea despues del primer render: al entrar directo a /checkout el primer
+  // render cortaba en ese return (sin llegar a este useRef) y el segundo, ya
+  // con productos, si lo ejecutaba -- React tiraba el arbol con "Rendered more
+  // hooks than during the previous render", y como el commit no completaba, la
+  // escritura que devolvia el carrito a localStorage nunca corria.
+  const isSubmittingRef = useRef<boolean>(false);
+  const entregaRef = useRef<HTMLDivElement>(null);
 
   // TODO(seguimiento): business.paymentConfig no existe todavia en la tabla
   // `businesses` (solo en el tipo TS) -- hasta que se agregue esa columna,
@@ -138,7 +148,7 @@ export default function CheckoutPage() {
   };
 
   // If cart is empty and not on success screen
-  if (cart.length === 0 && step !== 5) {
+  if (cart.length === 0 && !createdOrder) {
     return (
       <div className="max-w-xl mx-auto px-4 py-16 text-center space-y-6">
         <div className="w-20 h-20 mx-auto rounded-3xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 shadow-xl">
@@ -147,7 +157,7 @@ export default function CheckoutPage() {
         <div className="space-y-2">
           <h2 className="text-2xl font-black text-white">Tu carrito está vacío</h2>
           <p className="text-zinc-400 text-xs sm:text-sm max-w-md mx-auto">
-            Agrega deliciosos tacos, smash burgers o combos artesanales desde nuestro menú para iniciar tu pedido.
+            Descubre el menú de <strong>{business?.name || businessConfig.name}</strong> y agrega algo delicioso para iniciar tu pedido.
           </p>
         </div>
         <Link
@@ -171,70 +181,87 @@ export default function CheckoutPage() {
     setTimeout(() => setCopiedBank(false), 2500);
   };
 
-  // Step 1 -> Step 2 validation
-  const handleProceedToDelivery = () => {
-    setFormError(null);
-    setStep(2);
-  };
-
-  // Step 2 -> Step 3 validation
-  const handleProceedToPayment = () => {
-    setFormError(null);
-
+  // Checkout de una sola pantalla: no hay pasos que avanzar, asi que toda
+  // la validacion que antes vivia repartida en tres handlers de transicion
+  // corre de una sola vez al confirmar. Devuelve el primer error que
+  // encuentra, o null si el pedido esta listo para enviarse.
+  const validateOrder = (): string | null => {
     if (!name.trim()) {
-      setFormError('Por favor ingresa tu nombre completo.');
-      return;
+      return 'Por favor ingresa tu nombre completo.';
     }
 
     if (!phone.trim() || phone.trim().length < 7) {
-      setFormError('Por favor ingresa un número de teléfono / WhatsApp válido.');
-      return;
+      return 'Por favor ingresa un número de teléfono / WhatsApp válido.';
     }
 
     if (deliveryMethod === 'delivery') {
       if (!deliveryLocation?.hasSelectedLocation) {
-        setFormError('Selecciona tu ubicación exacta en el mapa para calcular el envío.');
-        return;
+        return 'Selecciona tu ubicación exacta en el mapa para calcular el envío.';
       }
       if (!deliveryFeeResult.available) {
-        setFormError('La ubicación seleccionada está fuera de nuestra zona de delivery.');
-        return;
+        return 'La ubicación seleccionada está fuera de nuestra zona de delivery.';
+      }
+      // El pin solo dice donde caer; sin calle escrita el repartidor llega
+      // con coordenadas y nada mas.
+      if (!deliveryLocation.address?.trim()) {
+        return 'Escribe la dirección de entrega para que el repartidor pueda llegar.';
       }
     }
-
-    setCustomerInfo({ name: name.trim(), phone: phone.trim() });
-    setStep(3);
-  };
-
-  // Step 3 -> Step 4 validation
-  const handleProceedToReview = () => {
-    setFormError(null);
 
     if (paymentMethod === 'cash' && needsChange) {
       const parsedAmount = parseFloat(payWithAmount);
       if (isNaN(parsedAmount) || parsedAmount < orderTotal) {
-        setFormError(
-          `El monto de pago ($${payWithAmount || 0}) debe ser igual o mayor al total del pedido ($${orderTotal.toFixed(2)}).`
-        );
-        return;
+        return `El monto de pago ($${payWithAmount || 0}) debe ser igual o mayor al total del pedido ($${orderTotal.toFixed(2)}).`;
       }
     }
 
-    if (paymentMethod === 'transfer') {
-      if (!transferProofPreviewUrl && !transferProofFile) {
-        setFormError('Adjunta una foto del comprobante de transferencia para continuar.');
-        return;
-      }
+    if (paymentMethod === 'transfer' && !transferProofPreviewUrl && !transferProofFile) {
+      return 'Adjunta una foto del comprobante de transferencia para continuar.';
     }
 
-    setStep(4);
+    return null;
   };
 
-  const isSubmittingRef = useRef<boolean>(false);
+  // El banner de error vive arriba de todo, pero "Confirmar pedido" se toca
+  // desde el fondo de la pantalla (la barra fija en movil, o el panel
+  // lateral). Sin este scroll, el cliente tocaba confirmar, nada parecia
+  // pasar, y el mensaje de por que quedaba fuera de vista.
+  const mostrarError = (mensaje: string) => {
+    setFormError(mensaje);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   // Final Order Submission
   const handleConfirmOrder = async () => {
     if (isSubmittingRef.current || isSubmitting) return;
+
+    // storeStatus arranca en "abierto" mientras el horario real todavia no
+    // termina de cargar (sin horas cargadas no hay forma de saber lo
+    // contrario) -- un cliente recurrente con nombre, telefono y direccion
+    // ya guardados de una sesion anterior podia tocar "Confirmar pedido"
+    // dentro de esa ventana y el pedido se creaba igual, aunque el local
+    // estuviera cerrado de verdad.
+    if (catalogLoading) {
+      mostrarError('Estamos cargando los datos del negocio. Intenta de nuevo en un momento.');
+      return;
+    }
+
+    if (!storeStatus.isOpen) {
+      mostrarError(
+        storeStatus.reason || 'El local está cerrado en este momento y no puede recibir tu pedido.'
+      );
+      return;
+    }
+
+    const validationError = validateOrder();
+    if (validationError) {
+      mostrarError(validationError);
+      return;
+    }
+
+    setCustomerInfo({ name: name.trim(), phone: phone.trim() });
 
     isSubmittingRef.current = true;
     setFormError(null);
@@ -262,7 +289,7 @@ export default function CheckoutPage() {
         deliveryMethod,
         deliveryLocation:
           deliveryMethod === 'delivery'
-            ? { ...deliveryLocation, reference: reference.trim() }
+            ? { ...deliveryLocation, reference: (deliveryLocation.reference || '').trim() }
             : null,
         paymentMethod,
         cashChange:
@@ -328,10 +355,24 @@ export default function CheckoutPage() {
           paymentMethod,
           deliveryLocation:
             deliveryMethod === 'delivery'
-              ? { ...deliveryLocation, reference: reference.trim() }
+              ? { ...deliveryLocation, reference: (deliveryLocation.reference || '').trim() }
               : undefined,
+          // Es el momento de mas ansiedad del cliente y lo unico que quiere
+          // saber; el dato ya existia pero la pantalla de exito no lo
+          // repetia. Para delivery se prefiere la cotizacion de la zona (mas
+          // fresca que lo que haya calculado el backend). Para retiro cae
+          // directo al estimatedTime del pedido creado -- nunca a
+          // deliveryFeeResult, que puede seguir cargado con la cotizacion de
+          // una zona de un intento anterior si el cliente probo delivery
+          // antes de cambiarse a retiro; e inventar un valor propio aca
+          // (como hacia PICKUP_PREP_TIME, pensado solo para el texto antes
+          // de pedir) se desincroniza en cuanto el tiempo real de
+          // preparacion cambie.
+          estimatedTime:
+            deliveryMethod === 'delivery'
+              ? deliveryFeeResult.estimatedMinutes || result.estimatedTime || ''
+              : result.estimatedTime || '',
         });
-        setStep(5);
       } else {
         throw new Error('No se pudo generar el código de seguimiento del pedido.');
       }
@@ -344,10 +385,13 @@ export default function CheckoutPage() {
       if (msg.includes('sucursal')) {
         setFormError('La sucursal seleccionada ya no está disponible. Elige otra para continuar.');
         setMostrarSucursales(true);
-        setStep(2);
+        // Este error si tiene una accion concreta mas abajo (elegir otra
+        // sucursal en BranchPicker): llevar al banner del tope no serviria
+        // de nada si el cliente no ve donde hacer el cambio.
+        entregaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         return;
       }
-      setFormError(err.message || 'Error al procesar el pedido. Intenta nuevamente.');
+      mostrarError(err.message || 'Error al procesar el pedido. Intenta nuevamente.');
     } finally {
       isSubmittingRef.current = false;
       setIsSubmitting(false);
@@ -357,7 +401,7 @@ export default function CheckoutPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8 space-y-6 sm:space-y-8 min-h-screen pb-28 lg:pb-12">
       {/* Navigation Top Header */}
-      {step !== 5 && (
+      {!createdOrder && (
         <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
           <Link
             href="/"
@@ -373,65 +417,46 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      {/* Stepper Progress Bar (Steps 1 to 4) */}
-      {step !== 5 && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-xl">
-          {/* Mobile Header (Paso X de 4) */}
-          <div className="flex sm:hidden items-center justify-between mb-2">
-            <span className="text-xs font-black text-amber-400 uppercase tracking-wider">
-              Paso {step} de 4
-            </span>
-            <span className="text-xs font-bold text-white">
-              {step === 1 && 'Carrito'}
-              {step === 2 && 'Entrega'}
-              {step === 3 && 'Método de Pago'}
-              {step === 4 && 'Confirmación'}
-            </span>
-          </div>
 
-          {/* Stepper Buttons (Desktop & Mobile Bar) */}
-          <div className="grid grid-cols-4 gap-1.5 sm:gap-3">
-            {[
-              { id: 1, label: 'Carrito', icon: ShoppingBag },
-              { id: 2, label: 'Entrega', icon: Truck },
-              { id: 3, label: 'Pago', icon: CreditCard },
-              { id: 4, label: 'Confirmar', icon: CheckCircle2 },
-            ].map((st) => {
-              const Icon = st.icon;
-              const isCurrent = step === st.id;
-              const isPassed = step > st.id;
 
-              return (
-                <button
-                  key={st.id}
-                  disabled={st.id > step}
-                  onClick={() => st.id < step && setStep(st.id as any)}
-                  className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-xl sm:rounded-2xl transition-all text-xs font-bold ${
-                    isCurrent
-                      ? 'bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 text-white shadow-lg shadow-rose-950/50'
-                      : isPassed
-                      ? 'bg-zinc-950 text-amber-400 border border-amber-500/30 hover:border-amber-500/60'
-                      : 'bg-zinc-950/60 text-zinc-600 border border-zinc-850 cursor-not-allowed'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${isCurrent ? 'text-white' : isPassed ? 'text-amber-400' : 'text-zinc-600'}`} />
-                  <span className="hidden sm:inline">{st.label}</span>
-                </button>
-              );
-            })}
+      {/* Aviso de local cerrado: arriba de todo y en cada paso, para que el
+          cliente no llene el formulario entero antes de enterarse. */}
+      {!createdOrder && !storeStatus.isOpen && (
+        <div className="bg-amber-950/50 border border-amber-700 p-4 rounded-2xl flex items-start gap-3 shadow-xl">
+          <Clock className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <p className="font-extrabold text-sm text-amber-200">
+              Ahora mismo el local está cerrado
+            </p>
+            <p className="text-xs text-amber-300/90">
+              {storeStatus.reason || 'Vuelve durante el horario de atención para hacer tu pedido.'}{' '}
+              Tu pedido queda guardado en el carrito.
+            </p>
           </div>
         </div>
       )}
 
+      {/* Al colapsar el checkout a una sola pantalla, este banner quedo
+          anidado al fondo de la seccion de pago -- un error sobre el
+          nombre o la direccion (secciones de mas arriba) aparecia fuera de
+          vista, y el cliente no entendia por que "Confirmar pedido" no
+          avanzaba. Ahora es uno solo, siempre arriba de todo. */}
+      {!createdOrder && formError && (
+        <div className="bg-rose-950/60 border border-rose-800 p-4 rounded-2xl flex items-center gap-3 text-xs sm:text-sm text-rose-300 shadow-xl">
+          <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+          <span>{formError}</span>
+        </div>
+      )}
+
       {/* Main Grid Layout for Checkout */}
-      {step !== 5 && (
+      {!createdOrder && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
           {/* Left Column: Interactive Step Views */}
           <div className="lg:col-span-7 space-y-6">
             {/* ========================================================================= */}
             {/* STEP 1: CARRITO                                                           */}
             {/* ========================================================================= */}
-            {step === 1 && (
+            {(
               <div className="bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-zinc-800 space-y-5 shadow-2xl">
                 <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                   <h2 className="font-extrabold text-base sm:text-lg text-white flex items-center gap-2">
@@ -526,23 +551,14 @@ export default function CheckoutPage() {
                   <span className="text-amber-400 font-black text-lg">${cartSubtotal.toFixed(2)}</span>
                 </div>
 
-                {/* Action CTA */}
-                <button
-                  type="button"
-                  onClick={handleProceedToDelivery}
-                  className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black py-4 px-6 rounded-2xl shadow-xl shadow-rose-950/60 active:scale-95 transition-all text-sm sm:text-base"
-                >
-                  <span>Continuar con la entrega</span>
-                  <ChevronRight className="w-5 h-5" />
-                </button>
               </div>
             )}
 
             {/* ========================================================================= */}
             {/* STEP 2: ENTREGA (DELIVERY vs RETIRO)                                      */}
             {/* ========================================================================= */}
-            {step === 2 && (
-              <div className="space-y-6">
+            {(
+              <div className="space-y-6" ref={entregaRef}>
                 {/* Method Selector Cards */}
                 <div className="bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-zinc-800 space-y-4 shadow-2xl">
                   <h2 className="font-extrabold text-base sm:text-lg text-white border-b border-zinc-800 pb-3">
@@ -624,20 +640,6 @@ export default function CheckoutPage() {
                       </div>
                     )}
                     {mostrarSucursales && deliveryMethod === 'delivery' && <BranchPicker mode="delivery" />}
-
-                    {/* Reference Input */}
-                    <div className="space-y-1.5 pt-2">
-                      <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
-                        Referencia del Domicilio (Opcional)
-                      </label>
-                      <input
-                        type="text"
-                        value={reference}
-                        onChange={(e) => setReference(e.target.value)}
-                        placeholder="Ej: Casa blanca de dos pisos, frente al parque, junto al banco..."
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition-colors"
-                      />
-                    </div>
                   </div>
                 ) : (
                   /* Pickup Branch Picker Card */
@@ -656,7 +658,7 @@ export default function CheckoutPage() {
 
                     <div className="flex items-center gap-1.5 text-zinc-400 text-xs pt-1">
                       <Clock className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Preparación: <strong>15 - 25 min</strong></span>
+                      <span>Preparación: <strong>{PICKUP_PREP_TIME}</strong></span>
                     </div>
                   </div>
                 )}
@@ -702,39 +704,13 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                {/* Form Error Banner */}
-                {formError && (
-                  <div className="bg-rose-950/60 border border-rose-800 p-4 rounded-2xl flex items-center gap-3 text-xs sm:text-sm text-rose-300 shadow-xl">
-                    <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-                    <span>{formError}</span>
-                  </div>
-                )}
-
-                {/* Step 2 Actions */}
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStep(1)}
-                    className="w-1/3 py-4 px-4 bg-zinc-950 hover:bg-zinc-850 text-zinc-300 font-bold rounded-2xl border border-zinc-800 transition-all text-xs sm:text-sm"
-                  >
-                    Atrás
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleProceedToPayment}
-                    className="w-2/3 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black py-4 px-6 rounded-2xl shadow-xl shadow-rose-950/60 active:scale-95 transition-all text-xs sm:text-base"
-                  >
-                    <span>Continuar al pago</span>
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
+                              </div>
             )}
 
             {/* ========================================================================= */}
             {/* STEP 3: MÉTODOS DE PAGO                                                   */}
             {/* ========================================================================= */}
-            {step === 3 && (
+            {(
               <div className="bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-zinc-800 space-y-6 shadow-2xl">
                 <div className="border-b border-zinc-800 pb-3">
                   <h2 className="font-extrabold text-base sm:text-lg text-white flex items-center gap-2">
@@ -963,212 +939,11 @@ export default function CheckoutPage() {
                     )}
                   </div>
 
-                  {/* Option 3: Pago en Línea (Disabled / Prepared) */}
-                  <div className="p-4 rounded-2xl border border-zinc-850 bg-zinc-950/40 opacity-60 cursor-not-allowed">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-zinc-900 text-zinc-500 border border-zinc-800 flex items-center justify-center shrink-0">
-                          <CreditCard className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-black text-sm text-zinc-400">💳 Pago en Línea con Tarjeta</span>
-                            <span className="bg-zinc-800 text-zinc-400 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
-                              Próximamente
-                            </span>
-                          </div>
-                          <span className="text-xs text-zinc-600 block">Integración de pasarela de pago en progreso</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
-                {/* Form Error Banner */}
-                {formError && (
-                  <div className="bg-rose-950/60 border border-rose-800 p-4 rounded-2xl flex items-center gap-3 text-xs sm:text-sm text-rose-300 shadow-xl">
-                    <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-                    <span>{formError}</span>
-                  </div>
-                )}
-
-                {/* Step 3 Actions */}
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStep(2)}
-                    className="w-1/3 py-4 px-4 bg-zinc-950 hover:bg-zinc-850 text-zinc-300 font-bold rounded-2xl border border-zinc-800 transition-all text-xs sm:text-sm"
-                  >
-                    Atrás
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleProceedToReview}
-                    className="w-2/3 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black py-4 px-6 rounded-2xl shadow-xl shadow-rose-950/60 active:scale-95 transition-all text-xs sm:text-base"
-                  >
-                    <span>Revisar pedido</span>
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </div>
               </div>
             )}
 
-            {/* ========================================================================= */}
-            {/* STEP 4: RESUMEN Y CONFIRMACIÓN ANTES DE ENVIAR                            */}
-            {/* ========================================================================= */}
-            {step === 4 && (
-              <div className="bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-zinc-800 space-y-6 shadow-2xl">
-                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-                  <h2 className="font-extrabold text-base sm:text-lg text-white flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-rose-500" />
-                    <span>Confirmación Final de Tu Pedido</span>
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={() => setStep(1)}
-                    className="text-xs text-amber-400 hover:underline font-bold flex items-center gap-1"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    <span>Editar pedido</span>
-                  </button>
-                </div>
-
-                {/* Section 1: Tu Pedido */}
-                <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-3">
-                  <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
-                    <span className="text-xs font-black uppercase text-amber-400 tracking-wider">
-                      1. Productos ({cart.reduce((s, i) => s + i.quantity, 0)})
-                    </span>
-                    <button onClick={() => setStep(1)} className="text-[11px] text-zinc-400 hover:text-white">
-                      Editar
-                    </button>
-                  </div>
-
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1 no-scrollbar text-xs">
-                    {cart.map((item) => (
-                      <div key={item.id} className="flex justify-between items-start">
-                        <div>
-                          <p className="font-bold text-zinc-200">
-                            {item.quantity}× {item.product.name}
-                          </p>
-                          {item.selectedModifiers.length > 0 && (
-                            <p className="text-[10px] text-zinc-400">
-                              {item.selectedModifiers.map((m) => m.modifierName).join(', ')}
-                            </p>
-                          )}
-                          {item.notes && <p className="text-[10px] text-amber-400 italic">&quot;{item.notes}&quot;</p>}
-                        </div>
-                        <span className="font-bold text-zinc-100">${item.totalPrice.toFixed(2)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Section 2: Entrega */}
-                <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2 text-xs">
-                  <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
-                    <span className="text-xs font-black uppercase text-amber-400 tracking-wider">
-                      2. Modalidad de Entrega
-                    </span>
-                    <button onClick={() => setStep(2)} className="text-[11px] text-zinc-400 hover:text-white">
-                      Editar
-                    </button>
-                  </div>
-
-                  <div className="space-y-1 text-zinc-300">
-                    <p className="font-bold text-sm text-white">
-                      {deliveryMethod === 'delivery' ? '🛵 Delivery a Domicilio' : '🏪 Retiro en Local'}
-                    </p>
-                    <p><strong>Cliente:</strong> {name} ({phone})</p>
-                    {deliveryMethod === 'delivery' ? (
-                      <>
-                        <p><strong>Dirección:</strong> {deliveryLocation?.address}</p>
-                        {reference && <p><strong>Referencia:</strong> {reference}</p>}
-                        <p><strong>Costo de Envío:</strong> ${currentDeliveryFee.toFixed(2)}</p>
-                      </>
-                    ) : (
-                      <p><strong>Sucursal:</strong> {sucursalActual.name} ({sucursalActual.address})</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Section 3: Pago */}
-                <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2 text-xs">
-                  <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
-                    <span className="text-xs font-black uppercase text-amber-400 tracking-wider">
-                      3. Método de Pago
-                    </span>
-                    <button onClick={() => setStep(3)} className="text-[11px] text-zinc-400 hover:text-white">
-                      Editar
-                    </button>
-                  </div>
-
-                  <div className="text-zinc-300 space-y-2">
-                    <p className="font-bold text-sm text-white">
-                      {paymentMethod === 'cash' && '💵 Efectivo'}
-                      {paymentMethod === 'transfer' && '🏦 Transferencia Bancaria'}
-                      {paymentMethod === 'online' && '💳 Pago en Línea'}
-                    </p>
-                    {paymentMethod === 'cash' && (
-                      <p>
-                        {needsChange
-                          ? `Paga con billete de $${parseFloat(payWithAmount).toFixed(2)} (Cambio: $${(parseFloat(payWithAmount) - orderTotal).toFixed(2)})`
-                          : 'No requiere cambio'}
-                      </p>
-                    )}
-                    {paymentMethod === 'transfer' && (
-                      <div className="space-y-1.5 pt-1">
-                        <div className="flex items-center gap-2 text-emerald-400 font-extrabold text-xs">
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>Comprobante adjuntado</span>
-                        </div>
-                        {transferProofPreviewUrl && (
-                          <div className="flex items-center gap-3 bg-zinc-900 p-2 rounded-xl border border-zinc-800 max-w-xs">
-                            <img
-                              src={transferProofPreviewUrl}
-                              alt="Miniatura comprobante"
-                              className="w-12 h-12 rounded-lg object-cover border border-zinc-800 shrink-0"
-                            />
-                            <span className="text-[11px] text-zinc-400 truncate">
-                              {transferProofFile?.name || 'comprobante_pago.jpg'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Form Error Banner */}
-                {formError && (
-                  <div className="bg-rose-950/60 border border-rose-800 p-4 rounded-2xl flex items-center gap-3 text-xs sm:text-sm text-rose-300 shadow-xl">
-                    <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-                    <span>{formError}</span>
-                  </div>
-                )}
-
-                {/* Step 4 Actions */}
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStep(3)}
-                    disabled={isSubmitting}
-                    className="w-1/3 py-4 px-4 bg-zinc-950 hover:bg-zinc-850 text-zinc-300 font-bold rounded-2xl border border-zinc-800 transition-all text-xs sm:text-sm disabled:opacity-50"
-                  >
-                    Atrás
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleConfirmOrder}
-                    disabled={isSubmitting}
-                    className="w-2/3 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black py-4 px-6 rounded-2xl shadow-xl shadow-rose-950/80 active:scale-95 disabled:opacity-50 transition-all text-xs sm:text-base"
-                  >
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span>{isSubmitting ? 'Procesando comanda...' : 'Confirmar pedido'}</span>
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Right Column: Sticky Summary & Breakdown (Desktop & Mobile Bar) */}
@@ -1205,13 +980,30 @@ export default function CheckoutPage() {
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>Garantía NixgoFood: Sin costos ocultos. Precios transparentes.</span>
               </div>
+
+              {/* Confirm CTA -- solo en escritorio; en movil la cubre la barra fija de abajo. */}
+              <button
+                type="button"
+                onClick={handleConfirmOrder}
+                disabled={isSubmitting || !storeStatus.isOpen}
+                className="hidden lg:inline-flex w-full items-center justify-center gap-2 bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black py-4 px-6 rounded-2xl shadow-xl shadow-rose-950/60 active:scale-95 disabled:opacity-50 transition-all text-sm"
+              >
+                <CheckCircle2 className="w-5 h-5" />
+                <span>
+                  {!storeStatus.isOpen
+                    ? 'Local cerrado'
+                    : isSubmitting
+                    ? 'Procesando comanda...'
+                    : 'Confirmar pedido'}
+                </span>
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {/* Mobile Fixed Bottom CTA Bar (Steps 1 to 3) */}
-      {step !== 5 && step !== 4 && (
+      {!createdOrder && (
         <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/95 backdrop-blur-md border-t border-zinc-800 p-3 sm:p-4 shadow-2xl flex items-center justify-between gap-3">
           <div>
             <span className="text-[10px] text-zinc-400 uppercase tracking-wider block font-bold">Total del Pedido</span>
@@ -1220,14 +1012,13 @@ export default function CheckoutPage() {
 
           <button
             type="button"
-            onClick={() => {
-              if (step === 1) handleProceedToDelivery();
-              else if (step === 2) handleProceedToPayment();
-              else if (step === 3) handleProceedToReview();
-            }}
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-600 to-amber-500 text-white font-extrabold py-3 px-5 rounded-xl shadow-lg text-xs sm:text-sm active:scale-95"
+            onClick={handleConfirmOrder}
+            disabled={isSubmitting || !storeStatus.isOpen}
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-600 to-amber-500 text-white font-extrabold py-3 px-5 rounded-xl shadow-lg text-xs sm:text-sm active:scale-95 disabled:opacity-50"
           >
-            <span>Continuar</span>
+            <span>
+              {!storeStatus.isOpen ? 'Local cerrado' : isSubmitting ? 'Procesando...' : 'Confirmar pedido'}
+            </span>
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -1236,7 +1027,7 @@ export default function CheckoutPage() {
       {/* ========================================================================= */}
       {/* STEP 5: PANTALLA VISUAL DE ÉXITO (PEDIDO CREADO)                           */}
       {/* ========================================================================= */}
-      {step === 5 && createdOrder && (
+      {createdOrder && (
         <div className="max-w-2xl mx-auto py-8 sm:py-12 space-y-6">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-10 space-y-6 shadow-2xl text-center relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-600" />
@@ -1288,6 +1079,13 @@ export default function CheckoutPage() {
                   {createdOrder.deliveryMethod === 'delivery' ? '🛵 Delivery a Domicilio' : '🏪 Retiro en Local'}
                 </span>
               </div>
+
+              {createdOrder.estimatedTime && (
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-400">Tiempo estimado:</span>
+                  <span className="font-bold text-white">{createdOrder.estimatedTime}</span>
+                </div>
+              )}
 
               {createdOrder.deliveryLocation && (
                 <div className="flex items-center justify-between">

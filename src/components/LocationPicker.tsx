@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   MapPin,
   Navigation,
@@ -23,7 +23,6 @@ export const LocationPicker: React.FC = () => {
     deliveryLocation,
     setDeliveryLocation,
     deliveryFeeResult,
-    calculateDelivery,
     setDeliveryMethod,
   } = useApp();
   const { selectedBranch, branches } = useBranch();
@@ -35,18 +34,75 @@ export const LocationPicker: React.FC = () => {
 
   const [geoError, setGeoError] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [buscandoDireccion, setBuscandoDireccion] = useState(false);
 
-  const updatePosition = (newLat: number, newLng: number, customAddr?: string) => {
+  // Solo se autocompleta la direccion mientras el cliente no haya escrito la
+  // suya. Una direccion escrita a mano ("Casa de mi mama, junto a la tienda")
+  // suele guiar mejor al repartidor que la calle formal, y pisarla seria
+  // exactamente el problema que traia el boton de GPS.
+  const direccionEsAutomatica = useRef(!deliveryLocation.address);
+
+  // Ultimo deliveryLocation conocido, para que completarDireccion pueda leer
+  // el estado mas fresco cuando su fetch resuelve en vez de un valor
+  // capturado por closure en el momento en que empezo la busqueda -- sin
+  // esto, si el cliente escribia la referencia mientras la geocodificacion
+  // seguia en curso, la respuesta la pisaba con el valor vacio de antes.
+  const deliveryLocationRef = useRef(deliveryLocation);
+  deliveryLocationRef.current = deliveryLocation;
+
+  // Se incrementa en cada posicion nueva. completarDireccion guarda el
+  // numero vigente al arrancar y lo compara al terminar: si el cliente ya
+  // movio el pin de nuevo mientras la respuesta viajaba, esta quedo vieja y
+  // se descarta -- sin esto, dos posiciones seguidas con respuestas fuera de
+  // orden dejaban el pin visualmente en la mas nueva pero la direccion (y la
+  // cotizacion) de la mas vieja.
+  const generacionPosicion = useRef(0);
+
+  // Unico camino que marca la ubicacion como elegida: GPS, clic en el mapa o
+  // pin arrastrado. setDeliveryLocation se encarga de cotizar y de persistir.
+  const updatePosition = (newLat: number, newLng: number) => {
     setGeoError(null);
-    const updatedLoc = {
+    generacionPosicion.current += 1;
+    const miGeneracion = generacionPosicion.current;
+
+    setDeliveryLocation({
       latitude: newLat,
       longitude: newLng,
-      address: customAddr || address,
+      address,
       reference,
       locationType,
-    };
-    setDeliveryLocation(updatedLoc);
-    calculateDelivery(newLat, newLng);
+      hasSelectedLocation: true,
+    });
+
+    if (!direccionEsAutomatica.current) return;
+    void completarDireccion(newLat, newLng, miGeneracion);
+  };
+
+  // Geocodificacion inversa via ruta propia (ver src/app/api/geocode/reverse).
+  // Si falla o no hay calle, el campo queda vacio a proposito: la validacion
+  // del checkout le pide la direccion al cliente. Antes se guardaba
+  // "Ubicacion GPS (-2.9050, -79.0120)", que es lo que terminaba leyendo el
+  // repartidor.
+  const completarDireccion = async (lat: number, lng: number, miGeneracion: number) => {
+    setBuscandoDireccion(true);
+    try {
+      const res = await fetch(`/api/geocode/reverse?lat=${lat}&lng=${lng}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (
+        !data.address ||
+        !direccionEsAutomatica.current ||
+        miGeneracion !== generacionPosicion.current
+      ) {
+        return;
+      }
+      setAddress(data.address);
+      setDeliveryLocation({ ...deliveryLocationRef.current, address: data.address });
+    } catch {
+      // Sin direccion automatica; el cliente la escribe a mano.
+    } finally {
+      if (miGeneracion === generacionPosicion.current) setBuscandoDireccion(false);
+    }
   };
 
   // Real Geolocation using navigator.geolocation
@@ -65,9 +121,7 @@ export const LocationPicker: React.FC = () => {
       (position) => {
         setIsLocating(false);
         const { latitude, longitude } = position.coords;
-        const autoAddress = `Ubicación GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
-        setAddress(autoAddress);
-        updatePosition(latitude, longitude, autoAddress);
+        updatePosition(latitude, longitude);
       },
       (error) => {
         setIsLocating(false);
@@ -95,6 +149,7 @@ export const LocationPicker: React.FC = () => {
   };
 
   const handleAddressChange = (newAddr: string) => {
+    direccionEsAutomatica.current = false;
     setAddress(newAddr);
     setDeliveryLocation({
       ...deliveryLocation,
@@ -147,7 +202,9 @@ export const LocationPicker: React.FC = () => {
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-zinc-400 font-semibold">
           <span>Mapa interactivo real (OpenStreetMap)</span>
-          <span className="text-rose-400 font-bold">Pin arrastrable</span>
+          <span className="text-rose-400 font-bold">
+            {deliveryLocation.hasSelectedLocation ? 'Pin arrastrable' : 'Toca para marcar'}
+          </span>
         </div>
 
         <div className="relative w-full h-72 sm:h-80 rounded-3xl overflow-hidden border-2 border-zinc-800 shadow-2xl bg-zinc-950">
@@ -157,18 +214,25 @@ export const LocationPicker: React.FC = () => {
             branchLat={sucursalMapa.latitude}
             branchLng={sucursalMapa.longitude}
             branchName={sucursalMapa.name}
+            hasSelectedLocation={!!deliveryLocation.hasSelectedLocation}
             onPositionChange={(lat, lng) => updatePosition(lat, lng)}
           />
 
           {/* Map Overlay Coordinates Indicator */}
           <div className="absolute bottom-2 left-2 z-10 bg-zinc-950/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-zinc-800 text-[11px] text-zinc-300 flex items-center gap-1.5 shadow">
             <Compass className="w-3.5 h-3.5 text-amber-400" />
-            <span>Coordenadas: {deliveryLocation.latitude.toFixed(4)}, {deliveryLocation.longitude.toFixed(4)}</span>
+            <span>
+              {deliveryLocation.hasSelectedLocation
+                ? `Coordenadas: ${deliveryLocation.latitude.toFixed(4)}, ${deliveryLocation.longitude.toFixed(4)}`
+                : 'Toca el mapa para marcar tu domicilio'}
+            </span>
           </div>
         </div>
 
         <p className="text-[11px] text-zinc-400 text-center italic font-medium">
-          Mueve el pin hasta la entrada exacta de tu domicilio.
+          {deliveryLocation.hasSelectedLocation
+            ? 'Mueve el pin hasta la entrada exacta de tu domicilio.'
+            : 'Toca el mapa en tu domicilio para calcular el envío.'}
         </p>
       </div>
 
@@ -247,6 +311,11 @@ export const LocationPicker: React.FC = () => {
         <div className="space-y-1.5">
           <label htmlFor="input-address" className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
             Dirección principal *
+            {buscandoDireccion && (
+              <span className="ml-2 normal-case font-medium text-amber-400">
+                buscando tu calle...
+              </span>
+            )}
           </label>
           <input
             id="input-address"

@@ -3,14 +3,19 @@
 import React from 'react';
 import { Plus, Flame, AlertCircle } from 'lucide-react';
 import { Product } from '@/types';
+import { hasChoosableOptions } from '@/lib/cart';
 
 interface ProductCardProps {
   product: Product;
   onSelect: (product: Product) => void;
+  /** Agrega el producto directo, sin abrir la ficha. Solo se usa cuando el
+   * producto no tiene nada que elegir -- ver hasChoosableOptions. */
+  onQuickAdd: (product: Product) => void;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect, onQuickAdd }) => {
   const isAvailable = product.isAvailable;
+  const requiereFicha = hasChoosableOptions(product);
 
   return (
     <div
@@ -79,7 +84,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onSelect(product);
+              if (requiereFicha) onSelect(product);
+              else onQuickAdd(product);
             }}
             className="w-full min-h-[44px] inline-flex items-center justify-center gap-1.5 bg-zinc-800 hover:bg-rose-600 text-zinc-200 hover:text-white py-2.5 px-3 rounded-xl font-bold text-sm transition-all border border-zinc-700 hover:border-rose-500 shadow-md active:scale-95"
           >
