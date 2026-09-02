@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getClientIp, checkRateLimit } from '@/lib/security/rateLimiter';
+import { getResolvedBusinessId } from '@/lib/tenant';
 
 const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_CHAT_URL || '';
 
@@ -22,12 +23,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Chat no disponible.' }, { status: 503 });
     }
 
+    const businessId = await getResolvedBusinessId();
+    if (!businessId) {
+      return NextResponse.json({ error: 'No se pudo resolver el negocio.' }, { status: 400 });
+    }
+
     const body = await request.json();
 
     const agentRes = await fetch(`${AGENT_URL}/web-chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, businessId }),
     });
 
     const data = await agentRes.json();
