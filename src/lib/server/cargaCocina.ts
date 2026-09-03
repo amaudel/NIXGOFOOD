@@ -7,6 +7,7 @@ import {
   RETIRO_POR_DEFECTO,
 } from '@/lib/prepTimeConfig';
 import { crearCacheTTL } from '@/lib/cacheTTL';
+import { ESTADOS_PENDIENTES, VENTANA_HORAS } from '@/lib/cargaPendiente';
 
 /**
  * Carga de cocina y demora resultante de UNA sucursal.
@@ -16,16 +17,6 @@ import { crearCacheTTL } from '@/lib/cacheTTL';
  * y hacia afuera sale unicamente un numero de minutos, nunca datos de
  * pedidos.
  */
-
-/**
- * Solo cuentan los pedidos de las ultimas horas. Sin este corte, un
- * pedido que alguien olvido cerrar quedaria sumando carga para siempre e
- * inflaria los tiempos todos los dias: la funcion se degradaria sola con
- * el uso.
- */
-const VENTANA_HORAS = 4;
-
-const ESTADOS_PENDIENTES = ['new', 'preparing'];
 
 export interface DemoraDeSucursal {
   itemsPendientes: number;
