@@ -218,6 +218,19 @@ export const NewOrderAlertProvider: React.FC<{ children: React.ReactNode }> = ({
     return audioCtxRef.current;
   }, []);
 
+  // Consultar el estado real del audio al montar.
+  //
+  // Sin esto isAudioUnlocked se quedaba en false hasta el primer clic, asi
+  // que al recargar el panel las alertas aparecian como desactivadas
+  // AUNQUE el navegador permitiera sonar -- que es el caso habitual en la
+  // pantalla de cocina, que se usa todo el dia y ya tiene el permiso
+  // concedido. getAudioContext lee el estado y ajusta la bandera; si el
+  // navegador efectivamente bloquea, queda suspendido y se sigue pidiendo
+  // el clic, que es lo honesto.
+  useEffect(() => {
+    getAudioContext();
+  }, [getAudioContext]);
+
   // Automatic user gesture listener to unlock AudioContext on first tap/click
   useEffect(() => {
     if (typeof window === 'undefined') return;
