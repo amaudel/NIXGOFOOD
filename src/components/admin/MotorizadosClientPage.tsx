@@ -112,7 +112,8 @@ export default function MotorizadosClientPage() {
               <span>Motorizados</span>
             </h1>
             <p className="text-xs text-zinc-400">
-              Repartidores de {selectedBranch?.name}. Aparecerán como destino directo al enviar la ubicación de un pedido por WhatsApp.
+              {selectedBranch?.name ? `Repartidores de ${selectedBranch.name}.` : 'Repartidores del local.'}{' '}
+              Aparecerán como destino directo al enviar la ubicación de un pedido por WhatsApp.
             </p>
           </div>
 

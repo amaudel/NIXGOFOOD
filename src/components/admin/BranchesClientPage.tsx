@@ -7,6 +7,7 @@ import { BranchMapPicker } from '@/components/admin/BranchMapPicker';
 import { Branch } from '@/types';
 import { getBusinessRepository } from '@/repositories/factory';
 import { useApp } from '@/context/AppContext';
+import { formatCoordenadas } from '@/lib/formatCoordenadas';
 
 export default function BranchesClientPage() {
   const { businessId } = useApp();
@@ -172,9 +173,11 @@ export default function BranchesClientPage() {
                         <span>{b.phone}</span>
                       </p>
                     )}
-                    <p className="text-xs text-zinc-500">
-                      Coordenadas: {b.latitude}, {b.longitude}
-                    </p>
+                    {formatCoordenadas(b.latitude, b.longitude) && (
+                      <p className="text-xs text-zinc-500">
+                        Coordenadas: {formatCoordenadas(b.latitude, b.longitude)}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-center">

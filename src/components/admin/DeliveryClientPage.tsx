@@ -10,6 +10,7 @@ import { isDemoMode } from '@/config/demo';
 import { DemoBusinessRepository } from '@/repositories/demo/DemoBusinessRepository';
 import { useBranch } from '@/context/BranchContext';
 import { useApp } from '@/context/AppContext';
+import { formatCoordenadas } from '@/lib/formatCoordenadas';
 
 export default function DeliveryClientPage() {
   const { businessId } = useApp();
@@ -261,7 +262,13 @@ export default function DeliveryClientPage() {
         <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl text-xs space-y-1">
           <p className="font-extrabold text-sm text-white">Origen del Delivery: {selectedBranch?.name}</p>
           <p className="text-zinc-400">📍 {selectedBranch?.address}</p>
-          <p className="text-zinc-500">Coordenadas: {selectedBranch?.latitude}, {selectedBranch?.longitude}</p>
+          {formatCoordenadas(selectedBranch?.latitude, selectedBranch?.longitude) ? (
+            <p className="text-zinc-500">
+              Coordenadas: {formatCoordenadas(selectedBranch?.latitude, selectedBranch?.longitude)}
+            </p>
+          ) : (
+            <p className="text-amber-500/90">Ubicación del local pendiente de configurar</p>
+          )}
         </div>
 
         {error && (

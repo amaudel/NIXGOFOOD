@@ -154,7 +154,7 @@ export default function MenuProductsClientPage() {
 
       const data = await res.json();
       if (!res.ok || data.error) {
-        throw new Error(data.error || 'Error al generar la imagen con fal.ai.');
+        throw new Error(data.error || 'No se pudo generar la imagen. Intenta de nuevo.');
       }
 
       if (data.url) {
@@ -286,7 +286,7 @@ export default function MenuProductsClientPage() {
               <span>Gestión de Productos</span>
             </h1>
             <p className="text-xs text-zinc-400">
-              Administra el menú, genera imágenes fotográficas con fal.ai IA y controla productos agotados.
+              Administra el menú, genera imágenes profesionales de tus productos con IA y controla productos agotados.
             </p>
           </div>
 
@@ -463,11 +463,11 @@ export default function MenuProductsClientPage() {
                           className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 hover:from-purple-500 hover:to-rose-500 text-white font-extrabold text-xs shadow-md transition-all"
                         >
                           <Sparkles className="w-4 h-4 text-amber-300" />
-                          <span>Generar con IA (fal.ai)</span>
+                          <span>Generar con IA</span>
                         </button>
                       </div>
                       <p className="text-[11px] text-zinc-500">
-                        Sube una foto propia o genera una imagen ultra fotorrealista usando la IA de fal.ai.
+                        Sube una foto propia o genera una imagen profesional de tu platillo con IA.
                       </p>
                     </div>
                   </div>
@@ -601,7 +601,7 @@ export default function MenuProductsClientPage() {
               <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-amber-400" />
-                  <h3 className="font-extrabold text-base text-white">Generar Fotografía con IA (fal.ai)</h3>
+                  <h3 className="font-extrabold text-base text-white">Generar Fotografía con IA</h3>
                 </div>
                 <button
                   onClick={() => setIsAiModalOpen(false)}
@@ -624,7 +624,7 @@ export default function MenuProductsClientPage() {
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm text-zinc-100 focus:border-purple-500 focus:outline-none"
                 />
                 <p className="text-[11px] text-zinc-500">
-                  Model: <strong className="text-purple-400 font-mono">fal-ai/flux/schnell</strong> (Fotografía gastronómica fotorrealista).
+                  Describe tu platillo y la IA genera una fotografía gastronómica lista para el menú.
                 </p>
               </div>
 

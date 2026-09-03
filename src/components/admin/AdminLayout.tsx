@@ -193,13 +193,17 @@ const AdminLayoutInner: React.FC<{ children: React.ReactNode }> = ({ children })
 
         {/* Footer Actions */}
         <div className="space-y-2 border-t border-zinc-800 pt-4">
+          {/* Herramienta interna de la demo, no una funcion del producto:
+              se muestra en gris y en letra chica para que en una
+              demostracion a un restaurante no compita con el menu real. */}
           {isDemo && (
             <button
               onClick={() => setShowResetModal(true)}
-              className="w-full flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-amber-300 hover:text-amber-200 bg-amber-950/50 border border-amber-800/80 transition-all"
+              className="w-full flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-medium text-zinc-500 hover:text-zinc-300 transition-all"
+              title="Herramienta de demostración: restaura los datos de ejemplo"
             >
-              <RotateCcw className="w-4 h-4 text-amber-400" />
-              <span>Restaurar datos iniciales</span>
+              <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+              <span>Restaurar datos de demostración</span>
             </button>
           )}
 

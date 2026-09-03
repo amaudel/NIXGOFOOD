@@ -382,7 +382,7 @@ export default function KitchenClientPage() {
         {loading ? (
           <div className="py-20 text-center space-y-3">
             <RefreshCw className="w-8 h-8 text-amber-500 animate-spin mx-auto" />
-            <p className="text-xs text-zinc-400 font-extrabold">Cargando comisiones de cocina...</p>
+            <p className="text-xs text-zinc-400 font-extrabold">Cargando comandas de cocina...</p>
           </div>
         ) : (
           <div

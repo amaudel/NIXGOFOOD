@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const falKey = process.env.FAL_KEY;
     if (!falKey) {
       return NextResponse.json(
-        { error: 'La API Key de fal.ai (FAL_KEY) no está configurada en las variables de entorno.' },
+        { error: 'La generación de imágenes con IA no está habilitada en esta cuenta.' },
         { status: 500 }
       );
     }
@@ -46,13 +46,13 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { error: 'No se pudo generar la imagen desde fal.ai.' },
+      { error: 'No se pudo generar la imagen. Intenta de nuevo.' },
       { status: 500 }
     );
   } catch (err: any) {
     console.error('Error generating image via fal.ai:', err);
     return NextResponse.json(
-      { error: err.message || 'Error interno al comunicarse con fal.ai.' },
+      { error: 'No se pudo generar la imagen. Intenta de nuevo en unos segundos.' },
       { status: 500 }
     );
   }
