@@ -9,7 +9,10 @@ import { ExecuteActionParams, RollbackParams } from '@/repositories/interfaces/I
 // pedido creado en la tienda nunca aparecia del lado del admin. KV es
 // compartido por todos los origenes -- un solo array JSON con TODOS los
 // pedidos demo (de cualquier negocio), filtrado por businessId al leer.
-const KV_KEY = 'demo:orders:v1';
+// La version se sube junto con el seed: KV conserva el estado de la demo
+// entre despliegues, asi que sin cambiar la clave un seed nuevo nunca se
+// llegaria a ver (seguiria leyendo los pedidos viejos ya guardados).
+const KV_KEY = 'demo:orders:v2';
 
 function getKvConfig(): { url: string; token: string } | null {
   const url = process.env.KV_REST_API_URL;
