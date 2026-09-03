@@ -134,3 +134,34 @@ it('para retiro, usa el tiempo que calculo el pedido creado, no el de una cotiza
   await screen.findByText(/¡Pedido Recibido!/i);
   expect(screen.getByText(/15-20 min/i)).toBeTruthy();
 });
+
+it('cuando la cocina esta cargada, promete el tiempo ya estirado', async () => {
+  // El endpoint de demora informa +15 min. Ese mismo extra lo suma el RPC
+  // al guardar el pedido, asi que lo que se promete aca es lo que despues
+  // muestra el seguimiento.
+  const fetchReal = globalThis.fetch;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: any, init?: any) => {
+      if (String(url).includes('/api/prep-time')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ minutosExtra: 15, rangoRetiro: '30-40 min' }),
+        } as any);
+      }
+      return fetchReal(url, init);
+    })
+  );
+
+  localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(puntoEnZona1));
+  localStorage.setItem(DELIVERY_METHOD_KEY, 'delivery');
+
+  montarCheckout();
+  await screen.findByText(/Ubicación encontrada/i);
+  llenarContacto();
+  confirmarPedido();
+
+  await screen.findByText(/¡Pedido Recibido!/i);
+  // Zona 1 son 20-30 min; con +15 de cocina, 35-45.
+  expect(screen.getByText(/35-45 min/i)).toBeTruthy();
+});

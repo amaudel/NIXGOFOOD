@@ -24,6 +24,7 @@ import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { KdsOrderElapsedTime } from '@/components/admin/KdsOrderElapsedTime';
 import { OrderItemsList } from '@/components/admin/OrderItemsList';
 import { NewOrderAlertBanner } from '@/components/admin/NewOrderAlertBanner';
+import { BotonCocinaSaturada } from '@/components/admin/BotonCocinaSaturada';
 import { UndoToastNotification, ActiveUndoToast } from '@/components/admin/UndoToastNotification';
 import { useNewOrderAlerts } from '@/context/NewOrderAlertContext';
 
@@ -369,6 +370,10 @@ export default function KitchenClientPage() {
             </button>
           </div>
         </div>
+
+        {/* Freno manual de los tiempos: aca, donde esta el cocinero
+            cuando la cocina se llena, y no enterrado en Configuracion. */}
+        <BotonCocinaSaturada />
 
         {/* Error Alert */}
         {error && (

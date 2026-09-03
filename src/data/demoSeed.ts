@@ -954,3 +954,15 @@ export const demoInitialOrders: Order[] = [
     notes: 'Cancelado: el cliente no contesto el telefono',
   },
 ];
+
+/**
+ * Escalones de demora para la demo. En modo demostracion no hay base de
+ * datos, pero la funcion tiene que poder mostrarse igual: la comparten el
+ * panel de Tiempos de Preparacion y el calculo del servidor, para que
+ * ambos digan lo mismo.
+ */
+export const demoEscalonesDemora = [
+  { desdeItems: 0, hastaItems: 10, minutosExtra: 0 },
+  { desdeItems: 11, hastaItems: 25, minutosExtra: 10 },
+  { desdeItems: 26, hastaItems: null as number | null, minutosExtra: 20 },
+];

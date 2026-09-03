@@ -7,7 +7,10 @@ import {
   RETIRO_POR_DEFECTO,
 } from '@/lib/prepTimeConfig';
 import { crearCacheTTL } from '@/lib/cacheTTL';
-import { ESTADOS_PENDIENTES, VENTANA_HORAS } from '@/lib/cargaPendiente';
+import { ESTADOS_PENDIENTES, VENTANA_HORAS, contarItemsPendientes } from '@/lib/cargaPendiente';
+import { isDemoMode } from '@/config/demo';
+import { demoEscalonesDemora } from '@/data/demoSeed';
+import { getOrdersForBusiness } from '@/lib/demo/demoOrderStore';
 
 /**
  * Carga de cocina y demora resultante de UNA sucursal.
@@ -31,7 +34,7 @@ const SIN_DEMORA: DemoraDeSucursal = {
   rangoRetiro: `${RETIRO_POR_DEFECTO.min}-${RETIRO_POR_DEFECTO.max} min`,
 };
 
-async function contarItemsPendientes(
+async function contarItemsPendientesEnBase(
   supabase: Awaited<ReturnType<typeof createClient>>,
   branchId: string
 ): Promise<number> {
@@ -64,8 +67,37 @@ function armarClave(businessId: string, branchId: string): string {
   return `${businessId}|${branchId}`;
 }
 
+/**
+ * En demo no hay base: la carga sale de los pedidos de la demo y los
+ * escalones del seed. Sin esto la funcion quedaria invisible justo en la
+ * herramienta que se usa para mostrarla.
+ */
+async function calcularDemoraDemo(
+  businessId: string,
+  branchId: string
+): Promise<DemoraDeSucursal> {
+  const pedidos = await getOrdersForBusiness(businessId);
+  const items = contarItemsPendientes(pedidos.filter((p) => p.branchId === branchId));
+
+  const minutosExtra = calcularMinutosExtra(items, {
+    escalones: demoEscalonesDemora,
+    automaticoActivo: true,
+    minutosManuales: 0,
+    techoMinutos: 30,
+  });
+
+  return {
+    itemsPendientes: items,
+    minutosExtra,
+    rangoRetiro: formatearRangoPreparacion(null, null, minutosExtra),
+  };
+}
+
 async function calcularDemora(clave: string): Promise<DemoraDeSucursal> {
   const [businessId, branchId] = clave.split('|');
+
+  if (isDemoMode()) return calcularDemoraDemo(businessId, branchId);
+
   const supabase = await createClient();
 
   const [sucursalRes, escalonesRes, itemsPendientes] = await Promise.all([
@@ -82,7 +114,7 @@ async function calcularDemora(clave: string): Promise<DemoraDeSucursal> {
       .select('from_items, to_items, extra_minutes, active')
       .eq('branch_id', branchId)
       .eq('business_id', businessId),
-    contarItemsPendientes(supabase, branchId),
+    contarItemsPendientesEnBase(supabase, branchId),
   ]);
 
   const sucursal = sucursalRes.data;

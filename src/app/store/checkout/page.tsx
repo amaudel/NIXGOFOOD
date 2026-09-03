@@ -31,6 +31,8 @@ import {
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useBranch } from '@/context/BranchContext';
+import { useDemoraCocina } from '@/hooks/useDemoraCocina';
+import { aplicarExtraARango } from '@/lib/aplicarExtraARango';
 import { LocationPicker } from '@/components/LocationPicker';
 import { BranchPicker } from '@/components/BranchPicker';
 import { businessConfig } from '@/config/business';
@@ -43,7 +45,10 @@ import { PaymentMethod, Order } from '@/types';
 
 // Tiempo fijo de preparacion para retiro en local; se usa tanto en el
 // formulario como en la pantalla de exito.
-const PICKUP_PREP_TIME = '15 - 25 min';
+// Respaldo, no la fuente: el tiempo real de retiro lo configura cada
+// sucursal y llega por /api/prep-time. Esto solo se usa mientras la
+// consulta no respondio, o si fallo.
+const RETIRO_POR_DEFECTO = '15-25 min';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -66,6 +71,7 @@ export default function CheckoutPage() {
     updateItemNotes,
   } = useApp();
   const { selectedBranch, branches } = useBranch();
+  const demoraCocina = useDemoraCocina((selectedBranch || branches[0])?.id);
 
   // Form State
   const [name, setName] = useState(customerInfo.name || '');
@@ -285,6 +291,11 @@ export default function CheckoutPage() {
       const payload = {
         businessId,
         branchId: (selectedBranch || branches[0]).id,
+        // Lo suma el RPC al tiempo que guarda, para que el seguimiento
+        // muestre lo mismo que se prometio aca. El calculo de escalones
+        // vive del lado del cliente (una sola implementacion, testeada);
+        // la base solo suma y acota.
+        extraMinutes: demoraCocina.minutosExtra,
         customer: { name: name.trim(), phone: phone.trim() },
         deliveryMethod,
         deliveryLocation:
@@ -368,10 +379,16 @@ export default function CheckoutPage() {
           // (como hacia PICKUP_PREP_TIME, pensado solo para el texto antes
           // de pedir) se desincroniza en cuanto el tiempo real de
           // preparacion cambie.
+          // Se le suma la demora de cocina por las mismas cuentas que hace
+          // el RPC sobre los mismos numeros, asi que lo prometido aca y lo
+          // guardado coinciden.
           estimatedTime:
             deliveryMethod === 'delivery'
-              ? deliveryFeeResult.estimatedMinutes || result.estimatedTime || ''
-              : result.estimatedTime || '',
+              ? aplicarExtraARango(
+                  deliveryFeeResult.estimatedMinutes || result.estimatedTime || '',
+                  demoraCocina.minutosExtra
+                )
+              : demoraCocina.rangoRetiro || result.estimatedTime || '',
         });
       } else {
         throw new Error('No se pudo generar el código de seguimiento del pedido.');
@@ -559,6 +576,20 @@ export default function CheckoutPage() {
             {/* ========================================================================= */}
             {(
               <div className="space-y-6" ref={entregaRef}>
+                {/* Avisar la demora, no esconderla: quien espera 40 min
+                    sabiendolo de antemano reclama mucho menos que quien
+                    creyo que eran 20. */}
+                {demoraCocina.minutosExtra > 0 && (
+                  <div className="bg-amber-950/50 border border-amber-800/70 p-3.5 rounded-2xl flex items-start gap-2.5">
+                    <Clock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-200">
+                      <strong className="font-extrabold">Hoy con más demora de lo habitual.</strong>{' '}
+                      La cocina está con mucho movimiento y los tiempos de abajo ya lo tienen en
+                      cuenta.
+                    </p>
+                  </div>
+                )}
+
                 {/* Method Selector Cards */}
                 <div className="bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-zinc-800 space-y-4 shadow-2xl">
                   <h2 className="font-extrabold text-base sm:text-lg text-white border-b border-zinc-800 pb-3">
@@ -658,7 +689,10 @@ export default function CheckoutPage() {
 
                     <div className="flex items-center gap-1.5 text-zinc-400 text-xs pt-1">
                       <Clock className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Preparación: <strong>{PICKUP_PREP_TIME}</strong></span>
+                      <span>
+                        Preparación:{' '}
+                        <strong>{demoraCocina.rangoRetiro || RETIRO_POR_DEFECTO}</strong>
+                      </span>
                     </div>
                   </div>
                 )}
