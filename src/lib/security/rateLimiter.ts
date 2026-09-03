@@ -1,3 +1,5 @@
+import { leerEnv } from '@/lib/leerEnv';
+
 interface RateLimitEntry {
   count: number;
   resetAt: number;
@@ -63,8 +65,8 @@ export async function checkRateLimit(
   prefix: string = 'rate'
 ): Promise<{ allowed: boolean; remaining: number; resetSeconds: number }> {
   // Option A: Distributed Rate Limiting via Vercel KV / Upstash Redis REST API (if configured in production)
-  const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  const kvUrl = leerEnv('KV_REST_API_URL', 'UPSTASH_REDIS_REST_URL');
+  const kvToken = leerEnv('KV_REST_API_TOKEN', 'UPSTASH_REDIS_REST_TOKEN');
 
   if (kvUrl && kvToken) {
     try {

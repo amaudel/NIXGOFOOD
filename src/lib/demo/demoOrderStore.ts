@@ -2,6 +2,7 @@ import { Order } from '@/types';
 import { demoInitialOrders } from '@/data/demoSeed';
 import { ORDER_TRANSITION_RULES } from '@/lib/orderTransitions';
 import { ExecuteActionParams, RollbackParams } from '@/repositories/interfaces/IOrderRepository';
+import { leerEnv } from '@/lib/leerEnv';
 
 // Guarda los pedidos de demo en Vercel KV (Redis) en vez de localStorage.
 // localStorage es por-origen: con el storefront en {slug}.{root} y el admin
@@ -15,8 +16,8 @@ import { ExecuteActionParams, RollbackParams } from '@/repositories/interfaces/I
 const KV_KEY = 'demo:orders:v2';
 
 function getKvConfig(): { url: string; token: string } | null {
-  const url = process.env.KV_REST_API_URL;
-  const token = process.env.KV_REST_API_TOKEN;
+  const url = leerEnv('KV_REST_API_URL');
+  const token = leerEnv('KV_REST_API_TOKEN');
   if (!url || !token) return null;
   return { url, token };
 }
