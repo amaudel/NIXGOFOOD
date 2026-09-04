@@ -1,0 +1,499 @@
+/*
+ * Landing de marketing, unica pantalla que usa esta hoja de estilos (Next.js
+ * hashea cada clase de un CSS Module, asi que nada de esto puede chocar con
+ * /admin ni /store). Las custom properties se declaran en .page en vez de
+ * :root a proposito: :root es global y se filtraria a esas otras rutas
+ * aunque este archivo solo se cargue en "/".
+ *
+ * Paleta pensada como una pantalla de cocina (KDS) real: fondo oscuro tipo
+ * monitor de expo, y las tarjetas de contenido como tickets de pedido color
+ * papel. El proyecto ya es dark-only (ver <html className="dark"> en
+ * layout.tsx), asi que no hace falta version clara.
+ */
+.page {
+  --ink: #0e0d0b;
+  --surface-2: #211c15;
+  --ticket: #f3eee1;
+  --ticket-2: #eae3d2;
+  --ink-on-ticket: #211c15;
+  --text: #ece6d8;
+  --text-dim: #a79e8c;
+  --accent: #e85d2c;
+  --accent-soft: #3a241a;
+  --accent-2: #7fa06a;
+  --accent-2-soft: #25301f;
+  --line: #37322a;
+  --line-strong: #4a4336;
+
+  background:
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.012) 0px, rgba(255, 255, 255, 0.012) 1px, transparent 1px, transparent 3px),
+    var(--ink);
+  color: var(--text);
+  font-family: var(--font-body), Georgia, 'Times New Roman', serif;
+  width: 100%;
+}
+
+.page * {
+  box-sizing: border-box;
+}
+
+.page h1,
+.page h2 {
+  text-wrap: balance;
+  margin: 0;
+  font-family: var(--font-display), 'Arial Narrow', sans-serif;
+}
+
+.page p {
+  margin: 0;
+}
+
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* ---------- header ---------- */
+.hero {
+  padding: 64px 0 40px;
+  border-bottom: 1px solid var(--line);
+}
+.eyebrow {
+  font-family: var(--font-mono), 'Courier New', monospace;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.eyebrow::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.thesis {
+  font-size: clamp(30px, 5vw, 52px);
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.01em;
+  max-width: 15ch;
+}
+.thesis em {
+  font-style: normal;
+  color: var(--accent);
+}
+.heroSub {
+  font-size: clamp(16px, 1.6vw, 19px);
+  line-height: 1.55;
+  color: var(--text-dim);
+  max-width: 52ch;
+  margin-top: 20px;
+}
+.heroMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  margin-top: 32px;
+  font-family: var(--font-mono), 'Courier New', monospace;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+.heroMeta b {
+  color: var(--text);
+  font-weight: 500;
+}
+.heroCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 30px;
+  background: var(--accent);
+  color: #1a0d06;
+  font-family: var(--font-mono), 'Courier New', monospace;
+  font-weight: 600;
+  font-size: 13.5px;
+  letter-spacing: 0.03em;
+  text-decoration: none;
+  padding: 13px 22px;
+  border-radius: 3px;
+}
+.heroCta::after {
+  content: '\2192';
+}
+
+/* ---------- section shell ---------- */
+.section {
+  padding: 56px 0;
+  border-bottom: 1px solid var(--line);
+}
+.sectionLast {
+  border-bottom: none;
+}
+.secHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+.secLabel {
+  font-family: var(--font-mono), 'Courier New', monospace;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.secTitle {
+  font-size: clamp(22px, 2.6vw, 30px);
+  font-weight: 600;
+}
+
+/* ---------- problema: comparativa ---------- */
+.compare {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 40px;
+}
+@media (max-width: 760px) {
+  .compare {
+    grid-template-columns: 1fr;
+  }
+}
+.compare p {
+  font-size: 16.5px;
+  line-height: 1.7;
+  color: var(--text);
+}
+.compare p + p {
+  margin-top: 14px;
+}
+.spec {
+  font-family: var(--font-mono), 'Courier New', monospace;
+  font-size: 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  overflow: hidden;
+  align-self: start;
+}
+.specRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.specRow:last-child {
+  border-bottom: none;
+}
+.specHead {
+  background: var(--surface-2);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+}
+.specAgg {
+  color: var(--text-dim);
+}
+.specOwn {
+  color: var(--accent-2);
+  font-weight: 500;
+}
+
+/* ---------- tickets grid ---------- */
+.rail {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 22px;
+}
+.ticket {
+  background: var(--ticket);
+  color: var(--ink-on-ticket);
+  border-radius: 2px;
+  padding: 20px 20px 22px;
+  position: relative;
+  box-shadow: 0 14px 30px -18px rgba(0, 0, 0, 0.7);
+}
+.rail .ticket:nth-child(odd) {
+  transform: rotate(-0.4deg);
+}
+.rail .ticket:nth-child(even) {
+  transform: rotate(0.5deg);
+}
+.ticket::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 2px solid var(--surface-2);
+}
+.ticketHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.ticketNo {
+  font-family: var(--font-mono), 'Courier New', monospace;
+  font-size: 11.5px;
+  color: #8a8172;
+}
+.ticketStation {
+  font-family: var(--font-display), 'Arial Narrow', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  text-align: right;
+}
+.ticketRule {
+  border: none;
+  border-top: 1px dashed #c9c0ac;
+  margin: 12px 0 14px;
+}
+.ticketBody {
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+.ticketBody strong {
+  font-family: var(--font-display), 'Arial Narrow', sans-serif;
+  font-weight: 600;
+}
+
+/* ---------- flujo del pedido ---------- */
+.flow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.flowStage {
+  flex: 1 1 0;
+  min-width: 140px;
+  position: relative;
+  padding: 0 14px;
+}
+.flowStage:first-child {
+  padding-left: 0;
+}
+.flowStage:last-child {
+  padding-right: 0;
+}
+.flowDotRow {
+  display: flex;
+  align-items: center;
+}
+.flowDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+}
+.flowStage:first-child .flowDot {
+  background: var(--accent-2);
+}
+.flowLine {
+  height: 1px;
+  background: var(--line-strong);
+  flex: 1;
+}
+.flowNum {
+  font-family: var(--font-mono), 'Courier New', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 12px;
+}
+.flowName {
+  font-family: var(--font-display), 'Arial Narrow', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-top: 4px;
+}
+.flowDesc {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-top: 6px;
+  max-width: 22ch;
+}
+
+/* ---------- caso real ---------- */
+.case {
+  background: var(--ticket);
+  color: var(--ink-on-ticket);
+  border-radius: 2px;
+  padding: 30px 30px 32px;
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 32px;
+  box-shadow: 0 18px 34px -20px rgba(0, 0, 0, 0.75);
+}
+@media (max-width: 760px) {
+  .case {
+    grid-template-columns: 1fr;
+  }
+}
+.caseTag {
+  font-family: var(--font-mono), 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8a8172;
+}
+.caseName {
+  font-family: var(--font-display), 'Arial Narrow', sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  margin-top: 6px;
+}
+.casePlace {
+  font-size: 14px;
+  color: #5b5343;
+  margin-top: 2px;
+  font-style: italic;
+  font-family: var(--font-body), Georgia, serif;
+}
+.caseNote {
+  font-size: 14.5px;
+  line-height: 1.6;
+  margin-top: 16px;
+}
+.menuCat {
+  font-family: var(--font-mono), 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8a8172;
+  margin-top: 16px;
+}
+.menuCat:first-child {
+  margin-top: 0;
+}
+.menuItem {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14.5px;
+  padding: 5px 0;
+  border-bottom: 1px dotted #c9c0ac;
+}
+.menuItem span:last-child {
+  font-family: var(--font-mono), 'Courier New', monospace;
+  color: #5b5343;
+  font-size: 12.5px;
+}
+
+/* ---------- modos ---------- */
+.modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+}
+@media (max-width: 700px) {
+  .modes {
+    grid-template-columns: 1fr;
+  }
+}
+.mode {
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: 22px;
+}
+.modeTag {
+  font-family: var(--font-mono), 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 20px;
+  display: inline-block;
+}
+.modeDemo .modeTag {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.modeProd .modeTag {
+  color: var(--accent-2);
+  background: var(--accent-2-soft);
+}
+.mode h3 {
+  font-family: var(--font-display), 'Arial Narrow', sans-serif;
+  font-size: 19px;
+  margin: 12px 0 0;
+}
+.mode p {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  margin-top: 10px;
+}
+
+/* ---------- cierre ---------- */
+.closeBlock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+}
+.closeStat {
+  font-family: var(--font-mono), 'Courier New', monospace;
+}
+.closeStatValue {
+  font-size: clamp(34px, 5vw, 48px);
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+.closeStatLabel {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 8px;
+}
+.closeNote {
+  max-width: 34ch;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.footer {
+  padding: 48px 0 60px;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-end;
+}
+.contact {
+  font-family: var(--font-mono), 'Courier New', monospace;
+  font-size: 13.5px;
+}
+.contact a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-soft);
+}
+.stamp {
+  font-family: var(--font-mono), 'Courier New', monospace;
+  font-size: 11px;
+  color: #524b3d;
+  text-align: right;
+  line-height: 1.6;
+}
