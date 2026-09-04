@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import styles from './page.module.css';
 import { bricolageGrotesque, sourceSerif4, ibmPlexMono } from './fonts';
+import Hero from '@/components/marketing/Hero';
+import FeatureReel from '@/components/marketing/FeatureReel';
 
 // Metadata especifica de "/": pisa la de RootLayout (src/app/layout.tsx) solo
 // en esta ruta. /admin y /store tienen la suya propia, asi que esto no les
@@ -104,33 +106,9 @@ export default function MarketingHomePage() {
     <div
       className={`${styles.page} ${bricolageGrotesque.variable} ${sourceSerif4.variable} ${ibmPlexMono.variable}`}
     >
-      <div className={styles.wrap}>
-        <header className={styles.hero}>
-          <div className={styles.eyebrow}>Plataforma de pedidos directos para restaurantes</div>
-          <h1 className={styles.thesis}>
-            Tu restaurante ya no necesita <em>pagarle comisión</em> a nadie por vender online.
-          </h1>
-          <p className={styles.heroSub}>
-            NixGoFood es tu propia plataforma de pedidos directos: mostrador móvil, cocina en
-            tiempo real, despacho con checklist y reparto — todo con tus clientes, tus datos y tus
-            precios, sin intermediario quedándose con un porcentaje de cada venta.
-          </p>
-          <div className={styles.heroMeta}>
-            <span>
-              <b>Piloto en producción:</b> El Taca Nijo, Cuenca
-            </span>
-            <span>
-              <b>Instalable</b> como app en el local
-            </span>
-            <span>
-              <b>Demo sin costo</b> antes de decidir
-            </span>
-          </div>
-          <a className={styles.heroCta} href={CONTACT_HREF}>
-            Pedir una demo
-          </a>
-        </header>
+      <Hero ctaHref={CONTACT_HREF} />
 
+      <div className={styles.wrap}>
         <section className={styles.section}>
           <div className={styles.secHead}>
             <div>
@@ -191,18 +169,7 @@ export default function MarketingHomePage() {
               <h2 className={styles.secTitle}>Una estación de trabajo por cada parte del pedido</h2>
             </div>
           </div>
-          <div className={styles.rail}>
-            {FEATURES.map((f) => (
-              <div className={styles.ticket} key={f.no}>
-                <div className={styles.ticketHead}>
-                  <span className={styles.ticketNo}>{f.no}</span>
-                  <span className={styles.ticketStation}>{f.station}</span>
-                </div>
-                <hr className={styles.ticketRule} />
-                <div className={styles.ticketBody}>{f.body}</div>
-              </div>
-            ))}
-          </div>
+          <FeatureReel items={FEATURES} videoSrc="/media/nixgo-chef-close-loop.mp4" />
         </section>
 
         <section className={styles.section}>

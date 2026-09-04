@@ -1,0 +1,243 @@
+/*
+ * Hero de la landing de marketing (src/app/page.tsx). Componente aislado:
+ * usa las mismas custom properties que ./page.module.css (--ink, --accent,
+ * --text, --text-dim, --font-display, --font-mono, --font-body), heredadas
+ * del div.page que envuelve toda la pagina -- no las redeclara. Solo el CTA
+ * reutiliza directamente la clase .heroCta de page.module.css (mismo boton
+ * que el cierre de la pagina).
+ *
+ * El video ya viene compuesto por el negocio con el personaje a la derecha
+ * y espacio negativo a la izquierda para el texto: por eso el video es una
+ * capa de fondo a todo el ancho del hero (mediaLayer, position:absolute
+ * inset:0), no una columna/caja aparte -- asi no queda un borde recto entre
+ * el fondo del video y el fondo del hero.
+ */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--ink);
+}
+
+/* Textura horizontal casi imperceptible, igual criterio que .page. Se ve
+ * solo donde el video no llega a cubrir (ver mobile mas abajo). */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.012) 0,
+    rgba(255, 255, 255, 0.012) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  pointer-events: none;
+}
+
+.mediaLayer {
+  position: relative;
+  width: 100%;
+  height: min(52vh, 420px);
+  z-index: 1;
+}
+
+.orbit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  display: none;
+}
+.orbitPath {
+  fill: none;
+  stroke: rgba(241, 90, 43, 0.3);
+  stroke-width: 1.25;
+}
+.runner {
+  fill: var(--accent);
+}
+
+.video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.inner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  padding: 32px 0;
+}
+
+/* ---------- columna de texto ---------- */
+.copy {
+  padding: 0 20px;
+}
+
+.eyebrow {
+  font-family: var(--font-mono), 'Courier New', monospace;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.eyebrow::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  flex: none;
+}
+
+.h1 {
+  font-family: var(--font-display), 'Arial Narrow', sans-serif;
+  font-weight: 800;
+  font-size: clamp(32px, 4.6vw, 54px);
+  line-height: 1;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+  margin: 0;
+  color: var(--text);
+}
+
+.highlight {
+  color: var(--accent);
+}
+
+.sub {
+  font-family: var(--font-body), Georgia, serif;
+  font-size: clamp(15px, 1.4vw, 17px);
+  line-height: 1.55;
+  color: var(--text-dim);
+  max-width: 560px;
+  margin: 22px 0 0;
+}
+
+.rail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 22px;
+  margin-top: 28px;
+  font-family: var(--font-mono), 'Courier New', monospace;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+.rail b {
+  color: var(--text);
+  font-weight: 500;
+}
+.railDivider {
+  width: 1px;
+  height: 12px;
+  background: var(--line-strong, #4a4336);
+}
+@media (max-width: 640px) {
+  .rail {
+    display: none;
+  }
+}
+
+.cta {
+  margin-top: 32px;
+}
+
+/* ---------- entrada escalonada ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .animate {
+    opacity: 0;
+    transform: translateY(16px);
+    animation: heroIn 550ms ease both;
+  }
+  .eyebrow.animate {
+    animation-delay: 0ms;
+  }
+  .h1.animate {
+    animation-delay: 90ms;
+  }
+  .sub.animate {
+    animation-delay: 180ms;
+  }
+  .rail.animate {
+    animation-delay: 270ms;
+  }
+  .cta.animate {
+    animation-delay: 360ms;
+  }
+  .mediaLayer {
+    opacity: 0;
+    animation: heroMediaIn 700ms ease both;
+    animation-delay: 200ms;
+  }
+}
+@keyframes heroIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes heroMediaIn {
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------- desktop: el video pasa a ser el fondo completo del hero ---------- */
+@media (min-width: 901px) {
+  .hero {
+    min-height: calc(100svh - 78px);
+  }
+  .mediaLayer {
+    position: absolute;
+    inset: 0;
+    height: auto;
+  }
+  .orbit {
+    display: block;
+  }
+  .video {
+    object-fit: cover;
+    /* "right top": el contenedor del hero es mas ancho que el 16:9 del
+     * video, asi que cover recorta arriba/abajo. Anclado arriba para no
+     * comerse nunca el pelo/cabeza -- el recorte de sobra cae en el piso. */
+    object-position: right top;
+  }
+  .inner {
+    display: flex;
+    align-items: center;
+    min-height: calc(100svh - 78px);
+    padding: 0;
+  }
+  .copy {
+    flex: 0 1 46%;
+    min-width: 280px;
+    padding-left: max(20px, calc((100vw - 1080px) / 2));
+    padding-right: 24px;
+  }
+  .h1 {
+    max-width: 13ch;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1024px) {
+  .h1 {
+    max-width: 12ch;
+  }
+}

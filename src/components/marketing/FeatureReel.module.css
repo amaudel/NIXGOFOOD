@@ -1,0 +1,93 @@
+/*
+ * "02 · Que incluye": video cercano fijo centrado detras, tickets entrando
+ * alternados desde la izquierda/derecha a medida que se hace scroll.
+ * Hereda --ink/--accent/etc. de .page (ver src/app/page.module.css); los
+ * tickets en si reutilizan .ticket/.ticketHead/etc. de ese mismo archivo.
+ */
+
+.stickyWrap {
+  display: grid;
+}
+.stickyMedia,
+.cardsCol {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.stickyMedia {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  align-self: start;
+  z-index: 0;
+  pointer-events: none;
+  display: none;
+}
+.video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.cardsCol {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 22px;
+}
+
+.cardRow {
+  display: flex;
+}
+
+/* ---------- desktop: sticky video + alternancia izquierda/derecha ---------- */
+@media (min-width: 901px) {
+  .stickyMedia {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .cardsCol {
+    display: flex;
+    flex-direction: column;
+    gap: 12vh;
+    padding: 8vh 0;
+  }
+  .cardRow {
+    min-height: 46vh;
+    align-items: center;
+  }
+  .ticketCard {
+    width: 100%;
+    max-width: 400px;
+  }
+  .fromLeft {
+    justify-content: flex-start;
+  }
+  .fromRight {
+    justify-content: flex-end;
+  }
+}
+
+/* ---------- entrada al hacer scroll ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .fromLeft,
+  .fromRight {
+    opacity: 0;
+    transition:
+      opacity 550ms ease,
+      transform 550ms ease;
+  }
+  .fromLeft {
+    transform: translateX(-36px);
+  }
+  .fromRight {
+    transform: translateX(36px);
+  }
+  .visible {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
