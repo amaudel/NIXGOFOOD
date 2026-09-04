@@ -43,8 +43,9 @@
 .mediaLayer {
   position: relative;
   width: 100%;
-  height: min(52vh, 420px);
+  height: min(56vh, 460px);
   z-index: 1;
+  overflow: hidden;
 }
 
 .orbit {
@@ -69,8 +70,12 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  object-position: center;
+  /* Mobile: sangra a todo el ancho de su franja (antes "contain" dejaba
+   * aire a los costados y se sentia una caja aislada debajo del texto).
+   * "top" para no perder nunca la cabeza -- ver el mismo criterio en la
+   * regla de escritorio mas abajo. */
+  object-fit: cover;
+  object-position: center top;
 }
 
 .inner {
