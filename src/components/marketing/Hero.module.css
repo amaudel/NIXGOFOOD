@@ -72,10 +72,39 @@
   height: 100%;
   /* Mobile: sangra a todo el ancho de su franja (antes "contain" dejaba
    * aire a los costados y se sentia una caja aislada debajo del texto).
-   * "top" para no perder nunca la cabeza -- ver el mismo criterio en la
-   * regla de escritorio mas abajo. */
+   * object-position se lee ANTES de aplicar el transform: "right" agarra
+   * el lado del cuadro original donde esta el personaje completo (y "top"
+   * para no perder nunca la cabeza); recien despues el scaleX(-1) lo manda
+   * entero al lado izquierdo de su franja, mirando hacia el texto grande
+   * (que por eso pasa de left a right en .mediaBadge, mas abajo). Con
+   * object-position:center se lo terminaba cortando contra ese borde
+   * izquierdo. Solo mobile: en desktop se cancela (@media min-width:901px). */
   object-fit: cover;
-  object-position: center top;
+  object-position: 82% top;
+  transform: scaleX(-1);
+}
+
+/* Solo mobile: llena el hueco a la derecha del personaje en su propia franja
+ * (en desktop ese espacio no existe -- el video es full-bleed). */
+.mediaBadge {
+  /* Nada de display:flex aca: los <br> del texto (ver Hero.tsx) necesitan
+   * flujo de bloque normal para saltar de linea -- dentro de un contenedor
+   * flex, <br> no fuerza el salto (se vuelve un flex item mas, en fila). */
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 44%;
+  margin: 0;
+  padding: 16px 16px 16px 10px;
+  background: linear-gradient(to left, var(--ink) 55%, transparent 100%);
+  font-family: var(--font-display), 'Arial Narrow', sans-serif;
+  font-weight: 800;
+  font-size: clamp(14px, 4.2vw, 19px);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--text);
 }
 
 .inner {
@@ -217,12 +246,18 @@
   .orbit {
     display: block;
   }
+  .mediaBadge {
+    display: none;
+  }
   .video {
     object-fit: cover;
     /* "right top": el contenedor del hero es mas ancho que el 16:9 del
      * video, asi que cover recorta arriba/abajo. Anclado arriba para no
-     * comerse nunca el pelo/cabeza -- el recorte de sobra cae en el piso. */
+     * comerse nunca el pelo/cabeza -- el recorte de sobra cae en el piso.
+     * El scaleX(-1) de mas arriba es solo para la franja de mobile -- en
+     * desktop el video es full-bleed y va sin espejar. */
     object-position: right top;
+    transform: none;
   }
   .inner {
     display: flex;

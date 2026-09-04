@@ -10,7 +10,9 @@ interface HeroProps {
 
 // Una vuelta cada 8.5s (rango pedido: 7-10s).
 const ORBIT_PERIOD_MS = 8500;
-// Elipse de src/components/marketing/Hero.module.css .orbit: viewBox 0 0 800 650.
+// Elipse de src/components/marketing/Hero.module.css .orbit: viewBox 0 0 800
+// 650. Solo se ve en desktop (min-width:901px), donde el personaje esta del
+// lado derecho del cuadro.
 const ORBIT_CX = 460;
 const ORBIT_CY = 330;
 const ORBIT_RX = 260;
@@ -150,6 +152,23 @@ export default function Hero({ ctaHref }: HeroProps) {
           preload="metadata"
           aria-hidden="true"
         />
+        {/* Solo se muestra en mobile (ver Hero.module.css): ocupa el hueco
+         * vacio a la derecha del personaje en la franja del video (a la
+         * izquierda desde el espejado). No repite el rail (que ya esta en
+         * .copy) -- suma un angulo nuevo (rapidez de puesta en marcha) que
+         * complementa al H1 sin competir con el. Saltos de linea explicitos
+         * para controlar el ajuste en una columna angosta. */}
+        <p className={styles.mediaBadge}>
+          Tu menú
+          <br />
+          digital,
+          <br />
+          <span className={styles.highlight}>
+            listo en
+            <br />
+            minutos
+          </span>
+        </p>
       </div>
     </section>
   );
