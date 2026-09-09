@@ -210,11 +210,27 @@ export interface Order {
   items: OrderItem[];
   subtotal: number;
   deliveryFee: number;
+  discountTotal?: number;
+  pointsRedeemed?: number;
+  pointsEarned?: number;
   total: number;
   status: OrderStatus;
   createdAt: string;
   estimatedTime: string;
   notes?: string;
+}
+
+export interface LoyaltyQuote {
+  availablePoints: number;
+  redeemablePoints: number;
+  maxDiscount: number;
+}
+
+export interface LoyaltyProgramConfig {
+  enabled: boolean;
+  pointsPerCurrencyUnit: number;
+  redemptionValuePerPoint: number;
+  maxRedeemPercent: number;
 }
 
 export interface DeliveryZone {
