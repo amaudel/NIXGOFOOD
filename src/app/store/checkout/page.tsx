@@ -743,6 +743,7 @@ export default function CheckoutPage() {
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
                           onBlur={async () => {
+                            setRedeemPoints(false);
                             const digits = phone.replace(/\D/g, '');
                             if (digits.length < 7 || !businessId) {
                               setLoyaltyQuote({ availablePoints: 0, redeemablePoints: 0, maxDiscount: 0 });
