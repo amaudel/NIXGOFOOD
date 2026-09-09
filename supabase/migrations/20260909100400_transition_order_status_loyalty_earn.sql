@@ -245,7 +245,7 @@ BEGIN
     IF v_loyalty_enabled IS TRUE THEN
       v_points_earned := pg_catalog.floor(GREATEST(v_subtotal - COALESCE(v_discount_total, 0), 0) * v_points_per_unit)::INT;
 
-      IF v_points_earned > 0 THEN
+      IF v_points_earned > 0 AND v_customer_id IS NOT NULL THEN
         SELECT id INTO v_loyalty_account_id
         FROM public.loyalty_accounts
         WHERE business_id = v_business_id AND customer_id = v_customer_id
@@ -254,6 +254,7 @@ BEGIN
         IF v_loyalty_account_id IS NULL THEN
           INSERT INTO public.loyalty_accounts (business_id, customer_id, points_balance)
           VALUES (v_business_id, v_customer_id, 0)
+          ON CONFLICT (business_id, customer_id) DO UPDATE SET updated_at = pg_catalog.now()
           RETURNING id INTO v_loyalty_account_id;
         END IF;
 
