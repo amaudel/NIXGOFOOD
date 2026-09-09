@@ -42,6 +42,8 @@ import { DemoStorage } from '@/repositories/demo/DemoStorage';
 import { saveRecentOrder } from '@/utils/recentOrders';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { PaymentMethod, Order } from '@/types';
+import { getLoyaltyQuote } from '@/lib/loyalty';
+import { LoyaltyQuote } from '@/types';
 
 // Tiempo fijo de preparacion para retiro en local; se usa tanto en el
 // formulario como en la pantalla de exito.
@@ -76,6 +78,14 @@ export default function CheckoutPage() {
   // Form State
   const [name, setName] = useState(customerInfo.name || '');
   const [phone, setPhone] = useState(customerInfo.phone || '');
+
+  // Loyalty State
+  const [loyaltyQuote, setLoyaltyQuote] = useState<LoyaltyQuote>({
+    availablePoints: 0,
+    redeemablePoints: 0,
+    maxDiscount: 0,
+  });
+  const [redeemPoints, setRedeemPoints] = useState(false);
 
   // Payment State
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
@@ -178,7 +188,8 @@ export default function CheckoutPage() {
   }
 
   const currentDeliveryFee = deliveryMethod === 'delivery' ? deliveryFeeResult.fee : 0;
-  const orderTotal = cartSubtotal + currentDeliveryFee;
+  const appliedLoyaltyDiscount = redeemPoints ? loyaltyQuote.maxDiscount : 0;
+  const orderTotal = cartSubtotal - appliedLoyaltyDiscount + currentDeliveryFee;
 
   // Copy bank account helper
   const handleCopyAccount = () => {
@@ -341,6 +352,7 @@ export default function CheckoutPage() {
         subtotal: cartSubtotal,
         deliveryFee: currentDeliveryFee,
         total: orderTotal,
+        redeemLoyaltyPoints: redeemPoints && loyaltyQuote.maxDiscount > 0,
       };
 
       const result = await OrderRepository.createOrderTransactional(payload);
@@ -730,11 +742,35 @@ export default function CheckoutPage() {
                           type="tel"
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
+                          onBlur={async () => {
+                            const digits = phone.replace(/\D/g, '');
+                            if (digits.length < 7 || !businessId) {
+                              setLoyaltyQuote({ availablePoints: 0, redeemablePoints: 0, maxDiscount: 0 });
+                              return;
+                            }
+                            const quote = await getLoyaltyQuote(businessId, phone, cartSubtotal);
+                            setLoyaltyQuote(quote);
+                          }}
                           placeholder="Ej: 0991234567"
                           className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition-colors"
                         />
                       </div>
                     </div>
+
+                    {loyaltyQuote.maxDiscount > 0 && (
+                      <label className="flex items-center gap-2.5 bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-xs sm:text-sm text-zinc-200 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={redeemPoints}
+                          onChange={(e) => setRedeemPoints(e.target.checked)}
+                          className="w-4 h-4 accent-amber-400"
+                        />
+                        <span>
+                          Tenés <strong>{loyaltyQuote.redeemablePoints} puntos</strong> disponibles — aplicar{' '}
+                          <strong>${loyaltyQuote.maxDiscount.toFixed(2)}</strong> de descuento
+                        </span>
+                      </label>
+                    )}
                   </div>
                 </div>
 
@@ -1003,6 +1039,13 @@ export default function CheckoutPage() {
                       : '$0.00 (Retiro)'}
                   </span>
                 </div>
+
+                {appliedLoyaltyDiscount > 0 && (
+                  <div className="flex justify-between text-emerald-400">
+                    <span>Descuento por puntos</span>
+                    <span className="font-semibold">-${appliedLoyaltyDiscount.toFixed(2)}</span>
+                  </div>
+                )}
 
                 <div className="flex justify-between text-base font-black text-white pt-3 border-t border-zinc-800">
                   <span>Total a Pagar</span>
