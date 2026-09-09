@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useApp } from '@/context/AppContext';
 
 export default function MenuModifiersClientPage() {
-  const { businessId } = useApp();
+  const { businessId, isDemo } = useApp();
   const [groups, setGroups] = useState<ModifierGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,10 +33,7 @@ export default function MenuModifiersClientPage() {
   const loadGroups = async () => {
     try {
       setError(null);
-      if (
-        !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co'
-      ) {
+      if (isDemo) {
         setGroups([
           {
             id: 'grp_protein',
@@ -128,10 +125,7 @@ export default function MenuModifiersClientPage() {
     setSaving(true);
 
     try {
-      if (
-        process.env.NEXT_PUBLIC_SUPABASE_URL &&
-        process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co'
-      ) {
+      if (!isDemo) {
         const supabase = createClient();
         const payload = {
           business_id: businessId,
@@ -183,10 +177,7 @@ export default function MenuModifiersClientPage() {
     setSaving(true);
 
     try {
-      if (
-        process.env.NEXT_PUBLIC_SUPABASE_URL &&
-        process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co'
-      ) {
+      if (!isDemo) {
         const supabase = createClient();
         const payload = {
           business_id: businessId,

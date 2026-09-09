@@ -25,7 +25,6 @@ import { OrderRepository } from '@/repositories/OrderRepository';
 import { DispatchCheckRepository } from '@/repositories/DispatchCheckRepository';
 import { getBusinessRepository } from '@/repositories/factory';
 import { createClient } from '@/lib/supabase/client';
-import { isDemoMode } from '@/config/demo';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { KdsOrderElapsedTime } from '@/components/admin/KdsOrderElapsedTime';
 import { OrderItemsList } from '@/components/admin/OrderItemsList';
@@ -38,7 +37,7 @@ import {
 } from '@/components/admin/DispatchChecklist';
 
 export default function DispatchClientPage() {
-  const { executeOrderAction, businessId } = useApp();
+  const { executeOrderAction, businessId, isDemo } = useApp();
   const { selectedBranch, loading: branchLoading } = useBranch();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,8 +56,6 @@ export default function DispatchClientPage() {
   // Expanded customer details toggle
   const [expandedCustomerDetails, setExpandedCustomerDetails] = useState<Record<string, boolean>>({});
   const [motorizados, setMotorizados] = useState<Motorizado[]>([]);
-
-  const isDemo = isDemoMode();
 
   useEffect(() => {
     if (branchLoading || !selectedBranch) return;

@@ -22,7 +22,6 @@ import { Order, OrderStatus, AdminRole, OrderStatusHistoryItem, Motorizado } fro
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { getBusinessRepository } from '@/repositories/factory';
 import { createClient } from '@/lib/supabase/client';
-import { isDemoMode } from '@/config/demo';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { OrderItemsList } from '@/components/admin/OrderItemsList';
 import { NewOrderAlertBanner } from '@/components/admin/NewOrderAlertBanner';
@@ -80,7 +79,7 @@ const formatDayLabel = (dayKey: string): string => {
 };
 
 function OrdersPageContent() {
-  const { executeOrderAction, businessId } = useApp();
+  const { executeOrderAction, businessId, isDemo } = useApp();
   const { selectedBranch, loading: branchLoading } = useBranch();
   const now = useOperationalClock();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -114,8 +113,6 @@ function OrdersPageContent() {
   const [cancelReason, setCancelReason] = useState('');
   const [userRole, setUserRole] = useState<AdminRole>('admin');
   const [motorizados, setMotorizados] = useState<Motorizado[]>([]);
-
-  const isDemo = isDemoMode();
 
   useEffect(() => {
     if (branchLoading || !selectedBranch) return;

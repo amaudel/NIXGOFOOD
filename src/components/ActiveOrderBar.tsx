@@ -4,8 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, Clock, ChefHat, Store, Bike } from 'lucide-react';
 import { getLastOrder, RecentOrder } from '@/utils/recentOrders';
-import { isDemoMode } from '@/config/demo';
 import { getOrderRepository } from '@/repositories/factory';
+import { useApp } from '@/context/AppContext';
 
 interface ActiveOrderInfo extends RecentOrder {
   status: string;
@@ -14,6 +14,7 @@ interface ActiveOrderInfo extends RecentOrder {
 
 export const ActiveOrderBar: React.FC = () => {
   const router = useRouter();
+  const { isDemo } = useApp();
   const [activeOrder, setActiveOrder] = useState<ActiveOrderInfo | null>(null);
 
   useEffect(() => {
@@ -28,7 +29,7 @@ export const ActiveOrderBar: React.FC = () => {
         let status = 'new';
         let deliveryMethod = 'delivery';
 
-        if (isDemoMode()) {
+        if (isDemo) {
           const repo = getOrderRepository();
           const demoOrd = await repo.getOrderByTrackingToken(last.trackingToken);
           if (demoOrd) {

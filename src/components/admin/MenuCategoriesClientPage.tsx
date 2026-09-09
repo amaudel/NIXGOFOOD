@@ -7,12 +7,11 @@ import { Category } from '@/types';
 import { ProductRepository } from '@/repositories/ProductRepository';
 import { createClient } from '@/lib/supabase/client';
 import { CURRENT_BUSINESS_ID } from '@/config/business';
-import { isDemoMode } from '@/config/demo';
 import { DemoProductRepository } from '@/repositories/demo/DemoProductRepository';
 import { useApp } from '@/context/AppContext';
 
 export default function MenuCategoriesClientPage() {
-  const { businessId } = useApp();
+  const { businessId, isDemo } = useApp();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,8 +23,6 @@ export default function MenuCategoriesClientPage() {
   const [sortOrder, setSortOrder] = useState('1');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-
-  const isDemo = isDemoMode();
 
   const loadCategories = async () => {
     try {

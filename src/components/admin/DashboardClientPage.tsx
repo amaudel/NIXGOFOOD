@@ -18,7 +18,6 @@ import {
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { CURRENT_BUSINESS_ID } from '@/config/business';
-import { isDemoMode } from '@/config/demo';
 import { createClient } from '@/lib/supabase/client';
 import { Order } from '@/types';
 import { useBranch } from '@/context/BranchContext';
@@ -26,10 +25,9 @@ import { useApp } from '@/context/AppContext';
 
 export default function DashboardClientPage() {
   const router = useRouter();
-  const { businessId } = useApp();
+  const { businessId, isDemo } = useApp();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const isDemo = isDemoMode();
   const { selectedBranch, loading: branchLoading } = useBranch();
 
   useEffect(() => {

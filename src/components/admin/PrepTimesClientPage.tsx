@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Timer, Plus, Save, Trash2, X, AlertCircle, Zap, Info } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { createClient } from '@/lib/supabase/client';
-import { isDemoMode } from '@/config/demo';
 import { useBranch } from '@/context/BranchContext';
 import { useApp } from '@/context/AppContext';
 import { EscalonDeCarga, calcularMinutosExtra } from '@/lib/demoraPorCarga';
@@ -24,9 +23,8 @@ const ESCALONES_DEMO: EscalonEditable[] = [
 ];
 
 export default function PrepTimesClientPage() {
-  const { businessId } = useApp();
+  const { businessId, isDemo } = useApp();
   const { selectedBranch, loading: branchLoading } = useBranch();
-  const isDemo = isDemoMode();
 
   const [escalones, setEscalones] = useState<EscalonEditable[]>([]);
   const [prepMin, setPrepMin] = useState(String(RETIRO_POR_DEFECTO.min));

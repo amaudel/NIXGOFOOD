@@ -21,7 +21,6 @@ import {
 import { OrderStatus } from '@/types';
 import { businessConfig } from '@/config/business';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
-import { isDemoMode } from '@/config/demo';
 import { getOrderRepository } from '@/repositories/factory';
 import { OrderLookupModal } from '@/components/OrderLookupModal';
 import { useApp } from '@/context/AppContext';
@@ -39,7 +38,7 @@ const getStatusSteps = (
 export default function OrderSuccessPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const trackingToken = resolvedParams.id;
-  const { business } = useApp();
+  const { business, isDemo } = useApp();
   const businessName = business?.name || businessConfig.name;
   const statusSteps = getStatusSteps(businessName);
 
@@ -52,7 +51,7 @@ export default function OrderSuccessPage({ params }: { params: Promise<{ id: str
   const fetchOrder = async () => {
     setIsRefreshing(true);
     try {
-      if (isDemoMode()) {
+      if (isDemo) {
         const repo = getOrderRepository();
         const demoOrder = await repo.getOrderByTrackingToken(trackingToken);
         if (demoOrder) {

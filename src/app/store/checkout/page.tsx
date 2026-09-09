@@ -36,7 +36,6 @@ import { aplicarExtraARango } from '@/lib/aplicarExtraARango';
 import { LocationPicker } from '@/components/LocationPicker';
 import { BranchPicker } from '@/components/BranchPicker';
 import { businessConfig } from '@/config/business';
-import { isDemoMode } from '@/config/demo';
 import { StorageService } from '@/services/StorageService';
 import { DemoStorage } from '@/repositories/demo/DemoStorage';
 import { saveRecentOrder } from '@/utils/recentOrders';
@@ -69,6 +68,7 @@ export default function CheckoutPage() {
     updateCartItemQuantity,
     removeFromCart,
     updateItemNotes,
+    isDemo,
   } = useApp();
   const { selectedBranch, branches } = useBranch();
   const demoraCocina = useDemoraCocina((selectedBranch || branches[0])?.id);
@@ -278,7 +278,7 @@ export default function CheckoutPage() {
 
     try {
       // Real Storage Upload if Transfer & Real Mode
-      if (paymentMethod === 'transfer' && !isDemoMode()) {
+      if (paymentMethod === 'transfer' && !isDemo) {
         if (!transferProofFile) {
           throw new Error('Adjunta una foto del comprobante de transferencia para continuar.');
         }
@@ -347,7 +347,7 @@ export default function CheckoutPage() {
 
       if (result && (result.trackingToken || result.id)) {
         // In Demo Mode, save proof Blob to IndexedDB for local multi-tab admin preview
-        if (isDemoMode() && paymentMethod === 'transfer' && transferProofFile && result.id) {
+        if (isDemo && paymentMethod === 'transfer' && transferProofFile && result.id) {
           await DemoStorage.saveProofBlob(result.id, transferProofFile);
         }
 

@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Flame } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { isDemoMode } from '@/config/demo';
 import { useBranch } from '@/context/BranchContext';
+import { useApp } from '@/context/AppContext';
 
 /**
  * Freno manual de los tiempos, para cuando la cocina se satura.
@@ -22,7 +22,7 @@ const OPCIONES = [10, 20, 30];
 
 export const BotonCocinaSaturada: React.FC = () => {
   const { selectedBranch } = useBranch();
-  const isDemo = isDemoMode();
+  const { isDemo } = useApp();
 
   const [extra, setExtra] = useState(0);
   const [guardando, setGuardando] = useState(false);

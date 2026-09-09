@@ -25,7 +25,6 @@ import {
   Timer,
 } from 'lucide-react';
 import { businessConfig } from '@/config/business';
-import { isDemoMode } from '@/config/demo';
 import { createClient } from '@/lib/supabase/client';
 import { DemoStorage } from '@/repositories/demo/DemoStorage';
 import { DemoOrderRepository } from '@/repositories/demo/DemoOrderRepository';
@@ -59,9 +58,7 @@ const AdminLayoutInner: React.FC<{ children: React.ReactNode }> = ({ children })
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const { unreviewedOrders } = useNewOrderAlerts();
-  const { business, catalogLoading, businessId } = useApp();
-
-  const isDemo = isDemoMode();
+  const { business, catalogLoading, businessId, isDemo } = useApp();
 
   const handleLogout = async () => {
     try {

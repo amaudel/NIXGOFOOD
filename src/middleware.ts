@@ -183,10 +183,13 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-  // In Demo Mode or unconfigured Supabase, pass through cleanly without auth redirect.
-  if (isDemo || !supabaseUrl || supabaseUrl === 'https://your-project.supabase.co' || supabaseUrl === 'https://placeholder.supabase.co') {
+  // isDemo (calculado arriba via isDemoMode()) es la UNICA fuente de verdad
+  // para "estamos en modo demo". Antes este bloque recalculaba a mano la
+  // misma logica de URL placeholder que isDemoMode() ya resuelve, lo que
+  // podia divergir de ella -- ej. con NEXT_PUBLIC_DEMO_MODE=false explicito
+  // y Supabase sin configurar, el chequeo viejo igual entraba en el bypass
+  // de auth pese al override explicito. Ver src/config/demo.ts.
+  if (isDemo) {
     // /admin en demo mode no tiene sesion real de Supabase, pero
     // AdminRouteLayout igual necesita un x-business-id para montar
     // BranchProvider/AppProvider -- sin esto, cada pagina admin en demo
@@ -199,6 +202,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {

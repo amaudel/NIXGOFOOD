@@ -19,7 +19,6 @@ import { useKdsFullscreen } from '@/hooks/useKdsFullscreen';
 import { Order, OrderStatus } from '@/types';
 import { OrderRepository } from '@/repositories/OrderRepository';
 import { createClient } from '@/lib/supabase/client';
-import { isDemoMode } from '@/config/demo';
 import { DemoBroadcastService } from '@/services/DemoBroadcastService';
 import { KdsOrderElapsedTime } from '@/components/admin/KdsOrderElapsedTime';
 import { OrderItemsList } from '@/components/admin/OrderItemsList';
@@ -29,7 +28,7 @@ import { UndoToastNotification, ActiveUndoToast } from '@/components/admin/UndoT
 import { useNewOrderAlerts } from '@/context/NewOrderAlertContext';
 
 export default function KitchenClientPage() {
-  const { executeOrderAction, businessId } = useApp();
+  const { executeOrderAction, businessId, isDemo } = useApp();
   const { selectedBranch, loading: branchLoading } = useBranch();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,8 +48,6 @@ export default function KitchenClientPage() {
 
   // Undo Toast state
   const [activeUndoToast, setActiveUndoToast] = useState<ActiveUndoToast | null>(null);
-
-  const isDemo = isDemoMode();
 
   const loadOrders = async () => {
     try {

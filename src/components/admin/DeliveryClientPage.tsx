@@ -6,14 +6,13 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { DeliveryZone } from '@/types';
 import { createClient } from '@/lib/supabase/client';
 import { CURRENT_BUSINESS_ID } from '@/config/business';
-import { isDemoMode } from '@/config/demo';
 import { DemoBusinessRepository } from '@/repositories/demo/DemoBusinessRepository';
 import { useBranch } from '@/context/BranchContext';
 import { useApp } from '@/context/AppContext';
 import { formatCoordenadas } from '@/lib/formatCoordenadas';
 
 export default function DeliveryClientPage() {
-  const { businessId } = useApp();
+  const { businessId, isDemo } = useApp();
   const [zones, setZones] = useState<DeliveryZone[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +27,6 @@ export default function DeliveryClientPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const isDemo = isDemoMode();
   const { selectedBranch, loading: branchLoading } = useBranch();
 
   const loadZones = async () => {

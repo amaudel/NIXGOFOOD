@@ -23,12 +23,11 @@ import { ProductRepository } from '@/repositories/ProductRepository';
 import { StorageService } from '@/services/StorageService';
 import { createClient } from '@/lib/supabase/client';
 import { CURRENT_BUSINESS_ID } from '@/config/business';
-import { isDemoMode } from '@/config/demo';
 import { DemoProductRepository } from '@/repositories/demo/DemoProductRepository';
 import { useApp } from '@/context/AppContext';
 
 export default function MenuProductsClientPage() {
-  const { businessId } = useApp();
+  const { businessId, isDemo } = useApp();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -200,7 +199,7 @@ export default function MenuProductsClientPage() {
     setSaving(true);
 
     try {
-      if (isDemoMode()) {
+      if (isDemo) {
         await DemoProductRepository.saveProduct({
           id: editingProductId || undefined,
           businessId: CURRENT_BUSINESS_ID,

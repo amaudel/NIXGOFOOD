@@ -38,6 +38,11 @@ interface AppContextType {
   businessId: string;
   business: Business | null;
 
+  // Demo Mode -- fuente unica para componentes cliente. Evita que cada
+  // componente vuelva a llamar isDemoMode() (o peor, reimplemente su propio
+  // chequeo de env vars) por separado; ver src/config/demo.ts.
+  isDemo: boolean;
+
   // Catalog
   products: Product[];
   categories: Category[];
@@ -114,6 +119,10 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
     zones,
     loading: branchLoading,
   } = useBranch();
+
+  // NEXT_PUBLIC_* se inlinea en build time -- no necesita estado/efecto,
+  // es el mismo valor durante todo el ciclo de vida del bundle cliente.
+  const isDemo = isDemoMode();
 
   // State
   // Arrancan vacios/null (no en los datos mock de El Taca Nijo): mientras el
@@ -204,7 +213,7 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
     // a mano. En modo demo, se hace polling de pedidos cada pocos segundos
     // como sustituto de tiempo real entre subdominios.
     let pollInterval: ReturnType<typeof setInterval> | undefined;
-    if (isDemoMode()) {
+    if (isDemo) {
       pollInterval = setInterval(async () => {
         try {
           const fresh = await OrderRepository.getOrders(businessId);
@@ -462,6 +471,7 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
       value={{
         businessId,
         business,
+        isDemo,
         products,
         categories,
         catalogLoading,

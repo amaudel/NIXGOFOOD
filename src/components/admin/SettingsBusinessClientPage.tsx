@@ -6,12 +6,11 @@ import { Save, AlertCircle, CheckCircle, Settings } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { createClient } from '@/lib/supabase/client';
 import { CURRENT_BUSINESS_ID } from '@/config/business';
-import { isDemoMode } from '@/config/demo';
 import { DemoBusinessRepository } from '@/repositories/demo/DemoBusinessRepository';
 import { useApp } from '@/context/AppContext';
 
 export default function SettingsBusinessClientPage() {
-  const { businessId } = useApp();
+  const { businessId, isDemo } = useApp();
   const [name, setName] = useState('El Taca Nijo');
   const [description, setDescription] = useState('Sabor que provoca volver.');
   const [phone, setPhone] = useState('0991234567');
@@ -21,8 +20,6 @@ export default function SettingsBusinessClientPage() {
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  const isDemo = isDemoMode();
 
   // Load existing business and branch data
   useEffect(() => {

@@ -19,7 +19,11 @@ const ALLOWED_ADMIN_ROLES: AdminRole[] = ['owner', 'admin', 'operator'];
  * role authorization, and business ownership.
  */
 export async function verifyAdminSession(): Promise<AdminAuthResult> {
-  // If in Demo Mode, bypass remote auth check cleanly
+  // If in Demo Mode, bypass remote auth check cleanly. isDemoMode() is the
+  // single centralized source of truth (src/config/demo.ts) -- it fails
+  // closed in production, so this bypass can only fire there via an
+  // explicit NEXT_PUBLIC_DEMO_MODE=true, never from a missing/malformed env
+  // var. Do not reimplement this check locally.
   if (isDemoMode()) {
     return {
       authorized: true,

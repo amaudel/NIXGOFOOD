@@ -6,7 +6,6 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { BusinessHours } from '@/types';
 import { createClient } from '@/lib/supabase/client';
 import { CURRENT_BUSINESS_ID } from '@/config/business';
-import { isDemoMode } from '@/config/demo';
 import { DemoBusinessRepository } from '@/repositories/demo/DemoBusinessRepository';
 import { useBranch } from '@/context/BranchContext';
 import { useApp } from '@/context/AppContext';
@@ -22,13 +21,12 @@ const daysOfWeekNames = [
 ];
 
 export default function HoursClientPage() {
-  const { businessId } = useApp();
+  const { businessId, isDemo } = useApp();
   const [hours, setHours] = useState<BusinessHours[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const isDemo = isDemoMode();
   const { selectedBranch, loading: branchLoading } = useBranch();
 
   const loadHours = async () => {
