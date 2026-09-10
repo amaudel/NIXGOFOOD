@@ -1,8 +1,9 @@
 import { isDemoMode } from '@/config/demo';
 import { createClient } from '@/lib/supabase/client';
-import { LoyaltyQuote, LoyaltyProgramConfig } from '@/types';
+import { LoyaltyQuote, LoyaltyBalance, LoyaltyProgramConfig } from '@/types';
 
 const DISABLED_QUOTE: LoyaltyQuote = { availablePoints: 0, redeemablePoints: 0, maxDiscount: 0 };
+const DISABLED_BALANCE: LoyaltyBalance = { availablePoints: 0, pointsValue: 0 };
 
 export async function getLoyaltyQuote(
   businessId: string,
@@ -28,6 +29,27 @@ export async function getLoyaltyQuote(
     availablePoints: data.availablePoints ?? 0,
     redeemablePoints: data.redeemablePoints ?? 0,
     maxDiscount: data.maxDiscount ?? 0,
+  };
+}
+
+export async function getLoyaltyBalance(businessId: string, phone: string): Promise<LoyaltyBalance> {
+  if (isDemoMode()) {
+    return DISABLED_BALANCE;
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc('get_loyalty_balance', {
+    p_business_id: businessId,
+    p_phone: phone,
+  });
+
+  if (error || !data) {
+    return DISABLED_BALANCE;
+  }
+
+  return {
+    availablePoints: data.availablePoints ?? 0,
+    pointsValue: data.pointsValue ?? 0,
   };
 }
 

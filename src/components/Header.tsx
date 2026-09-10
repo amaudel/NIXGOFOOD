@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ShoppingBag, UtensilsCrossed, ShieldCheck, MapPin, Search } from 'lucide-react';
+import { ShoppingBag, UtensilsCrossed, ShieldCheck, MapPin, Search, Gift } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { businessConfig } from '@/config/business';
 import { getLastOrder, RecentOrder } from '@/utils/recentOrders';
@@ -96,6 +96,17 @@ export const Header: React.FC = () => {
               <Search className="w-4 h-4 text-amber-400 shrink-0" />
               <span className="hidden lg:inline text-zinc-300">Buscar pedido</span>
             </button>
+
+            {/* Loyalty Balance Link */}
+            <Link
+              href="/loyalty"
+              className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700 transition-all flex items-center gap-1.5 text-xs font-bold min-h-[44px] min-w-[44px] justify-center"
+              title="Mis puntos"
+              aria-label="Mis puntos"
+            >
+              <Gift className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="hidden lg:inline text-zinc-300">Mis puntos</span>
+            </Link>
 
             {/* Follow Order Button (Desktop & Tablet) */}
             <button

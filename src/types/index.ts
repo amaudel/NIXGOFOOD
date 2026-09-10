@@ -226,6 +226,11 @@ export interface LoyaltyQuote {
   maxDiscount: number;
 }
 
+export interface LoyaltyBalance {
+  availablePoints: number;
+  pointsValue: number;
+}
+
 export interface LoyaltyProgramConfig {
   enabled: boolean;
   pointsPerCurrencyUnit: number;

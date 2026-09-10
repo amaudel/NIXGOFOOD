@@ -14,7 +14,7 @@ vi.mock('@/lib/supabase/client', () => ({
 }));
 
 import { isDemoMode } from '@/config/demo';
-import { getLoyaltyQuote, getLoyaltyProgramConfig, saveLoyaltyProgramConfig } from '../loyalty';
+import { getLoyaltyQuote, getLoyaltyBalance, getLoyaltyProgramConfig, saveLoyaltyProgramConfig } from '../loyalty';
 
 describe('loyalty (modo demo)', () => {
   beforeEach(() => {
@@ -26,6 +26,12 @@ describe('loyalty (modo demo)', () => {
   it('getLoyaltyQuote devuelve todo en cero sin llamar a Supabase', async () => {
     const quote = await getLoyaltyQuote('biz_1', '0991234567', 20);
     expect(quote).toEqual({ availablePoints: 0, redeemablePoints: 0, maxDiscount: 0 });
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it('getLoyaltyBalance devuelve todo en cero sin llamar a Supabase', async () => {
+    const balance = await getLoyaltyBalance('biz_1', '0991234567');
+    expect(balance).toEqual({ availablePoints: 0, pointsValue: 0 });
     expect(rpcMock).not.toHaveBeenCalled();
   });
 
@@ -69,5 +75,28 @@ describe('loyalty (modo real)', () => {
       p_subtotal: 20,
     });
     expect(quote).toEqual({ availablePoints: 500, redeemablePoints: 500, maxDiscount: 5 });
+  });
+
+  it('getLoyaltyBalance llama al RPC get_loyalty_balance con los parametros correctos', async () => {
+    rpcMock.mockResolvedValue({
+      data: { availablePoints: 500, pointsValue: 5 },
+      error: null,
+    });
+
+    const balance = await getLoyaltyBalance('biz_1', '0991234567');
+
+    expect(rpcMock).toHaveBeenCalledWith('get_loyalty_balance', {
+      p_business_id: 'biz_1',
+      p_phone: '0991234567',
+    });
+    expect(balance).toEqual({ availablePoints: 500, pointsValue: 5 });
+  });
+
+  it('getLoyaltyBalance vuelve a cero si el RPC devuelve error', async () => {
+    rpcMock.mockResolvedValue({ data: null, error: { message: 'boom' } });
+
+    const balance = await getLoyaltyBalance('biz_1', '0991234567');
+
+    expect(balance).toEqual({ availablePoints: 0, pointsValue: 0 });
   });
 });
