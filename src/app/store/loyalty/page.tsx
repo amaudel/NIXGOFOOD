@@ -54,6 +54,15 @@ export default function LoyaltyBalancePage() {
         </p>
       </div>
 
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4 flex items-start gap-2.5 text-xs text-zinc-400">
+        <Gift className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+        <span>
+          Ganas puntos automáticamente cada vez que un pedido tuyo llega a "entregado", y los puedes
+          canjear por descuento en tu próximo pedido. No necesitas crear una cuenta — alcanza con tu
+          número de teléfono.
+        </span>
+      </div>
+
       <form onSubmit={handleSearch} className="space-y-4 bg-zinc-900 border border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-2xl">
         <div className="space-y-1.5">
           <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
