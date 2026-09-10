@@ -13,6 +13,7 @@ import {
   Truck,
   Clock,
   Settings,
+  Gift,
   ShieldCheck,
   Menu as MenuIcon,
   X,
@@ -51,6 +52,7 @@ const navItems = [
   { href: '/admin/hours', label: 'Horarios', icon: Clock },
   { href: '/admin/branches', label: 'Sucursales', icon: Store },
   { href: '/admin/settings/business', label: 'Configuración Negocio', icon: Settings },
+  { href: '/admin/settings/loyalty', label: 'Fidelización', icon: Gift },
 ];
 
 const AdminLayoutInner: React.FC<{ children: React.ReactNode }> = ({ children }) => {
