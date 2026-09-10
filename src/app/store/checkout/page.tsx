@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -86,6 +86,10 @@ export default function CheckoutPage() {
     maxDiscount: 0,
   });
   const [redeemPoints, setRedeemPoints] = useState(false);
+
+  useEffect(() => {
+    setRedeemPoints(false);
+  }, [cartSubtotal]);
 
   // Payment State
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');

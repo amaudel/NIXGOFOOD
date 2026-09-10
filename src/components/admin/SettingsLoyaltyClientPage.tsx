@@ -32,6 +32,10 @@ export default function SettingsLoyaltyClientPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
+    if (!businessId) {
+      setMessage({ type: 'error', text: 'No se pudo identificar el negocio. Recargá la página e intentá de nuevo.' });
+      return;
+    }
     setSaving(true);
     try {
       await saveLoyaltyProgramConfig(businessId, config);

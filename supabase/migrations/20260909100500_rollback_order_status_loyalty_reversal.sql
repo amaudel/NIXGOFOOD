@@ -27,6 +27,7 @@ DECLARE
   -- Fidelizacion
   v_customer_id UUID;
   v_earn_points INT;
+  v_reversal_points INT;
   v_loyalty_account_id UUID;
   v_txn_id UUID;
 BEGIN
@@ -121,15 +122,22 @@ BEGIN
       FOR UPDATE;
 
       IF v_loyalty_account_id IS NOT NULL THEN
+        -- El delta a revertir se calcula una sola vez, acotado al balance
+        -- actual, y ese MISMO numero se usa tanto en el ledger como en el
+        -- balance -- nunca clampear cada uno por separado, o el ledger deja
+        -- de sumar exactamente el balance (rompe "balance = cache del ledger").
+        SELECT LEAST(v_earn_points, points_balance) INTO v_reversal_points
+        FROM public.loyalty_accounts WHERE id = v_loyalty_account_id;
+
         INSERT INTO public.loyalty_transactions (business_id, customer_id, order_id, type, points, balance_after)
-        SELECT v_business_id, v_customer_id, p_order_id, 'earn_reversal', -v_earn_points, GREATEST(points_balance - v_earn_points, 0)
+        SELECT v_business_id, v_customer_id, p_order_id, 'earn_reversal', -v_reversal_points, points_balance - v_reversal_points
         FROM public.loyalty_accounts WHERE id = v_loyalty_account_id
         ON CONFLICT (order_id, type) WHERE order_id IS NOT NULL DO NOTHING
         RETURNING id INTO v_txn_id;
 
         IF v_txn_id IS NOT NULL THEN
           UPDATE public.loyalty_accounts
-          SET points_balance = GREATEST(points_balance - v_earn_points, 0), updated_at = pg_catalog.now()
+          SET points_balance = points_balance - v_reversal_points, updated_at = pg_catalog.now()
           WHERE id = v_loyalty_account_id;
 
           UPDATE public.orders SET points_earned = 0 WHERE id = p_order_id;

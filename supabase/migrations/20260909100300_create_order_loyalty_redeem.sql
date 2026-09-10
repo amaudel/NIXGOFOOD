@@ -68,7 +68,6 @@ DECLARE
   -- Fidelizacion
   v_redeem_points_requested BOOLEAN := false;
   v_loyalty_enabled BOOLEAN;
-  v_points_per_unit NUMERIC(10,4);
   v_redeem_value NUMERIC(10,4);
   v_max_percent NUMERIC(5,2);
   v_loyalty_account_id UUID;
@@ -254,8 +253,8 @@ BEGIN
   v_redeem_points_requested := COALESCE((p_payload->>'redeemLoyaltyPoints')::BOOLEAN, false);
 
   IF v_redeem_points_requested THEN
-    SELECT enabled, points_per_currency_unit, redemption_value_per_point, max_redeem_percent
-    INTO v_loyalty_enabled, v_points_per_unit, v_redeem_value, v_max_percent
+    SELECT enabled, redemption_value_per_point, max_redeem_percent
+    INTO v_loyalty_enabled, v_redeem_value, v_max_percent
     FROM public.loyalty_programs
     WHERE business_id = v_business_id;
 
@@ -269,7 +268,7 @@ BEGIN
 
       IF v_available_points > 0 AND v_redeem_value > 0 THEN
         v_max_discount_cap := pg_catalog.round(v_subtotal * v_max_percent / 100, 2);
-        v_points_redeemed := LEAST(v_available_points, pg_catalog.floor(v_max_discount_cap / v_redeem_value)::INT);
+        v_points_redeemed := LEAST(v_available_points::NUMERIC, pg_catalog.floor(v_max_discount_cap / v_redeem_value))::INT;
         v_discount_total := pg_catalog.round(v_points_redeemed * v_redeem_value, 2);
       END IF;
 

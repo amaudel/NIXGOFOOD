@@ -68,6 +68,7 @@ export async function saveLoyaltyProgramConfig(businessId: string, config: Loyal
       points_per_currency_unit: config.pointsPerCurrencyUnit,
       redemption_value_per_point: config.redemptionValuePerPoint,
       max_redeem_percent: config.maxRedeemPercent,
+      updated_at: new Date().toISOString(),
     },
     { onConflict: 'business_id' }
   );

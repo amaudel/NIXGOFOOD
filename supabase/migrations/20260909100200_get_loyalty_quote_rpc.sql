@@ -52,7 +52,7 @@ BEGIN
 
   IF v_available_points > 0 AND v_redeem_value > 0 THEN
     v_max_discount_cap := pg_catalog.round(GREATEST(p_subtotal, 0) * v_max_percent / 100, 2);
-    v_redeemable_points := LEAST(v_available_points, pg_catalog.floor(v_max_discount_cap / v_redeem_value)::INT);
+    v_redeemable_points := LEAST(v_available_points::NUMERIC, pg_catalog.floor(v_max_discount_cap / v_redeem_value))::INT;
     v_max_discount := pg_catalog.round(v_redeemable_points * v_redeem_value, 2);
   END IF;
 

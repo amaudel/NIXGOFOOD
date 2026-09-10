@@ -69,7 +69,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
         })),
         subtotal: parseFloat(o.subtotal),
         deliveryFee: parseFloat(o.delivery_fee),
-        discountTotal: parseFloat(o.discount_total || 0),
+        discountTotal: Number(o.discount_total ?? 0),
         pointsRedeemed: o.points_redeemed || 0,
         pointsEarned: o.points_earned || 0,
         total: parseFloat(o.total),

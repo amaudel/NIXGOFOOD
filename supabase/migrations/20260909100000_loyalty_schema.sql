@@ -60,8 +60,8 @@ CREATE POLICY loyalty_programs_update ON public.loyalty_programs
   USING (business_id = public.current_user_business_id() AND public.current_user_role() IN ('owner','admin'))
   WITH CHECK (business_id = public.current_user_business_id() AND public.current_user_role() IN ('owner','admin'));
 
+REVOKE ALL ON public.loyalty_programs FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, UPDATE ON public.loyalty_programs TO authenticated;
-REVOKE ALL ON public.loyalty_programs FROM anon;
 
 -- loyalty_accounts / loyalty_transactions: sin politicas para anon/authenticated
 -- a proposito -- solo las funciones SECURITY DEFINER (Tasks 3-6), que corren
