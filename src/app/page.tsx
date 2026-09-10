@@ -18,6 +18,10 @@ const CONTACT_HREF = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
   'Quiero ver NixGoFood para mi restaurante'
 )}`;
 
+const EL_TACA_NIJO_MENU_URL = 'https://el-taca-nijo.food.nixgodigital.com';
+const LA_ESQUINA_DE_ALES_MENU_URL = 'https://burger-house.food.nixgodigital.com';
+const ADMIN_URL = 'https://admin.food.nixgodigital.com/admin';
+
 const FEATURES = [
   {
     no: '#182',
@@ -211,6 +215,32 @@ export default function MarketingHomePage() {
                 delivery calculadas por distancia real desde cada sucursal, y panel de cocina
                 corriendo en el mostrador durante el servicio.
               </p>
+              <div className={styles.caseLinks}>
+                <a
+                  className={styles.caseLink}
+                  href={EL_TACA_NIJO_MENU_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Ver menú: El Taca Nijo ↗
+                </a>
+                <a
+                  className={styles.caseLink}
+                  href={LA_ESQUINA_DE_ALES_MENU_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Ver menú: La Esquina de Ales ↗
+                </a>
+                <a
+                  className={styles.caseLink}
+                  href={ADMIN_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Entrar al panel admin ↗
+                </a>
+              </div>
             </div>
             <div>
               <div className={styles.menuCat}>Tacos</div>
