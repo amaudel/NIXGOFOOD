@@ -313,7 +313,7 @@ export default function MarketingHomePage() {
               <div className={styles.closeStatLabel}>comisión por pedido, siempre</div>
             </div>
             <p className={styles.closeNote}>
-              Contanos cuántas sucursales tenés y cómo operás hoy — vemos juntos si NixGoFood
+              Contanos cuántas sucursales tienes y cómo operás hoy — vemos juntos si NixGoFood
               encaja, sin compromiso.
             </p>
             <a className={styles.heroCta} href={CONTACT_HREF}>

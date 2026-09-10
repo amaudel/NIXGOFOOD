@@ -771,7 +771,7 @@ export default function CheckoutPage() {
                           className="w-4 h-4 accent-amber-400"
                         />
                         <span>
-                          Tenés <strong>{loyaltyQuote.redeemablePoints} puntos</strong> disponibles — aplicar{' '}
+                          Tienes <strong>{loyaltyQuote.redeemablePoints} puntos</strong> disponibles — aplicar{' '}
                           <strong>${loyaltyQuote.maxDiscount.toFixed(2)}</strong> de descuento
                         </span>
                       </label>

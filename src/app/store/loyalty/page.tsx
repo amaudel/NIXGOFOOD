@@ -50,7 +50,7 @@ export default function LoyaltyBalancePage() {
         </div>
         <h1 className="text-xl font-black text-white">Mis puntos</h1>
         <p className="text-xs text-zinc-400">
-          Consulta cuántos puntos tenés acumulados en {business?.name || 'este negocio'}.
+          Consulta cuántos puntos tienes acumulados en {business?.name || 'este negocio'}.
         </p>
       </div>
 
@@ -97,7 +97,7 @@ export default function LoyaltyBalancePage() {
             </>
           ) : (
             <p className="text-sm text-zinc-400">
-              No tenés puntos disponibles con ese teléfono en este negocio todavía.
+              No tienes puntos disponibles con ese teléfono en este negocio todavía.
             </p>
           )}
         </div>
