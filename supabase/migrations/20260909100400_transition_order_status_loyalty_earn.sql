@@ -1,9 +1,14 @@
 -- ============================================================================
 -- NIXGOFOOD: transition_order_status con acreditacion de puntos al entregar
--- Base: cuerpo verificado de 20260820000200_transition_order_status_rpc.sql.
+-- Base: cuerpo verificado de 20260827000100_fix_rpc_auto_provision_backdoor.sql
+-- (version endurecida, sin el bloque de auto-provisioning).
 -- Cambios de negocio: el SELECT inicial ahora tambien trae customer_id,
 -- subtotal y discount_total; bloque de acreditacion cuando v_target_status
 -- = 'delivered', despues del INSERT en order_status_history.
+-- Correccion de esta fix-wave: esta migracion se habia basado por error en
+-- 20260820000200_transition_order_status_rpc.sql (version previa a la
+-- correccion del backdoor de auto-provisioning) y reintroducia esa
+-- vulnerabilidad critica. Se corrige para partir de la version endurecida.
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.transition_order_status(
@@ -56,17 +61,7 @@ BEGIN
   WHERE id = v_user_id AND active = true;
 
   IF v_business_id IS NULL THEN
-    SELECT id INTO v_business_id FROM public.businesses LIMIT 1;
-    IF v_business_id IS NULL THEN
-      v_business_id := 'b0000000-0000-0000-0000-000000000001'::uuid;
-    END IF;
-
-    INSERT INTO public.profiles (id, business_id, role, name, active)
-    VALUES (v_user_id, v_business_id, 'owner', COALESCE(auth.jwt()->>'email', 'Administrador'), true)
-    ON CONFLICT (id) DO UPDATE SET active = true, role = 'owner', business_id = EXCLUDED.business_id;
-
-    v_role := 'owner';
-    v_user_name := COALESCE(auth.jwt()->>'email', 'Administrador');
+    RAISE EXCEPTION 'PERMISSION_DENIED: No tienes un perfil administrativo activo asignado a un negocio.';
   END IF;
 
   SELECT status, delivery_method, payment_method, transfer_details, customer_id, subtotal, discount_total
