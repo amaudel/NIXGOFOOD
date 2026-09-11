@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, UserCheck, PauseCircle, PlayCircle, Send, X, AlertCircle } from 'lucide-react';
+import { MessageSquare, UserCheck, PauseCircle, PlayCircle, Send, X, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
 
 export interface AgentHandoff {
   id: string;
@@ -26,6 +26,7 @@ export const LiveChatHandoffDrawer: React.FC<LiveChatHandoffDrawerProps> = ({ on
   const [selectedHandoff, setSelectedHandoff] = useState<AgentHandoff | null>(null);
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
+  const [activeTab, setActiveTab] = useState<'active' | 'resolved'>('active');
 
   const fetchHandoffs = async () => {
     try {
@@ -47,7 +48,22 @@ export const LiveChatHandoffDrawer: React.FC<LiveChatHandoffDrawerProps> = ({ on
     return () => clearInterval(interval);
   }, []);
 
-  const pendingHandoffs = handoffs.filter((h) => h.status === 'pending' || h.paused_ai);
+  // Classify handoffs by active vs resolved
+  const activeHandoffs = handoffs
+    .filter((h) => h.status === 'pending' || h.status === 'in_progress' || h.paused_ai)
+    .sort((a, b) => {
+      // Priority: pending (0) > in_progress (1) > resolved (2)
+      const priority = { pending: 0, in_progress: 1, resolved: 2 };
+      const prioDiff = (priority[a.status] ?? 2) - (priority[b.status] ?? 2);
+      if (prioDiff !== 0) return prioDiff;
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+    });
+
+  const resolvedHandoffs = handoffs
+    .filter((h) => h.status === 'resolved' && !h.paused_ai)
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+  const displayedHandoffs = activeTab === 'active' ? activeHandoffs : resolvedHandoffs;
 
   const handleReply = async (handoff: AgentHandoff) => {
     if (!replyText.trim() || sending) return;
@@ -106,7 +122,7 @@ export const LiveChatHandoffDrawer: React.FC<LiveChatHandoffDrawerProps> = ({ on
   return (
     <>
       {/* Banner de alerta parpadeante cuando hay solicitudes activas */}
-      {pendingHandoffs.length > 0 && (
+      {activeHandoffs.length > 0 && (
         <div className="mb-4 bg-amber-950/90 border border-amber-800 text-amber-200 p-3 rounded-2xl flex items-center justify-between shadow-lg animate-pulse">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-amber-900/80 rounded-xl text-amber-300">
@@ -114,33 +130,37 @@ export const LiveChatHandoffDrawer: React.FC<LiveChatHandoffDrawerProps> = ({ on
             </div>
             <div>
               <h4 className="font-bold text-sm text-white">
-                🔴 {pendingHandoffs.length} {pendingHandoffs.length === 1 ? 'Cliente requiere' : 'Clientes requieren'} atención humana
+                🔴 {activeHandoffs.length} {activeHandoffs.length === 1 ? 'Cliente requiere' : 'Clientes requieren'} atención humana
               </h4>
               <p className="text-xs text-amber-300/90">
-                {pendingHandoffs[0].customer_name || 'Cliente'}: "{pendingHandoffs[0].last_message || 'Solicitó un agente humano'}"
+                {activeHandoffs[0].customer_name || 'Cliente'}: "{activeHandoffs[0].last_message || 'Solicitó un agente humano'}"
               </p>
             </div>
           </div>
           <button
             onClick={() => {
-              setSelectedHandoff(pendingHandoffs[0]);
+              setActiveTab('active');
+              setSelectedHandoff(activeHandoffs[0]);
               setOpen(true);
             }}
             className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold text-xs rounded-xl shadow-sm transition-all active:scale-95"
           >
-            💬 Atender Chat
+            💬 Atender Chat ({activeHandoffs.length})
           </button>
         </div>
       )}
 
       {/* Botón flotante opcional si no hay banner */}
-      {pendingHandoffs.length === 0 && (
+      {activeHandoffs.length === 0 && (
         <button
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setActiveTab('active');
+            setOpen(true);
+          }}
           className="mb-4 inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-semibold rounded-xl border border-zinc-800 transition-all"
         >
           <MessageSquare className="w-4 h-4 text-zinc-400" />
-          Atención en Vivo ({handoffs.length})
+          Atención en Vivo ({activeHandoffs.length})
         </button>
       )}
 
@@ -148,7 +168,7 @@ export const LiveChatHandoffDrawer: React.FC<LiveChatHandoffDrawerProps> = ({ on
       {open && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex justify-end">
           <div className="w-full max-w-lg bg-zinc-950 border-l border-zinc-800 h-full flex flex-col shadow-2xl">
-            {/* Header */}
+            {/* Header Header */}
             <div className="p-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/80">
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-orange-500" />
@@ -159,27 +179,59 @@ export const LiveChatHandoffDrawer: React.FC<LiveChatHandoffDrawerProps> = ({ on
               </button>
             </div>
 
+            {/* Header Tabs: Activos vs Resueltos */}
+            <div className="flex border-b border-zinc-800 bg-zinc-900/40 px-4 pt-2 gap-2">
+              <button
+                onClick={() => setActiveTab('active')}
+                className={`pb-2.5 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all ${
+                  activeTab === 'active'
+                    ? 'border-orange-500 text-orange-400'
+                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                🔴 Pendientes / Activos ({activeHandoffs.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('resolved')}
+                className={`pb-2.5 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all ${
+                  activeTab === 'resolved'
+                    ? 'border-orange-500 text-orange-400'
+                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                ✅ Resueltos ({resolvedHandoffs.length})
+              </button>
+            </div>
+
             {/* Content Body */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {handoffs.length === 0 ? (
+              {displayedHandoffs.length === 0 ? (
                 <div className="text-center py-12 text-zinc-500 text-sm">
-                  No hay solicitudes de atención humana por ahora.
+                  {activeTab === 'active'
+                    ? '🎉 No hay solicitudes pendientes de atención humana en este momento.'
+                    : 'No hay chats resueltos en el historial.'}
                 </div>
               ) : (
-                handoffs.map((h) => {
+                displayedHandoffs.map((h) => {
                   const isSelected = selectedHandoff?.id === h.id;
+                  const isPending = h.status === 'pending';
+
                   return (
                     <div
                       key={h.id}
                       className={`p-4 rounded-2xl border transition-all ${
-                        h.paused_ai
-                          ? 'bg-amber-950/30 border-amber-900/60'
-                          : 'bg-zinc-900/60 border-zinc-800'
+                        isPending
+                          ? 'bg-amber-950/40 border-amber-800/80 shadow-md animate-pulse'
+                          : h.paused_ai
+                          ? 'bg-amber-950/20 border-amber-900/50'
+                          : 'bg-zinc-900/40 border-zinc-800 opacity-80'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <UserCheck className="w-4 h-4 text-amber-400" />
+                          <UserCheck className={`w-4 h-4 ${isPending ? 'text-amber-300' : 'text-zinc-400'}`} />
                           <span className="font-bold text-sm text-white">
                             {h.customer_name || `Cliente (${h.chat_id.slice(-4)})`}
                           </span>
@@ -188,17 +240,23 @@ export const LiveChatHandoffDrawer: React.FC<LiveChatHandoffDrawerProps> = ({ on
                           </span>
                         </div>
                         <span
-                          className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
-                            h.paused_ai
+                          className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+                            isPending
+                              ? 'bg-red-950 text-red-300 border-red-800 animate-bounce'
+                              : h.paused_ai
                               ? 'bg-amber-950 text-amber-300 border-amber-800'
-                              : 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                              : 'bg-zinc-800 text-zinc-400 border-zinc-700'
                           }`}
                         >
-                          {h.paused_ai ? '⏸️ IA Pausada' : '▶️ IA Activa'}
+                          {isPending
+                            ? '🔴 REQUIERE ATENCIÓN'
+                            : h.paused_ai
+                            ? '⏸️ IA Pausada (Atendiendo)'
+                            : '✅ Resuelto (IA Activa)'}
                         </span>
                       </div>
 
-                      <p className="text-xs text-zinc-300 bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800/80 mb-3">
+                      <p className="text-xs text-zinc-200 bg-zinc-950/80 p-2.5 rounded-xl border border-zinc-800 mb-3 font-medium">
                         "{h.last_message || 'Solicitó atención humana'}"
                       </p>
 
@@ -219,12 +277,14 @@ export const LiveChatHandoffDrawer: React.FC<LiveChatHandoffDrawerProps> = ({ on
                             <PauseCircle className="w-3.5 h-3.5" /> Pausar IA
                           </button>
                         )}
-                        <button
-                          onClick={() => handleResolve(h)}
-                          className="py-1.5 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-xs rounded-xl transition-all"
-                        >
-                          ✅ Resuelto
-                        </button>
+                        {h.status !== 'resolved' && (
+                          <button
+                            onClick={() => handleResolve(h)}
+                            className="py-1.5 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-xs rounded-xl transition-all"
+                          >
+                            ✅ Resuelto
+                          </button>
+                        )}
                       </div>
 
                       {/* Formulario de Respuesta Rápida */}
@@ -262,3 +322,4 @@ export const LiveChatHandoffDrawer: React.FC<LiveChatHandoffDrawerProps> = ({ on
     </>
   );
 };
+
