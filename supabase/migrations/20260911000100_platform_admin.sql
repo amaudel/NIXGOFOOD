@@ -9,7 +9,10 @@ CREATE OR REPLACE FUNCTION public.current_user_is_platform_admin()
 RETURNS BOOLEAN
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
-  SELECT COALESCE(is_platform_admin, false) FROM public.profiles WHERE id = auth.uid() AND active = true LIMIT 1;
+  SELECT COALESCE(
+    (SELECT is_platform_admin FROM public.profiles WHERE id = auth.uid() AND active = true LIMIT 1),
+    false
+  );
 $$;
 
 GRANT EXECUTE ON FUNCTION public.current_user_is_platform_admin() TO authenticated;
