@@ -38,6 +38,25 @@ export default function ChatWidget() {
   }, []);
 
   useEffect(() => {
+    if (!open || !sessionId) return;
+    const interval = setInterval(() => {
+      fetch('/api/agent-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, pollOnly: true }),
+      })
+        .then((res) => res.json())
+        .then((data: { messages?: OutgoingMessage[] }) => {
+          if (data.messages && data.messages.length > 0) {
+            setEntries((prev) => [...prev, ...data.messages.map((message) => ({ from: 'bot' as const, message }))]);
+          }
+        })
+        .catch(() => {});
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [open, sessionId]);
+
+  useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [entries, loading]);
 

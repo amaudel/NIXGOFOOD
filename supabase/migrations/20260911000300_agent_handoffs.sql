@@ -6,11 +6,16 @@ CREATE TABLE IF NOT EXISTS public.agent_handoffs (
   channel TEXT NOT NULL DEFAULT 'telegram',
   customer_name TEXT,
   last_message TEXT,
+  operator_reply TEXT,
+  operator_reply_delivered BOOLEAN NOT NULL DEFAULT false,
   status TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'in_progress' | 'resolved'
   paused_ai BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.agent_handoffs ADD COLUMN IF NOT EXISTS operator_reply TEXT;
+ALTER TABLE public.agent_handoffs ADD COLUMN IF NOT EXISTS operator_reply_delivered BOOLEAN NOT NULL DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS idx_agent_handoffs_business_status ON public.agent_handoffs(business_id, status);
 
