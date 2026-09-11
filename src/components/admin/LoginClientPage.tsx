@@ -10,7 +10,16 @@ export default function LoginClientPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get('redirect');
-  const destination = redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//') ? redirectParam : '/admin';
+  const safePath = redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//') ? redirectParam : '/admin';
+  // /admin/* se queda en este mismo subdominio (admin.{rootDomain}, donde ya
+  // estamos); cualquier otro destino (ej. /platform) vive en el dominio raíz,
+  // no en el subdominio admin, así que necesita una URL absoluta.
+  const destination =
+    safePath === '/admin' || safePath.startsWith('/admin/')
+      ? safePath
+      : typeof window !== 'undefined'
+        ? `${window.location.protocol}//${window.location.host.replace(/^admin\./, '')}${safePath}`
+        : safePath;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
