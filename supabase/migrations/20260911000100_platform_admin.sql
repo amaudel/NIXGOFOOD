@@ -29,14 +29,21 @@ BEGIN
   END IF;
 
   RETURN COALESCE((
-    SELECT jsonb_agg(jsonb_build_object(
-      'id', b.id, 'name', b.name, 'slug', b.slug, 'active', b.active,
-      'agentPersona', b.agent_persona, 'agentFaq', b.agent_faq,
-      'ordersLast7d', (SELECT count(*) FROM public.orders o WHERE o.business_id = b.id AND o.created_at >= v_since),
-      'reservationsLast7d', (SELECT count(*) FROM public.reservations r WHERE r.business_id = b.id AND r.created_at >= v_since)
-    ))
-    FROM public.businesses b
-    ORDER BY b.name
+    SELECT jsonb_agg(item)
+    FROM (
+      SELECT jsonb_build_object(
+        'id', b.id,
+        'name', b.name,
+        'slug', b.slug,
+        'active', b.active,
+        'agentPersona', b.agent_persona,
+        'agentFaq', b.agent_faq,
+        'ordersLast7d', (SELECT count(*) FROM public.orders o WHERE o.business_id = b.id AND o.created_at >= v_since),
+        'reservationsLast7d', (SELECT count(*) FROM public.reservations r WHERE r.business_id = b.id AND r.created_at >= v_since)
+      ) AS item
+      FROM public.businesses b
+      ORDER BY b.name
+    ) sub
   ), '[]'::jsonb);
 END;
 $$;

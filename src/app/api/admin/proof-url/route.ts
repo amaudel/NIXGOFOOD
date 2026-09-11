@@ -6,6 +6,16 @@ import { verifyAdminSession } from '@/lib/auth/adminAuth';
 
 export async function GET(request: Request) {
   try {
+    // 1. Enforce Server-Side Administrative Session & Business Ownership Verification FIRST
+    const authResult = await verifyAdminSession();
+    if (!authResult.authorized) {
+      return NextResponse.json(
+        { error: authResult.error || 'Acceso no autorizado.' },
+        { status: authResult.status }
+      );
+    }
+
+    // 2. Validate input parameters
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get('orderId');
 
@@ -13,6 +23,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'ID de pedido no proporcionado.' }, { status: 400 });
     }
 
+    // 3. Handle Demo Mode
     if (isDemoMode()) {
       const demoOrder = await DemoOrderRepository.getOrderByTrackingToken(orderId);
       if (!demoOrder) {
@@ -21,15 +32,6 @@ export async function GET(request: Request) {
       return NextResponse.json({
         signedUrl: demoOrder.transferDetails?.proofUrl || null,
       });
-    }
-
-    // 1. Enforce Server-Side Administrative Session & Business Ownership Verification
-    const authResult = await verifyAdminSession();
-    if (!authResult.authorized) {
-      return NextResponse.json(
-        { error: authResult.error || 'Acceso no autorizado.' },
-        { status: authResult.status }
-      );
     }
 
     const businessId = authResult.businessId!;

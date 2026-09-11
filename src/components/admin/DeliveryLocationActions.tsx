@@ -71,7 +71,7 @@ export const DeliveryLocationActions: React.FC<DeliveryLocationActionsProps> = (
                   <a
                     key={m.id}
                     href={buildWhatsappUrl(m.whatsapp, whatsappText)}
-                    target="_blank"
+                    target="nixgofood-whatsapp"
                     rel="noopener noreferrer"
                     onClick={() => setMenuOpen(false)}
                     className="block px-3 py-2 text-[11px] text-zinc-200 hover:bg-zinc-900 hover:text-emerald-300 truncate"
@@ -86,7 +86,7 @@ export const DeliveryLocationActions: React.FC<DeliveryLocationActionsProps> = (
       ) : (
         <a
           href={buildWhatsappUrl(activos[0]?.whatsapp, whatsappText)}
-          target="_blank"
+          target="nixgofood-whatsapp"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 text-[11px] font-bold py-2 px-3 rounded-xl border border-emerald-800 transition-all active:scale-95"

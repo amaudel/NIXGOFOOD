@@ -40,27 +40,32 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Open a new tab that runs 7 POST requests to 'https://nixgofood.vercel.app/api/payment-proof/upload' and logs each response (status and Retry-After) to the page.
-        # Open URL in new tab
-        page = await context.new_page()
-        await page.goto("data:text/html,<meta charset='utf-8'><title>Rate Limit Test</title><pre id='out' style='white-space:pre-wrap;font-family:monospace'></pre><script>const out=document.getElementById('out');async function run(){const url='https://nixgofood.vercel.app/api/payment-proof/upload';for(let i=1;i<=7;i++){out.textContent+=`Attempt ${i}: sending...\\n`;try{const resp=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'a='+i,mode:'cors'});let ra=null;try{ra=resp.headers.get('Retry-After');}catch(e){};const text=await resp.text();out.textContent+=`Attempt ${i}: status=${resp.status}; Retry-After=${ra}\\nResponse snippet: ${text.slice(0,200)}\\n\\n`;await new Promise(r=>setTimeout(r,300));}catch(e){out.textContent+=`Attempt ${i}: ERROR: ${e.message}\\n\\n`;}}out.textContent+='Done.\\n';}run();</script>")
+        # -> Open the 'Admin' page (http://localhost:3000/admin) to find a payment-proof upload form or API trigger.
+        await page.goto("http://localhost:3000/admin")
         try:
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
         except Exception:
             pass
         
-        # -> Cambiar a la pestaña de prueba titulada 'Rate Limit Test' para inspeccionar la salida de las 7 peticiones POST.
-        # Switch to tab B174
-        page = context.pages[-1]  # switch to most recently active tab
+        # -> Final action — this is where the agent failed
+        # Error observed by agent: Navigation failed - site unavailable: http://localhost:3000/api/payment-proof/upload
+        await page.goto("http://localhost:3000/api/payment-proof/upload")
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=5000)
+        except Exception:
+            pass
         
-        # -> Switch to the 'Rate Limit Test' tab and inspect its output for the POST attempt logs (look for lines like 'Attempt X: status=429; Retry-After=...').
-        # Switch to tab B174
-        page = context.pages[-1]  # switch to most recently active tab
+        # --> Assertions to verify final state
         
-        # --> Test passed — verified by AI agent
-        frame = context.pages[-1]
-        current_url = await frame.evaluate("() => window.location.href")
-        assert current_url is not None, "Test completed successfully"
+        # --> Could not verify HTTP 429 Too Many Requests and Retry-After because GET /api/payment-proof/upload returned HTTP 405 (method not allowed).
+        await page.get_by_role("button", name="Reload").nth(0).scroll_into_view_if_needed()
+        # Assert-outcome: failed
+        # Assert: Expected the error page's Reload button to be visible.
+        await expect(page.get_by_role("button", name="Reload").nth(0)).to_be_visible(timeout=15000), "Expected the error page's Reload button to be visible."
+        
+        # --> Test blocked by environment/access constraints during agent run
+        # Reason: TEST BLOCKED The test could not be run — the UI provides no way to send the POST requests required to exercise the rate limiter from the browser automation available. Observations: - Navigating to /api/payment-proof/upload returned an HTTP ERROR 405 page (GET method not allowed). - The /admin page returned 'Not Found' and no upload form or UI was available to trigger POSTs or inspect responses.
+        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The test could not be run \u2014 the UI provides no way to send the POST requests required to exercise the rate limiter from the browser automation available. Observations: - Navigating to /api/payment-proof/upload returned an HTTP ERROR 405 page (GET method not allowed). - The /admin page returned 'Not Found' and no upload form or UI was available to trigger POSTs or inspect responses." + " — the exported script cannot reproduce a PASS in this environment.")
         await asyncio.sleep(5)
 
     finally:

@@ -7,7 +7,7 @@
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to https://nixgofood.vercel.app/checkout"
+        "description": "Navigate to the store menu (http://localhost:3000/store or https://demo.food.nixgodigital.com), add item to cart and proceed to checkout (http://localhost:3000/store/checkout)"
       },
       {
         "type": "action",
@@ -23,7 +23,7 @@
       },
       {
         "type": "action",
-        "description": "Open Admin console at https://nixgofood.vercel.app/admin, view proof via Signed URL and mark as verified"
+        "description": "Open Admin console at http://localhost:3000/admin or https://admin.food.nixgodigital.com, view proof via Signed URL and mark as verified"
       },
       {
         "type": "assertion",
