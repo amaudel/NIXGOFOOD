@@ -120,8 +120,6 @@ export async function POST(request: Request) {
         .from('agent_handoffs')
         .update({
           last_message: `Operador: ${replyText}`,
-          operator_reply: replyText,
-          operator_reply_delivered: false,
           status: 'in_progress',
           updated_at: new Date().toISOString(),
         })
