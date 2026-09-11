@@ -258,10 +258,9 @@ export async function middleware(request: NextRequest) {
   // por negocio (owner/admin/kitchen/dispatch de un restaurante) entra aqui.
   if (pathname.startsWith('/platform') && pathname !== '/platform/login') {
     if (!user) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/admin/login';
-      url.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(url);
+      const loginUrl = new URL(`${request.nextUrl.protocol}//admin.${rootDomain}/admin/login`);
+      loginUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(loginUrl);
     }
 
     const { data: platformProfile } = await supabase
