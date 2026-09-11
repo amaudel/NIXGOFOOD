@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/server';
 import { verifyAdminSession } from '@/lib/auth/adminAuth';
 
 export async function GET() {
@@ -10,7 +10,7 @@ export async function GET() {
     }
 
     const businessId = auth.businessId!;
-    const supabase = await createClient();
+    const supabase = createServiceRoleClient();
 
     const { data: handoffs, error } = await supabase
       .from('agent_handoffs')
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     }
 
     const businessId = auth.businessId!;
-    const supabase = await createClient();
+    const supabase = createServiceRoleClient();
 
     // Verify handoff belongs to business
     const { data: existingHandoff, error: fetchErr } = await supabase
