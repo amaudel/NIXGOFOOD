@@ -52,7 +52,7 @@ export default function ChatWidget() {
           }
         })
         .catch(() => {});
-    }, 4000);
+    }, 2500);
     return () => clearInterval(interval);
   }, [open, sessionId]);
 
