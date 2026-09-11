@@ -1,13 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ShieldCheck, Mail, Lock, AlertCircle, ArrowRight, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { isDemoMode } from '@/config/demo';
 
 export default function LoginClientPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get('redirect');
+  const destination = redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//') ? redirectParam : '/admin';
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +27,7 @@ export default function LoginClientPage() {
     try {
       if (isDemo) {
         // Local demo mode authentication
-        router.push('/admin');
+        router.push(destination);
         router.refresh();
         return;
       }
@@ -39,7 +43,7 @@ export default function LoginClientPage() {
       }
 
       if (data.user) {
-        window.location.href = '/admin';
+        window.location.href = destination;
       }
     } catch (err: any) {
       setError(err.message || 'Error al iniciar sesión.');
@@ -49,7 +53,7 @@ export default function LoginClientPage() {
   };
 
   const handleDemoAccess = () => {
-    router.push('/admin');
+    router.push(destination);
     router.refresh();
   };
 
