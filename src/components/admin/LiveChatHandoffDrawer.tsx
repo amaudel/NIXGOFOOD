@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, UserCheck, PauseCircle, PlayCircle, Send, X, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import { MessageSquare, UserCheck, PauseCircle, PlayCircle, Send, X, AlertCircle, CheckCircle2, Clock, Trash2 } from 'lucide-react';
 
 export interface AgentHandoff {
   id: string;
@@ -26,7 +26,24 @@ export const LiveChatHandoffDrawer: React.FC<LiveChatHandoffDrawerProps> = ({ on
   const [selectedHandoff, setSelectedHandoff] = useState<AgentHandoff | null>(null);
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
   const [activeTab, setActiveTab] = useState<'active' | 'resolved'>('active');
+
+  const handleCleanupHandoffs = async () => {
+    if (cleaning) return;
+    setCleaning(true);
+    try {
+      const res = await fetch('/api/admin/cron/cleanup-handoffs', { method: 'POST' });
+      const data = await res.json();
+      if (data.message) {
+        fetchHandoffs();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setCleaning(false);
+    }
+  };
 
   const fetchHandoffs = async () => {
     try {
@@ -180,29 +197,43 @@ export const LiveChatHandoffDrawer: React.FC<LiveChatHandoffDrawerProps> = ({ on
             </div>
 
             {/* Header Tabs: Activos vs Resueltos */}
-            <div className="flex border-b border-zinc-800 bg-zinc-900/40 px-4 pt-2 gap-2">
-              <button
-                onClick={() => setActiveTab('active')}
-                className={`pb-2.5 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all ${
-                  activeTab === 'active'
-                    ? 'border-orange-500 text-orange-400'
-                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <Clock className="w-3.5 h-3.5" />
-                🔴 Pendientes / Activos ({activeHandoffs.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('resolved')}
-                className={`pb-2.5 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all ${
-                  activeTab === 'resolved'
-                    ? 'border-orange-500 text-orange-400'
-                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                ✅ Resueltos ({resolvedHandoffs.length})
-              </button>
+            <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900/40 px-4 pt-2">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setActiveTab('active')}
+                  className={`pb-2.5 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all ${
+                    activeTab === 'active'
+                      ? 'border-orange-500 text-orange-400'
+                      : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  🔴 Pendientes / Activos ({activeHandoffs.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('resolved')}
+                  className={`pb-2.5 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all ${
+                    activeTab === 'resolved'
+                      ? 'border-orange-500 text-orange-400'
+                      : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  ✅ Resueltos ({resolvedHandoffs.length})
+                </button>
+              </div>
+
+              {activeTab === 'resolved' && resolvedHandoffs.length > 0 && (
+                <button
+                  onClick={handleCleanupHandoffs}
+                  disabled={cleaning}
+                  className="mb-1.5 px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800 rounded-xl text-[11px] font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
+                  title="Eliminar chats resueltos con más de 14 días de antigüedad"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-zinc-400" />
+                  {cleaning ? 'Limpiando...' : 'Depurar (+14 días)'}
+                </button>
+              )}
             </div>
 
             {/* Content Body */}
