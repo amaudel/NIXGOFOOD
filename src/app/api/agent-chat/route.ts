@@ -10,13 +10,24 @@ const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_CHAT_URL || '';
 // aplica a peticiones fetch() de navegador hacia ese dominio compartido.
 export async function POST(request: Request) {
   try {
-    const clientIp = getClientIp(request);
-    const rateCheck = await checkRateLimit(clientIp, 20, 60000, 'agent_chat');
-    if (!rateCheck.allowed) {
-      return NextResponse.json(
-        { error: `Demasiados mensajes. Reintenta en ${rateCheck.resetSeconds} segundos.` },
-        { status: 429, headers: { 'Retry-After': String(rateCheck.resetSeconds) } }
-      );
+    const body = await request.json();
+    const isPoll = Boolean(body?.pollOnly);
+
+    if (!isPoll) {
+      const clientIp = getClientIp(request);
+      const rateCheck = await checkRateLimit(clientIp, 20, 60000, 'agent_chat');
+      if (!rateCheck.allowed) {
+        return NextResponse.json(
+          { error: `Demasiados mensajes. Reintenta en ${rateCheck.resetSeconds} segundos.` },
+          { status: 429, headers: { 'Retry-After': String(rateCheck.resetSeconds) } }
+        );
+      }
+    } else {
+      const clientIp = getClientIp(request);
+      const rateCheck = await checkRateLimit(clientIp, 60, 60000, 'agent_chat_poll');
+      if (!rateCheck.allowed) {
+        return NextResponse.json({ messages: [] }, { status: 200 });
+      }
     }
 
     if (!AGENT_URL) {
@@ -27,8 +38,6 @@ export async function POST(request: Request) {
     if (!businessId) {
       return NextResponse.json({ error: 'No se pudo resolver el negocio.' }, { status: 400 });
     }
-
-    const body = await request.json();
 
     const agentRes = await fetch(`${AGENT_URL}/web-chat`, {
       method: 'POST',

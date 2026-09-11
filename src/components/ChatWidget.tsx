@@ -47,8 +47,9 @@ export default function ChatWidget() {
       })
         .then((res) => res.json())
         .then((data: { messages?: OutgoingMessage[] }) => {
-          if (data.messages && data.messages.length > 0) {
-            setEntries((prev) => [...prev, ...data.messages.map((message) => ({ from: 'bot' as const, message }))]);
+          if (data && Array.isArray(data.messages) && data.messages.length > 0) {
+            const newMsgs = data.messages;
+            setEntries((prev) => [...prev, ...newMsgs.map((message) => ({ from: 'bot' as const, message }))]);
           }
         })
         .catch(() => {});
