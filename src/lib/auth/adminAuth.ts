@@ -116,3 +116,42 @@ export async function verifyAdminSession(): Promise<AdminAuthResult> {
     };
   }
 }
+
+export interface PlatformAdminAuthResult {
+  authorized: boolean;
+  status: number;
+  error?: string;
+}
+
+/**
+ * Server-side helper to verify the caller is the platform owner (sees/edits
+ * every business), independent of any per-business role they may also have.
+ */
+export async function verifyPlatformAdminSession(): Promise<PlatformAdminAuthResult> {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { authorized: false, status: 401, error: 'Acceso denegado. Se requiere una sesión activa.' };
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('is_platform_admin, active')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile || profile.active === false || profile.is_platform_admin !== true) {
+      return { authorized: false, status: 403, error: 'Acceso denegado. No eres administrador de la plataforma.' };
+    }
+
+    return { authorized: true, status: 200 };
+  } catch (err: any) {
+    return { authorized: false, status: 500, error: err.message || 'Error interno de verificación de sesión.' };
+  }
+}

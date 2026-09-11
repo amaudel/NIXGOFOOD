@@ -254,6 +254,29 @@ export async function middleware(request: NextRequest) {
     response = NextResponse.next({ request: { headers: requestHeaders } });
   }
 
+  // Protege /platform - exclusivo del dueño de la plataforma, ningun rol
+  // por negocio (owner/admin/kitchen/dispatch de un restaurante) entra aqui.
+  if (pathname.startsWith('/platform') && pathname !== '/platform/login') {
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/admin/login';
+      url.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(url);
+    }
+
+    const { data: platformProfile } = await supabase
+      .from('profiles')
+      .select('is_platform_admin, active')
+      .eq('id', user.id)
+      .single();
+
+    if (!platformProfile || platformProfile.active === false || platformProfile.is_platform_admin !== true) {
+      // 404 en vez de redirect - no revela que la ruta existe a quien no
+      // deberia saberlo.
+      return new NextResponse('Not Found', { status: 404 });
+    }
+  }
+
   return response;
 }
 
