@@ -4,6 +4,20 @@ import { classifyHost } from '@/lib/tenant';
 import { isDemoMode } from '@/config/demo';
 import { CURRENT_BUSINESS_ID } from '@/config/business';
 
+// Sin un dominio explicito, el navegador guarda la cookie de sesion como
+// "host-only": solo se envia de vuelta al host EXACTO que la puso (ej.
+// admin.food.nixgodigital.com). Eso rompe /platform, que redirige de
+// admin.{rootDomain} al dominio raiz esperando ver esa misma sesion. Con
+// ".food.nixgodigital.com" la cookie queda compartida entre admin.* y la
+// raiz. En localhost se omite (undefined): Domain=localhost tiene
+// comportamiento inconsistente entre navegadores y no hace falta, ya que
+// dev local no suele ejercitar subdominios reales.
+function sharedCookieDomain(rootDomain: string): string | undefined {
+  const bareHost = rootDomain.split(':')[0]; // quita el puerto, ej. 'localhost:3000' -> 'localhost'
+  if (bareHost === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(bareHost)) return undefined;
+  return `.${bareHost}`;
+}
+
 // Origenes propios de la app. SITE_URL debe apuntar al dominio de produccion
 // (ej. https://nixgofood.vercel.app); localhost queda permitido solo para
 // desarrollo.
@@ -202,6 +216,7 @@ export async function middleware(request: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: { domain: sharedCookieDomain(rootDomain) },
     cookies: {
       getAll() {
         return request.cookies.getAll();
