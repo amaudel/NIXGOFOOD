@@ -33,7 +33,11 @@ export const LiveChatHandoffDrawer: React.FC<LiveChatHandoffDrawerProps> = ({ on
     if (cleaning) return;
     setCleaning(true);
     try {
-      const res = await fetch('/api/admin/cron/cleanup-handoffs', { method: 'POST' });
+      const res = await fetch('/api/admin/cron/cleanup-handoffs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ purgeAll: true }),
+      });
       const data = await res.json();
       if (data.message) {
         fetchHandoffs();
@@ -227,11 +231,11 @@ export const LiveChatHandoffDrawer: React.FC<LiveChatHandoffDrawerProps> = ({ on
                 <button
                   onClick={handleCleanupHandoffs}
                   disabled={cleaning}
-                  className="mb-1.5 px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800 rounded-xl text-[11px] font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
-                  title="Eliminar chats resueltos con más de 14 días de antigüedad"
+                  className="mb-1.5 px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 text-red-400 hover:text-red-300 border border-zinc-800 rounded-xl text-[11px] font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
+                  title="Vaciar inmediatamente todos los chats resueltos del historial"
                 >
-                  <Trash2 className="w-3.5 h-3.5 text-zinc-400" />
-                  {cleaning ? 'Limpiando...' : 'Depurar (+14 días)'}
+                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                  {cleaning ? 'Vaciando...' : 'Vaciar Resueltos'}
                 </button>
               )}
             </div>

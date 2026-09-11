@@ -6,6 +6,15 @@ export async function POST(request: Request) {
   try {
     const cutoffDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000); // 14 days ago
 
+    let body: any = {};
+    try {
+      body = await request.json();
+    } catch {
+      // Body may be empty for GET/Cron requests
+    }
+
+    const { purgeAll } = body;
+
     // 1. Verify Authorization (Admin Session or Cron Secret)
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET || process.env.HANDOFF_CLEANUP_SECRET;
@@ -37,8 +46,12 @@ export async function POST(request: Request) {
       .from('agent_handoffs')
       .delete({ count: 'exact' })
       .eq('status', 'resolved')
-      .eq('paused_ai', false)
-      .lt('updated_at', cutoffDate.toISOString());
+      .eq('paused_ai', false);
+
+    // If NOT purging all immediately, filter by 14-day cutoff date
+    if (!purgeAll) {
+      query = query.lt('updated_at', cutoffDate.toISOString());
+    }
 
     if (businessIdFilter) {
       query = query.eq('business_id', businessIdFilter);
@@ -47,14 +60,18 @@ export async function POST(request: Request) {
     const { count, error } = await query;
 
     if (error) {
-      console.error('Error al limpiar handoffs resueltos de 14 días:', error);
+      console.error('Error al limpiar handoffs resueltos:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    const message = purgeAll
+      ? `Se eliminaron exitosamente ${count || 0} chats resueltos del historial.`
+      : `Se depuraron exitosamente ${count || 0} chats resueltos de más de 14 días.`;
 
     return NextResponse.json({
       success: true,
       cleanedCount: count || 0,
-      message: `Se depuraron exitosamente ${count || 0} chats resueltos de más de 14 días.`,
+      message,
     });
   } catch (err: any) {
     console.error('Error interno en cleanup-handoffs:', err);
