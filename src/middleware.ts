@@ -240,7 +240,7 @@ export async function middleware(request: NextRequest) {
 
     const ALLOWED_ADMIN_ROLES = ['owner', 'admin', 'operator'];
 
-    if (!profile || profile.active === false || !ALLOWED_ADMIN_ROLES.includes(profile.role)) {
+    if (!profile || profile.active === false || !ALLOWED_ADMIN_ROLES.includes(profile.role) || !profile.business_id) {
       const url = request.nextUrl.clone();
       url.pathname = '/admin/login';
       url.searchParams.set('error', 'unauthorized_role');
