@@ -28,6 +28,7 @@ import { OrderItemsList } from '@/components/admin/OrderItemsList';
 import { NewOrderAlertBanner } from '@/components/admin/NewOrderAlertBanner';
 import { useNewOrderAlerts } from '@/context/NewOrderAlertContext';
 import { UndoToastNotification, ActiveUndoToast } from '@/components/admin/UndoToastNotification';
+import { LiveChatHandoffDrawer } from '@/components/admin/LiveChatHandoffDrawer';
 import { DeliveryLocationActions } from '@/components/admin/DeliveryLocationActions';
 import { RollbackOrderModal as RollbackModal } from '@/components/admin/RollbackOrderModal';
 import { OrderFilterBadge } from '@/components/admin/OrderFilterBadge';
@@ -572,6 +573,7 @@ function OrdersPageContent() {
     <AdminLayout>
       <div className="space-y-6">
         <NewOrderAlertBanner />
+        <LiveChatHandoffDrawer />
 
         <UndoToastNotification
           toast={activeUndoToast}
