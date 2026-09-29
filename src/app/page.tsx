@@ -299,8 +299,7 @@ export default function MarketingHomePage() {
               <h3>Para operar de verdad</h3>
               <p>
                 Base de datos propia con aislamiento por negocio, autenticación real y pedidos que
-                llegan a la cocina en el momento. Es el mismo modo en el que ya trabaja El Taca
-                Nijo.
+                llegan a la cocina en el momento. Es el mismo modo en el que ya trabaja 404.
               </p>
             </div>
           </div>
