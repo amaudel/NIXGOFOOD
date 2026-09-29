@@ -18,7 +18,7 @@ const CONTACT_HREF = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
   'Quiero ver NixGoFood para mi restaurante'
 )}`;
 
-const EL_TACA_NIJO_MENU_URL = 'https://el-taca-nijo.food.nixgodigital.com';
+const BUSINESS_404_MENU_URL = 'https://404.food.nixgodigital.com';
 const LA_ESQUINA_DE_ALES_MENU_URL = 'https://burger-house.food.nixgodigital.com';
 const ADMIN_URL = 'https://admin.food.nixgodigital.com/admin';
 
@@ -208,21 +208,21 @@ export default function MarketingHomePage() {
           <div className={styles.case}>
             <div>
               <div className={styles.caseTag}>Piloto en producción</div>
-              <div className={styles.caseName}>El Taca Nijo</div>
-              <div className={styles.casePlace}>Matriz Cuenca &amp; Sucursal Norte — Ecuador</div>
+              <div className={styles.caseName}>404</div>
+              <div className={styles.casePlace}>Av. Juan Íñiguez &amp; Isla Mall del Alto — Cuenca, Ecuador</div>
               <p className={styles.caseNote}>
-                Taquería con dos sucursales operando sobre NixGoFood: menú propio, zonas de
+                Hamburguesería con dos sucursales operando sobre NixGoFood: menú propio, zonas de
                 delivery calculadas por distancia real desde cada sucursal, y panel de cocina
                 corriendo en el mostrador durante el servicio.
               </p>
               <div className={styles.caseLinks}>
                 <a
                   className={styles.caseLink}
-                  href={EL_TACA_NIJO_MENU_URL}
+                  href={BUSINESS_404_MENU_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Ver menú: El Taca Nijo ↗
+                  Ver menú: 404 ↗
                 </a>
                 <a
                   className={styles.caseLink}
