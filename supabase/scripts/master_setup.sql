@@ -178,11 +178,11 @@ CREATE TABLE IF NOT EXISTS order_item_modifiers (
 
 -- SEED BUSINESS & BRANCH (CON UUID HEXADECIMAL VÁLIDO)
 INSERT INTO businesses (id, name, slug, phone, whatsapp, active)
-VALUES ('b0000000-0000-0000-0000-000000000001', 'El Taca Nijo', 'el-taca-nijo', '0991234567', '0991234567', true)
+VALUES ('b0000000-0000-0000-0000-000000000001', '404', '404', '0991234567', '0991234567', true)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO branches (id, business_id, name, address, latitude, longitude, phone, active)
-VALUES ('b0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000001', 'El Taca Nijo - Matriz Cuenca', 'Av. Remigio Crespo Toral y Agustín Cueva, Cuenca, Ecuador', -2.90055, -79.00453, '0991234567', true)
+VALUES ('b0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000001', '404 - Av. Juan Íñiguez', 'Av. Juan Íñiguez V. 1-73, Cuenca, Ecuador', -2.8988, -79.0058, '0991234567', true)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO delivery_zones (id, business_id, branch_id, name, max_distance_km, fee, estimated_min_minutes, estimated_max_minutes, sort_order, active)
