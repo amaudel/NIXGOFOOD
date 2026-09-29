@@ -162,7 +162,7 @@ export default function ChatWidget() {
           className="flex h-14 w-14 items-center justify-center rounded-full bg-rose-600 text-2xl shadow-lg hover:bg-rose-500"
           aria-label={open ? 'Cerrar chat' : 'Abrir chat'}
         >
-          {open ? '✕' : '🌮'}
+          {open ? '✕' : '🍔'}
         </button>
       </div>
     </div>
