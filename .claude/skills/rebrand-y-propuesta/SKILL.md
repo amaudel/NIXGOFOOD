@@ -158,6 +158,55 @@ Al terminar, bajá el server (`pkill -f "next dev"`) y no commitees
 `.env.local` ni las capturas al repo — son material de trabajo, no
 código.
 
+### 3.1b — El personaje de marca (opcional, alto impacto)
+
+NixGoFood tiene un personaje ilustrado 3D (un "chef" animado) que
+aparece en el hero de `nixgofood.vercel.app`, como
+`public/media/nixgo-chef-full-loop.mp4` y
+`public/media/nixgo-chef-close-loop.mp4` — no existe como imagen
+estática en ningún lado del repo. Si el deck se siente "muy oscuro" o
+muy corporativo, sacar un frame de ese video y usarlo como acento
+cálido en la portada y/o el cierre ayuda mucho sin tener que aclarar
+la paleta.
+
+El Chromium que trae Playwright en este entorno **no puede reproducir
+esos .mp4** (le falta el códec H.264/AAC — `video.error.code === 4`,
+`MEDIA_ERR_SRC_NOT_SUPPORTED`), así que no sirve extraer el frame con
+`<video>` + `<canvas>` en el navegador. Lo que sí funciona:
+
+```bash
+curl -sS -L -o /tmp/ffmpeg.tar.xz \
+  "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
+tar xf /tmp/ffmpeg.tar.xz -C /tmp
+FF=/tmp/ffmpeg-*-amd64-static/ffmpeg
+"$FF" -y -i public/media/nixgo-chef-full-loop.mp4 -vf "fps=1/1" frames/full_%02d.png
+```
+
+Elegí el frame con mejor pose (de pie, señalando, mirando a cámara) y
+recortale el fondo oscuro con un umbral de luminancia (el fondo del
+video ya es casi negro con un halo cálido detrás del personaje, así
+que un corte suave por luminancia alcanza — no hace falta un modelo
+de segmentación):
+
+```python
+from PIL import Image
+img = Image.open(in_path).convert('RGB').crop(crop_box).convert('RGBA')
+px = img.load()
+for y in range(img.height):
+    for x in range(img.width):
+        r, g, b, a = px[x, y]
+        lum = 0.2126*r + 0.7152*g + 0.0722*b
+        alpha = 0 if lum <= 14 else 255 if lum >= 34 else int(255*(lum-14)/20)
+        px[x, y] = (r, g, b, alpha)
+img.save(out_path)
+```
+
+El halo cálido que queda alrededor del personaje es intencional (es
+el mismo rim-light del video original) — no hace falta un cutout
+perfecto, ese resplandor ayuda a que se integre en un fondo oscuro
+tipo `#0a0a0a` sin borde visible. Subí el PNG con transparencia como
+asset del deck y usalo en `<img>` normalmente.
+
 ### 3.2 — Estructura del deck (11-14 diapositivas)
 
 Seguí este arco narrativo, aplicando principios de persuasión sin
