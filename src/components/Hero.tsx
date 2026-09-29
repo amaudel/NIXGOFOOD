@@ -15,9 +15,9 @@ export const Hero: React.FC = () => {
     }
   };
 
-  // Find taco birria for star dish showcase
-  const starProduct = products.find((p) => p.slug === 'taco-birria' || p.id === 'p_taco_birria');
-  const starImage = starProduct?.image || '/demo/products/taco-birria.webp';
+  // Find flagship burger for star dish showcase
+  const starProduct = products.find((p) => p.slug === 'burger-coffee-bacon' || p.id === 'p_burger_coffee_bacon');
+  const starImage = starProduct?.image || '/demo/products/burger-coffee-bacon.webp';
   const businessName = business?.name || demoBusiness.name;
   const coverImage = business?.coverImage || demoBusiness.coverImage || '/demo/hero/hero-main.webp';
   const rating = business?.rating ?? demoBusiness.rating;
@@ -25,7 +25,7 @@ export const Hero: React.FC = () => {
   const description = business?.description || demoBusiness.description;
   const openingHours = business?.openingHours || demoBusiness.openingHours;
 
-  // Mientras el fetch real esta en vuelo, no pintar nada de El Taca Nijo
+  // Mientras el fetch real esta en vuelo, no pintar nada del negocio demo
   // (nombre, foto, descripcion) como si fuera el negocio real -- ver el
   // comentario en AppContext.tsx sobre el estado inicial vacio.
   if (catalogLoading) {
@@ -114,10 +114,10 @@ export const Hero: React.FC = () => {
             <div className="absolute bottom-4 left-4 right-4 bg-zinc-900/90 backdrop-blur-md p-3.5 rounded-2xl border border-zinc-700/80 flex items-center justify-between">
               <div>
                 <p className="text-xs text-rose-400 font-bold uppercase tracking-wider">Especialidad de la Casa</p>
-                <p className="text-sm font-bold text-white">{starProduct?.name || 'Taco Birria con Consomé'}</p>
+                <p className="text-sm font-bold text-white">{starProduct?.name || 'Coffee Bacon'}</p>
               </div>
               <span className="text-base font-extrabold text-amber-400 bg-amber-950/60 px-3 py-1 rounded-xl border border-amber-500/40">
-                ${starProduct?.price?.toFixed(2) || '3.50'}
+                ${starProduct?.price?.toFixed(2) || '8.50'}
               </span>
             </div>
           </div>

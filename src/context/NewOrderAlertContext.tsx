@@ -415,7 +415,7 @@ export const NewOrderAlertProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Document Title update when tab is in background
   useEffect(() => {
-    const originalTitle = 'El Taca Nijo - Panel Restaurante';
+    const originalTitle = '404 - Panel Restaurante';
 
     if (unreviewedOrders.length > 0 && typeof document !== 'undefined') {
       document.title = `(${unreviewedOrders.length}) 🔴 ¡NUEVO PEDIDO RECIBIDO! · ${originalTitle}`;

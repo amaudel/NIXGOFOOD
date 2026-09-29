@@ -127,7 +127,7 @@ export default function CheckoutPage() {
     bankName: 'Banco Pichincha',
     accountType: 'Cuenta de Ahorros',
     accountNumber: '2204567890',
-    accountHolder: 'El Taca Nijo S.A.S.',
+    accountHolder: '404 Concept Cia. Ltda.',
     identification: '0190456789001',
   };
 

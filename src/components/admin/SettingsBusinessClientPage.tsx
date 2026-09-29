@@ -12,12 +12,12 @@ import { useApp } from '@/context/AppContext';
 
 export default function SettingsBusinessClientPage() {
   const { businessId } = useApp();
-  const [name, setName] = useState('El Taca Nijo');
-  const [description, setDescription] = useState('Sabor que provoca volver.');
+  const [name, setName] = useState('404');
+  const [description, setDescription] = useState('Burgers | fine dining & drinks.');
   const [phone, setPhone] = useState('0991234567');
   const [whatsapp, setWhatsapp] = useState('0991234567');
   const [currency, setCurrency] = useState('USD');
-  const [primaryColor, setPrimaryColor] = useState('#e11d48');
+  const [primaryColor, setPrimaryColor] = useState('#0a0a0a');
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -58,12 +58,12 @@ export default function SettingsBusinessClientPage() {
           .single();
 
         if (biz) {
-          setName(biz.name || 'El Taca Nijo');
+          setName(biz.name || '404');
           setDescription(biz.description || '');
           setPhone(biz.phone || '0991234567');
           setWhatsapp(biz.whatsapp || '0991234567');
           setCurrency(biz.currency || 'USD');
-          setPrimaryColor(biz.primary_color || '#e11d48');
+          setPrimaryColor(biz.primary_color || '#0a0a0a');
         }
       } catch (err) {
         console.error('Error loading business settings:', err);

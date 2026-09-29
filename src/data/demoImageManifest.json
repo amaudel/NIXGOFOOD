@@ -2,126 +2,136 @@
   "hero-main": {
     "productSlug": "hero-main",
     "path": "/demo/hero/hero-main.webp",
-    "model": "ai-gastronomic-flux",
-    "sizeKb": 216,
-    "generatedAt": "2026-08-14T17:02:12.582Z"
+    "model": "unsplash-curated",
+    "sizeKb": 274,
+    "generatedAt": "2026-09-29T20:06:00.000Z"
   },
-  "taco-birria": {
-    "productSlug": "taco-birria",
-    "path": "/demo/products/taco-birria.webp",
-    "model": "ai-gastronomic-flux",
-    "sizeKb": 126,
-    "generatedAt": "2026-08-14T17:02:12.972Z"
+  "burger-coffee-bacon": {
+    "productSlug": "burger-coffee-bacon",
+    "name": "Coffee Bacon",
+    "path": "/demo/products/burger-coffee-bacon.webp",
+    "model": "unsplash-curated",
+    "sizeKb": 145,
+    "generatedAt": "2026-09-29T20:06:00.000Z"
   },
-  "taco-pastor": {
-    "productSlug": "taco-pastor",
-    "path": "/demo/products/taco-pastor.webp",
-    "model": "ai-gastronomic-flux",
-    "sizeKb": 162,
-    "generatedAt": "2026-08-14T17:02:13.460Z"
+  "burger-maple-smoked": {
+    "productSlug": "burger-maple-smoked",
+    "name": "Maple Smoked",
+    "path": "/demo/products/burger-maple-smoked.webp",
+    "model": "unsplash-curated",
+    "sizeKb": 174,
+    "generatedAt": "2026-09-29T20:06:00.000Z"
   },
-  "taco-cochinita": {
-    "productSlug": "taco-cochinita",
-    "path": "/demo/products/taco-cochinita.webp",
-    "model": "ai-gastronomic-flux",
-    "sizeKb": 176,
-    "generatedAt": "2026-08-14T17:02:13.954Z"
+  "burger-crunchy": {
+    "productSlug": "burger-crunchy",
+    "name": "Crunchy",
+    "path": "/demo/products/burger-crunchy.webp",
+    "model": "unsplash-curated",
+    "sizeKb": 204,
+    "generatedAt": "2026-09-29T20:06:00.000Z"
   },
-  "taco-suadero": {
-    "productSlug": "taco-suadero",
-    "path": "/demo/products/taco-suadero.webp",
-    "model": "ai-gastronomic-flux",
-    "sizeKb": 164,
-    "generatedAt": "2026-08-14T17:02:14.647Z"
-  },
-  "hamburguesa-tacanijo": {
-    "productSlug": "hamburguesa-tacanijo",
-    "path": "/demo/products/hamburguesa-tacanijo.webp",
-    "model": "ai-gastronomic-flux",
-    "sizeKb": 188,
-    "generatedAt": "2026-08-14T17:02:15.238Z"
-  },
-  "burger-crispy": {
-    "productSlug": "burger-crispy",
-    "path": "/demo/products/burger-crispy.webp",
-    "model": "ai-gastronomic-flux",
-    "sizeKb": 136,
-    "generatedAt": "2026-08-14T17:02:15.746Z"
-  },
-  "smash-burger-mexicana": {
-    "productSlug": "smash-burger-mexicana",
-    "path": "/demo/products/smash-burger-mexicana.webp",
-    "model": "ai-gastronomic-flux",
+  "hamburguesa-404-clasica": {
+    "productSlug": "hamburguesa-404-clasica",
+    "name": "404 Clásica",
+    "path": "/demo/products/hamburguesa-404-clasica.webp",
+    "model": "unsplash-curated",
     "sizeKb": 144,
-    "generatedAt": "2026-08-14T17:02:16.215Z"
+    "generatedAt": "2026-09-29T20:06:00.000Z"
   },
-  "combo-taca-fiesta": {
-    "productSlug": "combo-taca-fiesta",
-    "path": "/demo/products/combo-taca-fiesta.webp",
-    "model": "ai-gastronomic-flux",
-    "sizeKb": 167,
-    "generatedAt": "2026-08-14T17:02:16.650Z"
+  "combo-404": {
+    "productSlug": "combo-404",
+    "name": "Combo 404",
+    "path": "/demo/products/combo-404.webp",
+    "model": "unsplash-curated",
+    "sizeKb": 127,
+    "generatedAt": "2026-09-29T20:06:00.000Z"
   },
-  "combo-duo-burgers": {
-    "productSlug": "combo-duo-burgers",
-    "path": "/demo/products/combo-duo-burgers.webp",
+  "combo-duo-404": {
+    "productSlug": "combo-duo-404",
+    "name": "Combo Dúo 404",
+    "path": "/demo/products/combo-duo-404.webp",
     "model": "ai-gastronomic-flux",
     "sizeKb": 143,
     "generatedAt": "2026-08-14T17:02:17.115Z"
   },
-  "pack-10-tacos": {
-    "productSlug": "pack-10-tacos",
-    "path": "/demo/products/pack-10-tacos.webp",
-    "model": "ai-gastronomic-flux",
-    "sizeKb": 205,
-    "generatedAt": "2026-08-14T17:02:17.824Z"
+  "combo-familiar-404": {
+    "productSlug": "combo-familiar-404",
+    "name": "Combo Familiar 404",
+    "path": "/demo/products/combo-familiar-404.webp",
+    "model": "unsplash-curated",
+    "sizeKb": 141,
+    "generatedAt": "2026-09-29T20:06:00.000Z"
   },
-  "nachos-especiales": {
-    "productSlug": "nachos-especiales",
-    "name": "Nachos Especiales",
-    "path": "/demo/products/nachos-especiales.webp",
-    "model": "local-gastronomic-webp",
-    "sizeKb": 16,
-    "generatedAt": "2026-08-14T17:57:31.873Z"
+  "papas-404": {
+    "productSlug": "papas-404",
+    "name": "Papas 404",
+    "path": "/demo/products/papas-404.webp",
+    "model": "unsplash-curated",
+    "sizeKb": 148,
+    "generatedAt": "2026-09-29T20:06:00.000Z"
   },
-  "quesadillas-harina": {
-    "productSlug": "quesadillas-harina",
-    "name": "Quesadillas en Harina",
-    "path": "/demo/products/quesadillas-harina.webp",
-    "model": "local-gastronomic-webp",
-    "sizeKb": 11,
-    "generatedAt": "2026-08-14T17:57:32.356Z"
+  "aros-de-cebolla": {
+    "productSlug": "aros-de-cebolla",
+    "name": "Aros de Cebolla Crocantes",
+    "path": "/demo/products/aros-de-cebolla.webp",
+    "model": "unsplash-curated",
+    "sizeKb": 244,
+    "generatedAt": "2026-09-29T20:06:00.000Z"
   },
-  "papas-rusticas-guacamole": {
-    "productSlug": "papas-rusticas-guacamole",
-    "name": "Papas Rústicas",
-    "path": "/demo/products/papas-rusticas-guacamole.webp",
-    "model": "local-gastronomic-webp",
-    "sizeKb": 12,
-    "generatedAt": "2026-08-14T17:57:32.707Z"
+  "papas-clasicas": {
+    "productSlug": "papas-clasicas",
+    "name": "Papas Clásicas",
+    "path": "/demo/products/papas-clasicas.webp",
+    "model": "unsplash-curated",
+    "sizeKb": 65,
+    "generatedAt": "2026-09-29T20:06:00.000Z"
   },
-  "limonada-menta": {
-    "productSlug": "limonada-menta",
-    "name": "Limonada con Menta",
-    "path": "/demo/products/limonada-menta.webp",
-    "model": "local-gastronomic-webp",
-    "sizeKb": 14,
-    "generatedAt": "2026-08-14T17:57:33.086Z"
+  "brownie-404": {
+    "productSlug": "brownie-404",
+    "name": "Brownie 404",
+    "path": "/demo/products/brownie-404.webp",
+    "model": "unsplash-curated",
+    "sizeKb": 157,
+    "generatedAt": "2026-09-29T20:06:00.000Z"
   },
-  "agua-horchata": {
-    "productSlug": "agua-horchata",
-    "name": "Agua de Horchata",
-    "path": "/demo/products/agua-horchata.webp",
-    "model": "local-gastronomic-webp",
-    "sizeKb": 14,
-    "generatedAt": "2026-08-14T17:57:33.857Z"
+  "volcan-chocolate": {
+    "productSlug": "volcan-chocolate",
+    "name": "Volcán de Chocolate",
+    "path": "/demo/products/volcan-chocolate.webp",
+    "model": "unsplash-curated",
+    "sizeKb": 165,
+    "generatedAt": "2026-09-29T20:06:00.000Z"
   },
-  "coca-cola": {
-    "productSlug": "coca-cola",
+  "cheesecake-404": {
+    "productSlug": "cheesecake-404",
+    "name": "Cheesecake 404",
+    "path": "/demo/products/cheesecake-404.webp",
+    "model": "unsplash-curated",
+    "sizeKb": 60,
+    "generatedAt": "2026-09-29T20:06:00.000Z"
+  },
+  "limonada-404": {
+    "productSlug": "limonada-404",
+    "name": "Limonada 404",
+    "path": "/demo/products/limonada-404.webp",
+    "model": "unsplash-curated",
+    "sizeKb": 57,
+    "generatedAt": "2026-09-29T20:06:00.000Z"
+  },
+  "milkshake-404": {
+    "productSlug": "milkshake-404",
+    "name": "Milkshake 404",
+    "path": "/demo/products/milkshake-404.webp",
+    "model": "unsplash-curated",
+    "sizeKb": 74,
+    "generatedAt": "2026-09-29T20:06:00.000Z"
+  },
+  "gaseosa-cola": {
+    "productSlug": "gaseosa-cola",
     "name": "Gaseosa Cola Helada",
-    "path": "/demo/products/coca-cola.webp",
-    "model": "local-gastronomic-webp",
-    "sizeKb": 15,
-    "generatedAt": "2026-08-14T17:57:34.369Z"
+    "path": "/demo/products/gaseosa-cola.webp",
+    "model": "unsplash-curated",
+    "sizeKb": 353,
+    "generatedAt": "2026-09-29T20:06:00.000Z"
   }
 }

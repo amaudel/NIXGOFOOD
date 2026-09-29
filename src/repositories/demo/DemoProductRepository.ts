@@ -41,7 +41,7 @@ export class DemoProductRepository implements IProductRepository {
       saved = {
         id: `p_demo_${Date.now()}`,
         businessId: product.businessId || 'b0000000-0000-0000-0000-000000000001',
-        categoryId: product.categoryId || 'cat_tacos',
+        categoryId: product.categoryId || 'cat_burgers',
         name: product.name || 'Nuevo Producto Demo',
         description: product.description || '',
         price: product.price || 0,
@@ -73,7 +73,7 @@ export class DemoProductRepository implements IProductRepository {
         businessId: cat.businessId || 'b0000000-0000-0000-0000-000000000001',
         name: cat.name || 'Nueva Categoría',
         slug: cat.slug || 'nueva-categoria',
-        icon: cat.icon || '🌮',
+        icon: cat.icon || '🍔',
         sortOrder: categories.length + 1,
         active: true,
       };

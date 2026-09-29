@@ -116,9 +116,9 @@ export const AppProvider: React.FC<{ businessId: string; children: React.ReactNo
   } = useBranch();
 
   // State
-  // Arrancan vacios/null (no en los datos mock de El Taca Nijo): mientras el
+  // Arrancan vacios/null (no en los datos mock demo): mientras el
   // fetch real esta en vuelo, cualquier negocio mostraba brevemente el
-  // catalogo y nombre de El Taca Nijo -- si el visitante navegaba fuera en
+  // catalogo y nombre del demo -- si el visitante navegaba fuera en
   // ese instante (ej. al panel admin), el "atras" del navegador restauraba
   // ese frame congelado desde bfcache con la marca equivocada.
   const [business, setBusiness] = useState<Business | null>(null);

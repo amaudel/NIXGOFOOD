@@ -41,7 +41,7 @@ const VERIFIED_DEFAULT_MODEL = 'fal-ai/flux/schnell';
 const IMAGE_MODEL = process.env.FAL_IMAGE_MODEL || VERIFIED_DEFAULT_MODEL;
 
 const DEMO_PHOTO_STYLE =
-  'premium commercial food photography, Mexican taqueria, realistic food, high-end restaurant menu photography, warm cinematic directional lighting, rich natural textures, appetizing, realistic ingredients, subtle shadows, dark neutral stone or rustic contemporary table, restaurant editorial photography, high detail, natural food styling, professional plating.';
+  'premium commercial food photography, gourmet burger restaurant, realistic food, high-end restaurant menu photography, warm cinematic directional lighting, rich natural textures, appetizing, realistic ingredients, subtle shadows, dark neutral stone or rustic contemporary table, restaurant editorial photography, high detail, natural food styling, professional plating.';
 
 const NEGATIVE_PROMPT =
   'no text, no words, no logos, no watermark, no menu typography, no hands, no people, no deformed food, no duplicate ingredients, no artificial plastic texture, no floating ingredients, no cutlery deformities.';
@@ -68,7 +68,7 @@ const HERO_CONFIG = {
   outputPath: path.join(HERO_DIR, 'hero-main.webp'),
   publicPath: '/demo/hero/hero-main.webp',
   prompt:
-    'Premium Mexican taqueria hero photograph. A dramatic spread of tacos including birria and al pastor, fresh lime, cilantro, onion, salsa and grilled ingredients, beautiful contemporary Mexican restaurant presentation, warm cinematic side lighting, dark sophisticated background, steam and subtle food freshness, high-end commercial food photography, realistic ingredients, generous negative space for website headline.',
+    'Premium gourmet burger restaurant hero photograph. A dramatic smash burger with melted cheese, crispy bacon and golden fries, beautiful contemporary burger restaurant presentation, warm cinematic side lighting, dark sophisticated background, steam and subtle food freshness, high-end commercial food photography, realistic ingredients, generous negative space for website headline.',
 };
 
 async function ensureDirectories() {
@@ -85,7 +85,7 @@ async function createPlaceholderImage() {
       <svg width="1200" height="900" xmlns="http://www.w3.org/2000/svg">
         <rect width="100%" height="100%" fill="#18181b"/>
         <circle cx="600" cy="450" r="180" fill="#27272a"/>
-        <text x="50%" y="450" font-family="sans-serif" font-weight="900" font-size="48" fill="#f59e0b" text-anchor="middle" dominant-baseline="middle">🌮 EL TACA NIJO</text>
+        <text x="50%" y="450" font-family="sans-serif" font-weight="900" font-size="48" fill="#f59e0b" text-anchor="middle" dominant-baseline="middle">🍔 404</text>
         <text x="50%" y="520" font-family="sans-serif" font-weight="700" font-size="24" fill="#a1a1aa" text-anchor="middle" dominant-baseline="middle">Fotografía del Platillo</text>
       </svg>
     `;

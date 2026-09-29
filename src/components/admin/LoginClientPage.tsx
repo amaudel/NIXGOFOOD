@@ -125,7 +125,7 @@ export default function LoginClientPage() {
                 required={!isDemo}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@eltacanijo.com"
+                placeholder="admin@404concept.ec"
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 pl-11 pr-4 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition-colors"
               />
             </div>

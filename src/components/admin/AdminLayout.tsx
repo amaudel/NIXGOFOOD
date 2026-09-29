@@ -243,7 +243,7 @@ const AdminLayoutInner: React.FC<{ children: React.ReactNode }> = ({ children })
             <div className="space-y-2">
               <h3 className="font-extrabold text-lg text-white">¿Restaurar datos iniciales de la demo?</h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Esto eliminará los cambios realizados en esta demo (productos creados, precios modificados y pedidos realizados) y restaurará los datos iniciales de El Taca Nijo.
+                Esto eliminará los cambios realizados en esta demo (productos creados, precios modificados y pedidos realizados) y restaurará los datos iniciales de 404.
               </p>
             </div>
 

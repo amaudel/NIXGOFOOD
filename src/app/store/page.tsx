@@ -9,7 +9,7 @@ import { Product } from '@/types';
 
 export default function Home() {
   const { categories, products, openProductModal, addToCart } = useApp();
-  const [activeCategoryId, setActiveCategoryId] = useState<string>('cat_tacos');
+  const [activeCategoryId, setActiveCategoryId] = useState<string>('cat_burgers');
 
   const handleSelectCategory = (categoryId: string) => {
     setActiveCategoryId(categoryId);

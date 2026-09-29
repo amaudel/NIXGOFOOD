@@ -109,7 +109,7 @@ export default function ChatWidget() {
       {open && (
         <div className="mb-3 flex h-[28rem] w-80 flex-col rounded-xl border border-zinc-800 bg-zinc-900 shadow-xl">
           <div className="flex items-center justify-between rounded-t-xl bg-zinc-800 px-4 py-3">
-            <span className="font-semibold text-zinc-100">🌮 Asistente El Taca Nijo</span>
+            <span className="font-semibold text-zinc-100">🍔 Asistente 404</span>
             <button onClick={() => setOpen(false)} className="text-zinc-400 hover:text-zinc-100" aria-label="Cerrar chat">
               ✕
             </button>
@@ -117,7 +117,7 @@ export default function ChatWidget() {
 
           <div ref={scrollRef} className="flex-1 min-h-0 space-y-3 overflow-y-auto px-4 py-3">
             {entries.length === 0 && (
-              <p className="text-sm text-zinc-400">¡Hola! Pregúntame por el menú o pide directo aquí 🌮</p>
+              <p className="text-sm text-zinc-400">¡Hola! Pregúntame por el menú o pide directo aquí 🍔</p>
             )}
             {entries.map((entry, i) => (
               <ChatBubble key={i} entry={entry} onButtonClick={handleButtonClick} />
@@ -147,7 +147,7 @@ export default function ChatWidget() {
 
       <div className="flex items-center gap-2">
         <a
-          href="https://t.me/ELTACANIJOPEDIDOSBOT"
+          href="https://t.me/PEDIDOS404BOT"
           target="_blank"
           rel="noopener noreferrer"
           className="flex h-14 w-14 items-center justify-center rounded-full bg-[#26A5E4] text-2xl text-white shadow-lg hover:bg-[#1e8fc7]"

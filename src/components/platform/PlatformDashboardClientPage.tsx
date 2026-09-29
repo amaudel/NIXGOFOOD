@@ -179,7 +179,7 @@ export default function PlatformDashboardClientPage() {
                                     🎭 Tono / Personalidad del Agente (`agent_persona`)
                                   </label>
                                   <p className="text-xs text-zinc-400">
-                                    Define la voz del bot (ej: "Eres un mesero amable de El Taca Nijo en Ecuador, usas emojis y hablas de tú").
+                                    Define la voz del bot (ej: "Eres un mesero amable de 404 en Ecuador, usas emojis y hablas de tú").
                                   </p>
                                   <textarea
                                     className="w-full h-40 p-3 bg-zinc-900 border border-zinc-700 rounded-xl text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs leading-relaxed"
